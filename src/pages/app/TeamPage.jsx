@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { TEAMS, MATCHES, TRAININGS, USERS, getUserById, getTeamById, getFullName } from '../../data/mock'
-import { Card, Badge, SectionHeader, Avatar, LicenseBadge, RoleBadge, EmptyState } from '../../components/ui'
+import { Card, Badge, SectionHeader, Avatar, LicenseBadge, EmptyState } from '../../components/ui'
 import { format, isPast, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
-  Trophy, Clock, MapPin, ChevronRight, Users, CheckCircle2, XCircle, AlertCircle,
+  Trophy, Clock, MapPin, ChevronRight, CheckCircle2, XCircle, AlertCircle,
   Target, Swords,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -24,6 +24,7 @@ export default function TeamPage() {
       ? currentUser.teamId
       : TEAMS[0].id
   )
+  const [showFullRanking, setShowFullRanking] = useState(false)
 
   const isPrivileged = ['president', 'coach'].includes(currentUser.role)
 
@@ -46,6 +47,20 @@ export default function TeamPage() {
     .sort((a, b) => parseISO(b.date) - parseISO(a.date))
 
   const teamPlayers = USERS.filter(u => u.teamId === selectedTeam && u.role === 'player')
+
+  const topScorers = [...teamPlayers]
+    .filter(u => (u.stats?.goals ?? 0) > 0)
+    .sort((a, b) => b.stats.goals - a.stats.goals)
+    .slice(0, 3)
+
+  const topAssists = [...teamPlayers]
+    .filter(u => (u.stats?.assists ?? 0) > 0)
+    .sort((a, b) => b.stats.assists - a.stats.assists)
+    .slice(0, 3)
+
+  const topMatches = [...teamPlayers]
+    .sort((a, b) => (b.stats?.matches ?? 0) - (a.stats?.matches ?? 0))
+    .slice(0, 3)
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -87,7 +102,10 @@ export default function TeamPage() {
                 onClick={() => navigate(`/app/matches/${lastResult.id}`)}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <Badge variant="gray">{lastResult.competition}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="gray">{lastResult.competition}</Badge>
+                    {team?.category && <Badge variant="blue">{team.category}</Badge>}
+                  </div>
                   <p className="text-xs text-surface-400">
                     {format(parseISO(lastResult.date), "d MMM yyyy", { locale: fr })}
                   </p>
@@ -112,6 +130,10 @@ export default function TeamPage() {
                     <p className="font-display font-bold text-surface-900">{lastResult.opponent}</p>
                     <p className="text-xs text-surface-500 mt-0.5">Extérieur</p>
                   </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-surface-100 flex flex-wrap gap-x-4 gap-y-1 text-xs text-surface-500">
+                  <span className="flex items-center gap-1"><MapPin size={11} /> {lastResult.ground}</span>
+                  <span>🟨 {lastResult.referee ?? 'Arbitre non renseigné'}</span>
                 </div>
                 {lastResult.scorers.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-surface-100">
@@ -160,14 +182,18 @@ export default function TeamPage() {
                           <p className="font-semibold text-surface-900 text-sm mt-0.5">
                             {match.location === 'home' ? `vs ${match.opponent}` : `@ ${match.opponent}`}
                           </p>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-surface-400">
-                            <span className="flex items-center gap-1">
+                          <div className="mt-1 space-y-0.5 text-xs text-surface-400">
+                            <div className="flex items-center gap-1">
                               <Clock size={11} />
                               {format(parseISO(match.date), "EEE d MMM · HH'h'mm", { locale: fr })}
-                            </span>
-                            <span className="flex items-center gap-1">
+                            </div>
+                            <div className="flex items-center gap-1">
                               <MapPin size={11} /> {match.ground}
-                            </span>
+                            </div>
+                            {team?.category && (
+                              <div>🏷 {team.category}</div>
+                            )}
+                            <div>🟨 {match.referee ?? 'Arbitre non renseigné'}</div>
                           </div>
                         </div>
                       </div>
@@ -231,6 +257,90 @@ export default function TeamPage() {
               </div>
             )}
           </div>
+          {/* Top stats */}
+          {teamPlayers.length > 0 && (
+            <div>
+              <Card className="p-5">
+                <SectionHeader
+                  title={`Top stats — ${team?.name}`}
+                  action={
+                    <button
+                      onClick={() => setShowFullRanking(v => !v)}
+                      className="text-xs text-brand-600 hover:underline"
+                    >
+                      {showFullRanking ? 'Réduire' : 'Classement complet'}
+                    </button>
+                  }
+                />
+
+                {/* Top 3 compacts */}
+                {!showFullRanking && (
+                  <div className="grid grid-cols-3 gap-4 mt-2">
+                    {[
+                      { label: '⚽ Buteurs',  players: topScorers, stat: u => u.stats.goals },
+                      { label: '🅰️ Passeurs', players: topAssists, stat: u => u.stats.assists },
+                      { label: '📋 Matchs',   players: topMatches, stat: u => u.stats?.matches ?? 0 },
+                    ].map(col => (
+                      <div key={col.label}>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">{col.label}</p>
+                        {col.players.length === 0 ? (
+                          <p className="text-xs text-surface-300">—</p>
+                        ) : col.players.map((u, i) => (
+                          <div key={u.id} className="flex items-center gap-2 py-1">
+                            <span className="text-xs font-bold text-gray-300 w-4">{i + 1}</span>
+                            <Avatar user={u} size="sm" />
+                            <span className="text-sm font-medium text-surface-800 flex-1 truncate">
+                              {u.lastName}
+                            </span>
+                            <span className="text-sm font-bold text-gray-900">{col.stat(u)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Classement complet */}
+                {showFullRanking && (
+                  <table className="w-full text-sm mt-2">
+                    <thead>
+                      <tr className="text-xs text-gray-400 border-b border-surface-200">
+                        <th className="text-left py-2 font-semibold">Joueur</th>
+                        <th className="text-center py-2 font-semibold">⚽</th>
+                        <th className="text-center py-2 font-semibold">🅰️</th>
+                        <th className="text-center py-2 font-semibold">📋</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...teamPlayers]
+                        .sort((a, b) => (b.stats?.goals ?? 0) - (a.stats?.goals ?? 0))
+                        .map(u => (
+                          <tr key={u.id} className="border-b border-surface-100 hover:bg-surface-50">
+                            <td className="py-2">
+                              <div className="flex items-center gap-2">
+                                <Avatar user={u} size="sm" />
+                                <span className="font-medium text-surface-900">
+                                  {u.firstName} {u.lastName}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="text-center font-bold text-surface-900">
+                              {u.stats?.goals ?? 0}
+                            </td>
+                            <td className="text-center text-surface-700">
+                              {u.stats?.assists ?? 0}
+                            </td>
+                            <td className="text-center text-surface-700">
+                              {u.stats?.matches ?? 0}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Joueurs */}

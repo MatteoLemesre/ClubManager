@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Link, Outlet } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge } from '../ui'
 import { CLUB, USERS } from '../../data/mock'
@@ -9,39 +9,69 @@ import {
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { to: '/app/events',   icon: CalendarDays,   label: 'Événements', roles: ['president','coach','player','supporter','parent'] },
-  { to: '/app/team',     icon: Shield,         label: 'Équipe',     roles: ['president','coach','player'] },
-  { to: '/app/members',  icon: Users,          label: 'Membres',    roles: ['president','coach','player','supporter','parent'] },
-  { to: '/app/calendar', icon: Calendar,       label: 'Calendrier', roles: ['president','coach','player','supporter','parent'] },
-  { to: '/app/messages', icon: MessageCircle,  label: 'Messagerie', roles: ['president','coach','player','parent'] },
+  {
+    to: '/app/events',
+    icon: CalendarDays,
+    label: 'Événements',
+    roles: ['president', 'coach', 'player', 'supporter', 'parent'],
+  },
+  {
+    to: '/app/team',
+    icon: Shield,
+    label: 'Équipes',
+    roles: ['president', 'coach', 'player', 'supporter', 'parent'],
+  },
+  {
+    to: '/app/members',
+    icon: Users,
+    label: (role) => role === 'coach' ? 'Joueurs' : 'Membres',
+    roles: ['president', 'coach'],
+  },
+  {
+    to: '/app/calendar',
+    icon: Calendar,
+    label: 'Calendrier',
+    roles: ['president', 'coach', 'player', 'supporter', 'parent'],
+  },
+  {
+    to: '/app/messages',
+    icon: MessageCircle,
+    label: 'Messagerie',
+    roles: ['president', 'coach', 'player', 'parent'],
+  },
 ]
 
 export default function AppLayout() {
   const { currentUser, switchUser } = useAuth()
   const [expanded, setExpanded] = useState(false)
 
-  const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(currentUser?.role))
+  const visibleNav = NAV_ITEMS.filter(item =>
+    item.roles.includes(currentUser?.role)
+  )
+
+  function getLabel(item) {
+    return typeof item.label === 'function' ? item.label(currentUser?.role) : item.label
+  }
 
   return (
     <div className="flex h-screen bg-surface-50 overflow-hidden">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className={`${expanded ? 'w-56' : 'w-16'} bg-white border-r border-surface-200
-                         flex flex-col transition-all duration-200 flex-shrink-0`}>
-
+      {/* ── SIDEBAR ────────────────────────────────────────── */}
+      <aside
+        className={`${expanded ? 'w-56' : 'w-16'} bg-white border-r border-surface-200
+                    flex flex-col transition-all duration-200 flex-shrink-0`}
+      >
         {/* Logo */}
-        <div className={`flex items-center gap-3 p-4 border-b border-surface-100 h-14
-                         ${!expanded ? 'justify-center' : ''}`}>
+        <div
+          className={`flex items-center gap-3 p-4 h-14 border-b border-surface-100
+                      ${!expanded ? 'justify-center' : ''}`}
+        >
           <div className="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0">
-            {/* Icône football */}
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 2a10 10 0 0 1 6.32 2.26L12 8.5 5.68 4.26A10 10 0 0 1 12 2z" fill="white" fillOpacity=".3" />
-              <path d="M2.46 8.26L7.5 11l-1 5.5H4a10 10 0 0 1-1.54-8.24z" fill="white" fillOpacity=".1" />
-              <path d="M21.54 8.26A10 10 0 0 1 20 16.5h-2.5L16.5 11l5.04-2.74z" fill="white" fillOpacity=".1" />
-              <path d="M6.5 22a10 10 0 0 1-2.5-5.5H6.5L9 21.5a10 10 0 0 1-2.5.5z" fill="white" fillOpacity=".1" />
-              <path d="M17.5 22a10 10 0 0 1-2.5.5L17 17h2.5A10 10 0 0 1 17.5 22z" fill="white" fillOpacity=".1" />
-              <path d="M12 8.5l2.5 7.5h-5L12 8.5z" fill="white" fillOpacity=".3" />
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="white" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="white" strokeWidth="1.5" />
+              <polygon points="12,5 15,10 12,14 9,10" fill="white" fillOpacity=".9" />
+              <polygon points="12,14 15,10 19,13 17,18 12,19" fill="white" fillOpacity=".5" />
+              <polygon points="12,14 9,10 5,13 7,18 12,19" fill="white" fillOpacity=".5" />
             </svg>
           </div>
           {expanded && (
@@ -52,11 +82,12 @@ export default function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 flex flex-col gap-1 p-2">
+        <nav className="flex-1 flex flex-col gap-1 p-2 overflow-hidden">
           {visibleNav.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
+              title={!expanded ? getLabel(item) : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-2 py-2.5 rounded-xl transition-all duration-150
                  ${!expanded ? 'justify-center' : ''}
@@ -65,37 +96,47 @@ export default function AppLayout() {
                    : 'text-gray-400 hover:bg-surface-100 hover:text-gray-700'
                  }`
               }
-              title={!expanded ? item.label : undefined}
             >
               <item.icon size={20} strokeWidth={1.8} className="flex-shrink-0" />
-              {expanded && <span className="text-sm font-medium">{item.label}</span>}
+              {expanded && (
+                <span className="text-sm font-medium whitespace-nowrap">{getLabel(item)}</span>
+              )}
             </NavLink>
           ))}
         </nav>
 
-        {/* User + toggle */}
+        {/* Bas de sidebar : profil + dev switcher + toggle */}
         <div className="p-2 border-t border-surface-100 flex flex-col gap-1">
 
-          {/* Dev role switcher */}
+          {/* Avatar → /app/profile */}
+          <Link
+            to="/app/profile"
+            className={`flex items-center gap-2 p-2 rounded-xl hover:bg-surface-100
+                        transition-colors ${!expanded ? 'justify-center' : ''}`}
+          >
+            <Avatar user={currentUser} size="sm" />
+            {expanded && (
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-gray-800 truncate">
+                  {currentUser?.firstName} {currentUser?.lastName}
+                </div>
+                <div className="text-[10px] text-gray-400 capitalize">{currentUser?.role}</div>
+              </div>
+            )}
+          </Link>
+
+          {/* Dev switcher */}
           <div className="relative group">
             <button
-              className={`w-full flex items-center gap-2 p-2 rounded-xl hover:bg-surface-100
-                          transition-colors ${!expanded ? 'justify-center' : ''}`}
+              className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl
+                          hover:bg-surface-100 text-xs text-gray-400 transition-colors`}
             >
-              <Avatar user={currentUser} size="sm" />
-              {expanded && (
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="text-xs font-semibold text-gray-800 truncate">
-                    {currentUser?.firstName} {currentUser?.lastName}
-                  </div>
-                  <div className="text-[10px] text-gray-400 capitalize">{currentUser?.role}</div>
-                </div>
-              )}
+              {expanded ? 'Changer de rôle (dev)' : '⚙'}
             </button>
-
-            {/* Dropdown */}
-            <div className="absolute bottom-full left-0 mb-1 bg-white rounded-2xl shadow-xl
-                            border border-surface-200 p-2 w-52 hidden group-hover:block z-50">
+            <div
+              className="absolute bottom-full left-0 mb-1 bg-white rounded-2xl shadow-xl
+                          border border-surface-200 p-2 w-52 hidden group-hover:block z-50"
+            >
               <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
                 Changer de rôle (dev)
               </div>
@@ -122,24 +163,25 @@ export default function AppLayout() {
             </div>
           </div>
 
-          {/* Bouton toggle */}
+          {/* Toggle expand/collapse */}
           <button
             onClick={() => setExpanded(e => !e)}
-            className={`flex items-center justify-center p-2 rounded-xl hover:bg-surface-100
-                        text-gray-400 hover:text-gray-600 transition-all
-                        ${expanded ? 'self-end w-8 h-8' : 'w-full'}`}
+            className="w-full flex items-center justify-center p-2 rounded-xl
+                       hover:bg-surface-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
             {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
       </aside>
 
-      {/* ── MAIN ────────────────────────────────────────────── */}
+      {/* ── MAIN ───────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* Topbar */}
-        <header className="h-14 bg-white border-b border-surface-200 flex items-center
-                           justify-between px-6 flex-shrink-0">
+        <header
+          className="h-14 bg-white border-b border-surface-200 flex items-center
+                     justify-between px-6 flex-shrink-0"
+        >
           <div className="flex items-center gap-2">
             <span className="font-display font-bold text-gray-900 text-sm">{CLUB.name}</span>
             <span className="text-gray-300">·</span>
@@ -148,10 +190,12 @@ export default function AppLayout() {
           {currentUser && (
             <div className="flex items-center gap-3">
               <RoleBadge role={currentUser.role} />
-              <Avatar user={currentUser} size="sm" />
-              <span className="text-sm font-medium text-gray-700">
-                {currentUser.firstName} {currentUser.lastName}
-              </span>
+              <Link to="/app/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Avatar user={currentUser} size="sm" />
+                <span className="text-sm font-medium text-gray-700">
+                  {currentUser.firstName} {currentUser.lastName}
+                </span>
+              </Link>
             </div>
           )}
         </header>

@@ -1,100 +1,138 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
-  isSameMonth, isSameDay, isToday, parseISO, format, addMonths, subMonths,
-  getDay,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  eachDayOfInterval, isSameMonth, isSameDay, isToday,
+  parseISO, format, addMonths, subMonths,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { EVENTS, TRAININGS, MATCHES, getTeamById } from '../../data/mock'
-import { Card, Badge, SectionHeader } from '../../components/ui'
-import { ChevronLeft, ChevronRight, Clock, MapPin, Trophy, Calendar, Users } from 'lucide-react'
+import { EVENTS, TRAININGS, MATCHES, TEAMS, getTeamById } from '../../data/mock'
+import { Card, Badge } from '../../components/ui'
+import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin } from 'lucide-react'
 
-const EVENT_COLORS = {
-  training: 'bg-emerald-400',
-  match_home: 'bg-brand-500',
-  match_away: 'bg-orange-400',
-  event: 'bg-violet-400',
+// ─── Couleurs par type ──────────────────────────────────────────────────────
+const TYPE_COLOR = {
+  training: { dot: 'bg-emerald-400', badge: 'green',  label: 'Entraînement' },
+  match:    { dot: 'bg-brand-500',   badge: 'brand',  label: 'Match' },
+  event:    { dot: 'bg-violet-400',  badge: 'purple', label: 'Événement' },
 }
 
-function buildDayEvents(date) {
-  const dateStr = format(date, 'yyyy-MM-dd')
-  const items = []
+const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
-  TRAININGS.forEach(t => {
-    if (format(parseISO(t.date), 'yyyy-MM-dd') === dateStr) {
-      items.push({ type: 'training', color: EVENT_COLORS.training, data: t, label: `Entraînement — ${getTeamById(t.teamId)?.name}` })
-    }
-  })
-  MATCHES.forEach(m => {
-    if (format(parseISO(m.date), 'yyyy-MM-dd') === dateStr) {
-      const color = m.location === 'home' ? EVENT_COLORS.match_home : EVENT_COLORS.match_away
-      items.push({ type: 'match', color, data: m, label: `${m.location === 'home' ? 'vs' : '@'} ${m.opponent}` })
-    }
-  })
-  EVENTS.forEach(e => {
-    if (format(parseISO(e.date), 'yyyy-MM-dd') === dateStr) {
-      items.push({ type: 'event', color: EVENT_COLORS.event, data: e, label: e.title })
-    }
-  })
-  return items
-}
-
+// ─── Page ───────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
   const { currentUser } = useAuth()
+
+  const isPresident  = currentUser.role === 'president'
+  const isSupporter  = currentUser.role === 'supporter'
+  const isParent     = currentUser.role === 'parent'
+  const isPrivileged = isPresident || currentUser.role === 'coach'
+
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [selectedDay, setSelectedDay] = useState(new Date())
-  const [filters, setFilters] = useState({ training: true, match: true, event: true })
+  const [selectedDay,  setSelectedDay]  = useState(new Date())
+  const [showTrainings, setShowTrainings] = useState(true)
+  const [showMatches,   setShowMatches]   = useState(true)
+  const [showEvents,    setShowEvents]    = useState(true)
+  const [teamFilter,    setTeamFilter]    = useState('')
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({ start: calStart, end: calEnd })
+  // ── Grille calendrier ────────────────────────────────────────────────────
+  const days = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 })
+    const end   = endOfWeek(endOfMonth(currentMonth),     { weekStartsOn: 1 })
+    return eachDayOfInterval({ start, end })
+  }, [currentMonth])
 
-  const selectedDayEvents = buildDayEvents(selectedDay).filter(e => filters[e.type])
+  // ── Items visibles selon rôle ────────────────────────────────────────────
+  const allItems = useMemo(() => {
+    const items = []
 
-  const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    // Entraînements — pas pour supporter / parent
+    if (showTrainings && !isSupporter && !isParent) {
+      TRAININGS
+        .filter(t => isPresident || t.teamId === currentUser.teamId)
+        .forEach(t => items.push({ ...t, _type: 'training', _date: t.date }))
+    }
 
-  function toggleFilter(key) {
-    setFilters(f => ({ ...f, [key]: !f[key] }))
+    // Matchs — tout le monde, filtrés par équipe sauf président/supporter/parent
+    if (showMatches) {
+      MATCHES
+        .filter(m => isPresident || isSupporter || isParent || m.teamId === currentUser.teamId)
+        .forEach(m => items.push({ ...m, _type: 'match', _date: m.date }))
+    }
+
+    // Événements — teamId null = club entier, sinon équipe concernée
+    if (showEvents) {
+      EVENTS
+        .filter(ev => {
+          if (!ev.teamId) return true
+          return isPrivileged || ev.teamId === currentUser.teamId
+        })
+        .forEach(e => items.push({ ...e, _type: 'event', _date: e.date }))
+    }
+
+    if (teamFilter) return items.filter(i => !i.teamId || i.teamId === teamFilter)
+    return items
+  }, [showTrainings, showMatches, showEvents, teamFilter, currentUser, isPresident, isSupporter, isParent, isPrivileged])
+
+  function itemsForDay(day) {
+    const str = format(day, 'yyyy-MM-dd')
+    return allItems.filter(i => format(parseISO(i._date), 'yyyy-MM-dd') === str)
   }
+
+  const selectedDayItems = itemsForDay(selectedDay)
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
+
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display font-bold text-3xl text-surface-900">Calendrier</h1>
-          <p className="text-surface-500 mt-1">Entraînements, matchs et événements</p>
+          <h1 className="font-display font-bold text-2xl text-gray-900">Calendrier</h1>
+          <p className="text-surface-500 text-sm mt-0.5">Entraînements, matchs et événements</p>
         </div>
-        {/* Filtres */}
-        <div className="flex items-center gap-2">
+
+        {/* Filtres toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
           {[
-            { key: 'training', label: 'Entraînements', color: 'bg-emerald-400' },
-            { key: 'match',    label: 'Matchs',         color: 'bg-brand-500' },
-            { key: 'event',    label: 'Événements',     color: 'bg-violet-400' },
+            { key: 'training', label: 'Entraînements', setter: setShowTrainings, state: showTrainings, dot: 'bg-emerald-400' },
+            { key: 'match',    label: 'Matchs',         setter: setShowMatches,   state: showMatches,   dot: 'bg-brand-500' },
+            { key: 'event',    label: 'Événements',     setter: setShowEvents,    state: showEvents,    dot: 'bg-violet-400' },
           ].map(f => (
             <button
               key={f.key}
-              onClick={() => toggleFilter(f.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                filters[f.key]
+              onClick={() => f.setter(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium
+                          border transition-colors ${
+                f.state
                   ? 'bg-white border-surface-200 text-surface-800'
                   : 'bg-surface-50 border-surface-200 text-surface-400'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${filters[f.key] ? f.color : 'bg-surface-300'}`} />
+              <span className={`w-2 h-2 rounded-full ${f.state ? f.dot : 'bg-surface-300'}`} />
               {f.label}
             </button>
           ))}
+
+          {/* Filtre équipe */}
+          <select
+            value={teamFilter}
+            onChange={e => setTeamFilter(e.target.value)}
+            className="px-3 py-1.5 bg-white border border-surface-200 rounded-xl text-xs
+                       text-surface-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
+          >
+            <option value="">Toutes les équipes</option>
+            {TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Calendrier */}
+
+        {/* ── Grille calendrier (col-span-2) ── */}
         <div className="col-span-2">
           <Card className="overflow-hidden">
+
             {/* Navigation mois */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
               <button
@@ -123,42 +161,46 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            {/* Grille */}
+            {/* Cases jours */}
             <div className="grid grid-cols-7">
               {days.map((day, idx) => {
-                const dayEvents = buildDayEvents(day).filter(e => filters[e.type])
-                const isCurrentMonth = isSameMonth(day, currentMonth)
-                const isSelected = isSameDay(day, selectedDay)
-                const isTodayDay = isToday(day)
+                const dayItems      = itemsForDay(day)
+                const inMonth       = isSameMonth(day, currentMonth)
+                const isSelected    = isSameDay(day, selectedDay)
+                const isTodayDay    = isToday(day)
 
                 return (
                   <button
                     key={idx}
                     onClick={() => setSelectedDay(day)}
-                    className={`min-h-[80px] p-2 border-b border-r border-surface-100 text-left transition-colors ${
-                      isSelected ? 'bg-brand-50' : 'hover:bg-surface-50'
-                    } ${!isCurrentMonth ? 'opacity-40' : ''}`}
+                    className={`min-h-[80px] p-2 border-b border-r border-surface-100 text-left
+                                transition-colors ${isSelected ? 'bg-brand-50' : 'hover:bg-surface-50'}
+                                ${!inMonth ? 'opacity-40' : ''}`}
                   >
-                    <span
-                      className={`inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-medium mb-1 ${
-                        isTodayDay
-                          ? 'bg-brand-600 text-white'
-                          : isSelected
-                          ? 'text-brand-700 font-bold'
-                          : 'text-surface-700'
-                      }`}
-                    >
+                    <span className={`inline-flex w-6 h-6 items-center justify-center rounded-full
+                                      text-xs font-medium mb-1 ${
+                      isTodayDay
+                        ? 'bg-brand-600 text-white'
+                        : isSelected
+                        ? 'text-brand-700 font-bold'
+                        : 'text-surface-700'
+                    }`}>
                       {format(day, 'd')}
                     </span>
                     <div className="flex flex-col gap-0.5">
-                      {dayEvents.slice(0, 2).map((e, i) => (
+                      {dayItems.slice(0, 2).map((item, i) => (
                         <div key={i} className="flex items-center gap-1">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${e.color}`} />
-                          <span className="text-xs text-surface-600 truncate leading-tight">{e.label}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0
+                                           ${TYPE_COLOR[item._type]?.dot}`} />
+                          <span className="text-xs text-surface-600 truncate leading-tight">
+                            {item._type === 'training' && item.theme}
+                            {item._type === 'match'    && `vs ${item.opponent}`}
+                            {item._type === 'event'    && item.title}
+                          </span>
                         </div>
                       ))}
-                      {dayEvents.length > 2 && (
-                        <span className="text-xs text-surface-400">+{dayEvents.length - 2}</span>
+                      {dayItems.length > 2 && (
+                        <span className="text-xs text-surface-400">+{dayItems.length - 2}</span>
                       )}
                     </div>
                   </button>
@@ -168,46 +210,50 @@ export default function CalendarPage() {
           </Card>
         </div>
 
-        {/* Panel jour sélectionné */}
+        {/* ── Panel jour sélectionné ── */}
         <div>
-          <SectionHeader
-            title={format(selectedDay, "EEE d MMMM", { locale: fr })}
-          />
-          {selectedDayEvents.length === 0 ? (
+          <h3 className="font-display font-semibold text-surface-800 text-base mb-3 capitalize">
+            {format(selectedDay, "EEEE d MMMM", { locale: fr })}
+          </h3>
+
+          {selectedDayItems.length === 0 ? (
             <Card className="p-6 text-center">
               <Calendar size={28} className="text-surface-300 mx-auto mb-2" />
               <p className="text-sm text-surface-500">Aucun événement ce jour</p>
             </Card>
           ) : (
             <div className="space-y-3">
-              {selectedDayEvents.map((item, idx) => {
-                const { type, data } = item
+              {selectedDayItems.map((item, idx) => {
+                const tc   = TYPE_COLOR[item._type]
+                const team = item.teamId ? getTeamById(item.teamId) : null
+                const time = format(parseISO(item._date), "HH'h'mm")
 
-                if (type === 'training') {
-                  const team = getTeamById(data.teamId)
+                // ── Entraînement ──
+                if (item._type === 'training') {
                   return (
                     <Card key={idx} className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <Badge variant="green">Entraînement</Badge>
+                        <span className={`w-2 h-2 rounded-full ${tc.dot}`} />
+                        <Badge variant={tc.badge}>{tc.label}</Badge>
                         {team && <Badge variant="gray">{team.name}</Badge>}
                       </div>
-                      <p className="font-semibold text-surface-900 text-sm">{data.theme}</p>
+                      <p className="font-semibold text-surface-900 text-sm">{item.theme}</p>
                       <div className="mt-2 space-y-1">
                         <p className="text-xs text-surface-500 flex items-center gap-1">
-                          <Clock size={11} />
-                          {format(parseISO(data.date), "HH'h'mm")} · {data.duration} min
+                          <Clock size={11} /> {time} · {item.duration} min
                         </p>
                         <p className="text-xs text-surface-500 flex items-center gap-1">
-                          <MapPin size={11} /> {data.location}
+                          <MapPin size={11} /> {item.location}
                         </p>
                       </div>
-                      {['coach', 'player'].includes(currentUser.role) && (
+                      {(currentUser.role === 'player' || currentUser.role === 'coach') && (
                         <div className="mt-3 pt-3 border-t border-surface-100 flex gap-2">
-                          <button className="flex-1 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors">
+                          <button className="flex-1 py-1.5 text-xs font-medium bg-emerald-50
+                                             text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors">
                             Présent
                           </button>
-                          <button className="flex-1 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                          <button className="flex-1 py-1.5 text-xs font-medium bg-red-50
+                                             text-red-600 rounded-lg hover:bg-red-100 transition-colors">
                             Absent
                           </button>
                         </div>
@@ -216,56 +262,68 @@ export default function CalendarPage() {
                   )
                 }
 
-                if (type === 'match') {
-                  const team = getTeamById(data.teamId)
+                // ── Match ──
+                if (item._type === 'match') {
                   return (
                     <Card key={idx} className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`w-2 h-2 rounded-full ${data.location === 'home' ? 'bg-brand-500' : 'bg-orange-400'}`} />
-                        <Badge variant={data.location === 'home' ? 'brand' : 'orange'}>
-                          {data.location === 'home' ? 'Domicile' : 'Extérieur'}
+                        <span className={`w-2 h-2 rounded-full ${
+                          item.location === 'home' ? 'bg-brand-500' : 'bg-orange-400'
+                        }`} />
+                        <Badge variant={item.location === 'home' ? 'brand' : 'orange'}>
+                          {item.location === 'home' ? 'Domicile' : 'Extérieur'}
                         </Badge>
                         {team && <Badge variant="gray">{team.name}</Badge>}
                       </div>
                       <p className="font-semibold text-surface-900 text-sm">
-                        {data.location === 'home' ? 'vs' : '@'} {data.opponent}
+                        {item.location === 'home' ? 'vs' : '@'} {item.opponent}
                       </p>
-                      <p className="text-xs text-surface-400 mt-0.5">{data.competition}</p>
+                      <p className="text-xs text-surface-400 mt-0.5">{item.competition}</p>
                       <div className="mt-2 space-y-1">
                         <p className="text-xs text-surface-500 flex items-center gap-1">
-                          <Clock size={11} />
-                          {format(parseISO(data.date), "HH'h'mm")}
+                          <Clock size={11} /> {time}
                         </p>
                         <p className="text-xs text-surface-500 flex items-center gap-1">
-                          <MapPin size={11} /> {data.ground}
+                          <MapPin size={11} /> {item.ground}
+                        </p>
+                        {team && (
+                          <p className="text-xs text-surface-500">🏷 {team.category}</p>
+                        )}
+                        <p className="text-xs text-surface-500">
+                          🟨 {item.referee ?? 'Arbitre non renseigné'}
                         </p>
                       </div>
-                      {data.status === 'played' && data.score && (
-                        <div className="mt-2 pt-2 border-t border-surface-100">
-                          <p className="text-sm font-bold text-surface-900 text-center">
-                            {data.score.home} – {data.score.away}
-                          </p>
-                        </div>
+                      {item.status === 'played' && item.score && (
+                        <p className="text-sm font-bold text-surface-900 text-center mt-2 pt-2
+                                      border-t border-surface-100">
+                          {item.score.home} – {item.score.away}
+                        </p>
                       )}
+                      <Link
+                        to={`/app/matches/${item.id}`}
+                        className="block mt-3 text-xs font-medium text-brand-600
+                                   hover:text-brand-700 transition-colors"
+                      >
+                        Voir la fiche →
+                      </Link>
                     </Card>
                   )
                 }
 
-                // event
+                // ── Événement ──
                 return (
                   <Card key={idx} className="p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-violet-400" />
-                      <Badge variant="purple">Événement</Badge>
+                      <span className={`w-2 h-2 rounded-full ${tc.dot}`} />
+                      <Badge variant={tc.badge}>{tc.label}</Badge>
                     </div>
-                    <p className="font-semibold text-surface-900 text-sm">{data.title}</p>
+                    <p className="font-semibold text-surface-900 text-sm">{item.title}</p>
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-surface-500 flex items-center gap-1">
-                        <Clock size={11} />
-                        {format(parseISO(data.date), "HH'h'mm")}
+                        <Clock size={11} /> {time}
                       </p>
                       <p className="text-xs text-surface-500 flex items-center gap-1">
-                        <MapPin size={11} /> {data.location}
+                        <MapPin size={11} /> {item.location}
                       </p>
                     </div>
                   </Card>

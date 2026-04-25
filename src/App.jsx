@@ -7,6 +7,7 @@ import MembersPage  from './pages/app/MembersPage'
 import CalendarPage from './pages/app/CalendarPage'
 import MessagesPage from './pages/app/MessagesPage'
 import MatchPage    from './pages/app/MatchPage'
+import ProfilePage  from './pages/app/ProfilePage'
 import LoginPage    from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 
@@ -25,6 +26,8 @@ export default function App() {
             <Route path="calendar"element={<CalendarPage />} />
             <Route path="messages"element={<MessagesPage />} />
             <Route path="matches/:id" element={<MatchPage />} />
+            <Route path="profile"     element={<ProfilePage />} />
+            <Route path="profile/:id" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/app/events" replace />} />
         </Routes>
