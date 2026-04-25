@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { TEAMS, MATCHES, TRAININGS, USERS, getUserById, getTeamById, getFullName } from '../../data/mock'
-import { Card, Badge, SectionHeader, Avatar, LicenseBadge, EmptyState } from '../../components/ui'
+import { Card, Badge, SectionHeader, Avatar, EmptyState } from '../../components/ui'
 import { format, isPast, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -25,11 +25,13 @@ export default function TeamPage() {
       : TEAMS[0].id
   )
   const [showFullRanking, setShowFullRanking] = useState(false)
+  const [manageAttendanceId, setManageAttendanceId] = useState(null)
 
   const isPrivileged = ['president', 'coach'].includes(currentUser.role)
+  const isSupporter  = currentUser.role === 'supporter'
 
-  // Équipes accessibles
-  const accessibleTeams = isPrivileged
+  // Équipes accessibles — supporter et privilégiés voient tout le club
+  const accessibleTeams = (isPrivileged || isSupporter)
     ? TEAMS
     : TEAMS.filter(t => t.id === currentUser.teamId)
 
@@ -70,9 +72,9 @@ export default function TeamPage() {
           <h1 className="font-display font-bold text-3xl text-surface-900">Équipe</h1>
           <p className="text-surface-500 mt-1">Matchs, entraînements et présences</p>
         </div>
-        {/* Sélecteur d'équipe */}
-        {isPrivileged && (
-          <div className="flex gap-2">
+        {/* Sélecteur d'équipe — président, coach, supporter */}
+        {(isPrivileged || isSupporter) && (
+          <div className="flex gap-2 flex-wrap">
             {TEAMS.map(t => (
               <button
                 key={t.id}
@@ -210,53 +212,115 @@ export default function TeamPage() {
             )}
           </div>
 
-          {/* Entraînements récents */}
-          <div>
-            <SectionHeader title="Entraînements" />
-            {teamTrainings.length === 0 ? (
-              <EmptyState
-                icon={<Clock size={36} />}
-                title="Aucun entraînement"
-                description="Les entraînements de cette équipe apparaîtront ici."
-              />
-            ) : (
-              <div className="space-y-3">
-                {teamTrainings.map(training => (
-                  <Card key={training.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                          <Clock size={15} className="text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-surface-900 text-sm">{training.theme}</p>
-                          <p className="text-xs text-surface-400 mt-0.5">
-                            {format(parseISO(training.date), "EEEE d MMM · HH'h'mm", { locale: fr })} · {training.duration} min
-                          </p>
-                          <p className="text-xs text-surface-400 flex items-center gap-1 mt-0.5">
-                            <MapPin size={11} /> {training.location}
-                          </p>
-                        </div>
-                      </div>
-                      {isPast(parseISO(training.date)) && (
-                        <div className="text-right">
-                          <p className="text-xs text-surface-500 mb-1">Présences</p>
-                          <div className="flex items-center gap-1">
-                            {training.attendances.map(a => (
-                              <AttendanceDot key={a.userId} status={a.status} />
-                            ))}
-                            {training.attendances.length === 0 && (
-                              <span className="text-xs text-surface-400">—</span>
+          {/* Entraînements récents — pas pour le supporter */}
+          {!isSupporter && (
+            <div>
+              <SectionHeader title="Entraînements" />
+              {teamTrainings.length === 0 ? (
+                <EmptyState
+                  icon={<Clock size={36} />}
+                  title="Aucun entraînement"
+                  description="Les entraînements de cette équipe apparaîtront ici."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {teamTrainings.map(training => {
+                    const presentCount    = training.attendances.filter(a => a.status === 'present').length
+                    const absentCount     = training.attendances.filter(a => a.status === 'absent').length
+                    const noResponseCount = teamPlayers.filter(p => !training.attendances.find(a => a.userId === p.id)).length
+                    const isManaging      = manageAttendanceId === training.id
+
+                    return (
+                      <Card key={training.id} className="p-4">
+                        {isPrivileged ? (
+                          <div>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                  <Clock size={15} className="text-emerald-600" />
+                                </div>
+                                <div>
+                                  <p className="text-xs text-surface-400">
+                                    {format(parseISO(training.date), "EEEE d MMM · HH'h'mm", { locale: fr })} · {training.duration} min
+                                  </p>
+                                  <p className="text-xs text-surface-400 flex items-center gap-1 mt-0.5">
+                                    <MapPin size={11} /> {training.location}
+                                  </p>
+                                  <p className="text-xs text-surface-500 mt-1">
+                                    {presentCount} présents · {absentCount} absents · {noResponseCount} sans réponse
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setManageAttendanceId(isManaging ? null : training.id)}
+                                className="text-xs text-brand-600 hover:underline flex-shrink-0"
+                              >
+                                {isManaging ? 'Fermer' : 'Gérer les présences'}
+                              </button>
+                            </div>
+                            {isManaging && (
+                              <div className="mt-3 pt-3 border-t border-surface-100 space-y-1.5">
+                                {teamPlayers.map(player => {
+                                  const att = training.attendances.find(a => a.userId === player.id)
+                                  return (
+                                    <div key={player.id} className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Avatar user={player} size="sm" />
+                                        <span className="text-sm text-surface-800">{getFullName(player)}</span>
+                                      </div>
+                                      {att?.status === 'present' ? (
+                                        <span className="flex items-center gap-1 text-xs text-emerald-600">
+                                          <CheckCircle2 size={13} /> Présent
+                                        </span>
+                                      ) : att?.status === 'absent' ? (
+                                        <span className="flex items-center gap-1 text-xs text-red-500">
+                                          <XCircle size={13} /> Absent{att.reason ? ` (${att.reason})` : ''}
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1 text-xs text-surface-400">
+                                          <AlertCircle size={13} /> Sans réponse
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                <Clock size={15} className="text-emerald-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-surface-400">
+                                  {format(parseISO(training.date), "EEEE d MMM · HH'h'mm", { locale: fr })} · {training.duration} min
+                                </p>
+                                <p className="text-xs text-surface-400 flex items-center gap-1 mt-0.5">
+                                  <MapPin size={11} /> {training.location}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex gap-2">
+                              <button className="flex-1 py-1.5 text-xs font-medium bg-emerald-50
+                                                 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors">
+                                Présent
+                              </button>
+                              <button className="flex-1 py-1.5 text-xs font-medium bg-red-50
+                                                 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                                Absent
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {/* Top stats */}
           {teamPlayers.length > 0 && (
             <div>
@@ -355,8 +419,8 @@ export default function TeamPage() {
                   <Avatar user={player} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-surface-900 truncate">{getFullName(player)}</p>
-                    {player.license && (
-                      <LicenseBadge status={player.license.status} />
+                    {player.position && (
+                      <p className="text-xs text-surface-400">{player.position}</p>
                     )}
                   </div>
                   {player.stats && (

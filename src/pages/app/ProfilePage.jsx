@@ -4,7 +4,7 @@ import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { USERS, getTeamById } from '../../data/mock'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { ArrowLeft, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ function Field({ label, value }) {
   )
 }
 
-function DocItem({ label, uploaded }) {
+function DocItem({ label, uploaded, url }) {
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-surface-100 last:border-0">
       <div className="flex items-center gap-2">
@@ -25,9 +25,21 @@ function DocItem({ label, uploaded }) {
         <span className="text-sm text-surface-800">{label}</span>
       </div>
       {uploaded ? (
-        <div className="flex items-center gap-1.5 text-emerald-600">
-          <CheckCircle size={14} />
-          <span className="text-xs font-medium">Fourni</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-emerald-600">
+            <CheckCircle size={14} />
+            <span className="text-xs font-medium">Fourni</span>
+          </div>
+          {url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
+            >
+              <ExternalLink size={12} /> Voir
+            </a>
+          )}
         </div>
       ) : (
         <div className="flex items-center gap-1.5 text-orange-500">
@@ -173,11 +185,16 @@ export default function ProfilePage() {
               value={format(new Date(targetUser.license.expiresAt), 'd MMMM yyyy', { locale: fr })}
             />
           </div>
-          {targetUser.documents?.license && (
-            <button className="mt-3 flex items-center gap-2 px-3 py-2 bg-brand-50 text-brand-700
-                               rounded-xl text-sm font-medium hover:bg-brand-100 transition-colors">
+          {targetUser.documents?.license?.uploaded && targetUser.documents?.license?.url && (
+            <a
+              href={targetUser.documents.license.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center gap-2 px-3 py-2 bg-brand-50 text-brand-700
+                         rounded-xl text-sm font-medium hover:bg-brand-100 transition-colors w-fit"
+            >
               <FileText size={14} /> Voir le document
-            </button>
+            </a>
           )}
         </Card>
       )}
@@ -187,9 +204,9 @@ export default function ProfilePage() {
         <Card className="p-5 mb-5">
           <SectionHeader title="Documents" className="mb-0" />
           <div className="mt-3">
-            <DocItem label="Licence PDF"         uploaded={targetUser.documents.license} />
-            <DocItem label="Certificat médical"  uploaded={targetUser.documents.medicalCert} />
-            <DocItem label="Photo d'identité"    uploaded={targetUser.documents.photo} />
+            <DocItem label="Licence PDF"        uploaded={targetUser.documents.license?.uploaded}     url={targetUser.documents.license?.url} />
+            <DocItem label="Certificat médical" uploaded={targetUser.documents.medicalCert?.uploaded} url={targetUser.documents.medicalCert?.url} />
+            <DocItem label="Photo d'identité"   uploaded={targetUser.documents.photo?.uploaded}       url={targetUser.documents.photo?.url} />
           </div>
         </Card>
       )}

@@ -7,9 +7,9 @@ import {
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { EVENTS, TRAININGS, MATCHES, TEAMS, getTeamById } from '../../data/mock'
-import { Card, Badge } from '../../components/ui'
-import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin } from 'lucide-react'
+import { EVENTS, TRAININGS, MATCHES, TEAMS, USERS, getTeamById, getFullName } from '../../data/mock'
+import { Card, Badge, Avatar } from '../../components/ui'
+import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 
 // ─── Couleurs par type ──────────────────────────────────────────────────────
 const TYPE_COLOR = {
@@ -34,7 +34,8 @@ export default function CalendarPage() {
   const [showTrainings, setShowTrainings] = useState(true)
   const [showMatches,   setShowMatches]   = useState(true)
   const [showEvents,    setShowEvents]    = useState(true)
-  const [teamFilter,    setTeamFilter]    = useState('')
+  const [teamFilter,       setTeamFilter]       = useState('')
+  const [manageAttendanceId, setManageAttendanceId] = useState(null)
 
   // ── Grille calendrier ────────────────────────────────────────────────────
   const days = useMemo(() => {
@@ -193,7 +194,7 @@ export default function CalendarPage() {
                           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0
                                            ${TYPE_COLOR[item._type]?.dot}`} />
                           <span className="text-xs text-surface-600 truncate leading-tight">
-                            {item._type === 'training' && item.theme}
+                            {item._type === 'training' && 'Entraînement'}
                             {item._type === 'match'    && `vs ${item.opponent}`}
                             {item._type === 'event'    && item.title}
                           </span>
@@ -230,6 +231,12 @@ export default function CalendarPage() {
 
                 // ── Entraînement ──
                 if (item._type === 'training') {
+                  const trainingPlayers = USERS.filter(u => u.role === 'player' && u.teamId === item.teamId)
+                  const presentCount    = item.attendances?.filter(a => a.status === 'present').length ?? 0
+                  const absentCount     = item.attendances?.filter(a => a.status === 'absent').length ?? 0
+                  const noResponseCount = trainingPlayers.filter(p => !item.attendances?.find(a => a.userId === p.id)).length
+                  const isManaging      = manageAttendanceId === item.id
+
                   return (
                     <Card key={idx} className="p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -237,8 +244,7 @@ export default function CalendarPage() {
                         <Badge variant={tc.badge}>{tc.label}</Badge>
                         {team && <Badge variant="gray">{team.name}</Badge>}
                       </div>
-                      <p className="font-semibold text-surface-900 text-sm">{item.theme}</p>
-                      <div className="mt-2 space-y-1">
+                      <div className="space-y-1">
                         <p className="text-xs text-surface-500 flex items-center gap-1">
                           <Clock size={11} /> {time} · {item.duration} min
                         </p>
@@ -246,8 +252,50 @@ export default function CalendarPage() {
                           <MapPin size={11} /> {item.location}
                         </p>
                       </div>
-                      {(currentUser.role === 'player' || currentUser.role === 'coach') && (
-                        <div className="mt-3 pt-3 border-t border-surface-100 flex gap-2">
+                      {isPrivileged ? (
+                        <div className="mt-3 pt-3 border-t border-surface-100">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-surface-500">
+                              {presentCount} présents · {absentCount} absents · {noResponseCount} sans réponse
+                            </p>
+                            <button
+                              onClick={() => setManageAttendanceId(isManaging ? null : item.id)}
+                              className="text-xs text-brand-600 hover:underline flex-shrink-0"
+                            >
+                              {isManaging ? 'Fermer' : 'Gérer'}
+                            </button>
+                          </div>
+                          {isManaging && (
+                            <div className="mt-2 space-y-1.5">
+                              {trainingPlayers.map(player => {
+                                const att = item.attendances?.find(a => a.userId === player.id)
+                                return (
+                                  <div key={player.id} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <Avatar user={player} size="sm" />
+                                      <span className="text-xs text-surface-800">{getFullName(player)}</span>
+                                    </div>
+                                    {att?.status === 'present' ? (
+                                      <span className="flex items-center gap-1 text-xs text-emerald-600">
+                                        <CheckCircle2 size={12} /> Présent
+                                      </span>
+                                    ) : att?.status === 'absent' ? (
+                                      <span className="flex items-center gap-1 text-xs text-red-500">
+                                        <XCircle size={12} /> Absent
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center gap-1 text-xs text-surface-400">
+                                        <AlertCircle size={12} /> Sans réponse
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-3 flex gap-2">
                           <button className="flex-1 py-1.5 text-xs font-medium bg-emerald-50
                                              text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors">
                             Présent

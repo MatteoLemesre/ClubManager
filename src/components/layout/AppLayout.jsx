@@ -37,7 +37,7 @@ const NAV_ITEMS = [
     to: '/app/messages',
     icon: MessageCircle,
     label: 'Messagerie',
-    roles: ['president', 'coach', 'player', 'parent'],
+    roles: ['president', 'coach', 'player', 'supporter', 'parent'],
   },
 ]
 

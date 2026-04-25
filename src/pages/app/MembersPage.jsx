@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { USERS, TEAMS, getTeamById, getFullName } from '../../data/mock'
-import { Avatar, Badge, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
+import { Avatar, Badge, Card, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { Search, UserPlus } from 'lucide-react'
 
 const ALL = ''
@@ -32,15 +32,6 @@ export default function MembersPage() {
     })
   }, [search, teamFilter, licFilter, currentUser, isCoach])
 
-  // Alertes licences expirées / bientôt
-  const licenseAlerts = useMemo(() =>
-    USERS.filter(u => {
-      if (isCoach && u.teamId !== currentUser.teamId) return false
-      return u.license?.status === 'expired' || u.license?.status === 'expiring'
-    }),
-    [currentUser, isCoach]
-  )
-
   return (
     <div className="p-8 max-w-5xl mx-auto">
 
@@ -60,25 +51,6 @@ export default function MembersPage() {
         />
         <p className="text-surface-500 text-sm">{members.length} membre{members.length > 1 ? 's' : ''}</p>
       </div>
-
-      {/* Alerte licences */}
-      {licenseAlerts.length > 0 && (
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl">
-          <p className="text-sm font-semibold text-orange-800 mb-2">
-            ⚠️ {licenseAlerts.length} licence{licenseAlerts.length > 1 ? 's' : ''} à renouveler
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {licenseAlerts.map(u => (
-              <div key={u.id}
-                className="flex items-center gap-1.5 bg-white rounded-xl px-2.5 py-1 border border-orange-200">
-                <Avatar user={u} size="xs" />
-                <span className="text-xs font-medium text-surface-800">{getFullName(u)}</span>
-                <LicenseBadge status={u.license.status} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -182,10 +154,7 @@ export default function MembersPage() {
                     {/* Licence */}
                     <td className="px-4 py-3">
                       {member.license ? (
-                        <div>
-                          <LicenseBadge status={member.license.status} />
-                          <p className="text-xs text-surface-400 mt-0.5">{member.license.number}</p>
-                        </div>
+                        <span className="text-sm text-surface-600 font-mono">{member.license.number}</span>
                       ) : (
                         <span className="text-sm text-surface-300">—</span>
                       )}

@@ -80,7 +80,11 @@ export const USERS = [
     position: 'Attaquant',
     jerseyNumber: 9,
     stats: { goals: 8, assists: 5, matches: 14, yellowCards: 2, redCards: 0 },
-    documents: { license: true, medicalCert: true, photo: true },
+    documents: {
+      license:     { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      medicalCert: { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      photo:       { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+    },
   },
   {
     id: 'user-5',
@@ -98,7 +102,11 @@ export const USERS = [
     position: 'Milieu',
     jerseyNumber: 8,
     stats: { goals: 3, assists: 12, matches: 13, yellowCards: 0, redCards: 0 },
-    documents: { license: true, medicalCert: false, photo: true },
+    documents: {
+      license:     { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      medicalCert: { uploaded: false, url: null },
+      photo:       { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+    },
   },
   {
     id: 'user-6',
@@ -116,7 +124,11 @@ export const USERS = [
     position: 'Attaquant',
     jerseyNumber: 11,
     stats: { goals: 12, assists: 3, matches: 15, yellowCards: 3, redCards: 1 },
-    documents: { license: true, medicalCert: true, photo: false },
+    documents: {
+      license:     { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      medicalCert: { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      photo:       { uploaded: false, url: null },
+    },
   },
   {
     id: 'user-7',
@@ -165,7 +177,11 @@ export const USERS = [
     position: 'Défenseur',
     jerseyNumber: 5,
     stats: { goals: 4, assists: 2, matches: 10, yellowCards: 1, redCards: 0 },
-    documents: { license: true, medicalCert: false, photo: true },
+    documents: {
+      license:     { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+      medicalCert: { uploaded: false, url: null },
+      photo:       { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+    },
   },
 ]
 
