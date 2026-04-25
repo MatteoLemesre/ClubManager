@@ -231,6 +231,19 @@ export const EVENTS = [
     createdBy: 'user-3',
     attendees: ['user-6'],
   },
+  {
+    id: 'ev-5',
+    title: 'BBQ de fin de saison',
+    description: 'Grand barbecue pour fêter la fin de saison avec tous les membres du club, les familles et les supporters. Boissons et grillades offertes par le club. Ambiance garantie !',
+    type: 'social',
+    visibility: 'club',
+    startsAt: new Date(2025, 5, 21, 13, 0),
+    endsAt: new Date(2025, 5, 21, 19, 0),
+    location: 'Terrain Nord — FC Saint-Denis',
+    createdBy: 'user-1',
+    attendees: ['user-1', 'user-2', 'user-3', 'user-8'],
+    maxAttendees: 80,
+  },
 ]
 
 // ─── TRAININGS ─────────────────────────────────────────────────────────────
