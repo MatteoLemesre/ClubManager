@@ -327,15 +327,13 @@ export default function MatchPage() {
   const [activeTab, setActiveTab] = useState(tabs[0].id)
 
   // Résultat : victoire / défaite / nul
-  const resultVariant = match.score
-    ? match.score.home > match.score.away ? 'green'
-    : match.score.home < match.score.away ? 'red'
-    : 'gray'
-  const resultLabel = match.score
-    ? match.score.home > match.score.away ? 'Victoire'
-    : match.score.home < match.score.away ? 'Défaite'
-    : 'Nul'
-    : null
+  let resultVariant = 'gray'
+  let resultLabel   = null
+  if (match.score) {
+    if (match.score.home > match.score.away) { resultVariant = 'green'; resultLabel = 'Victoire' }
+    else if (match.score.home < match.score.away) { resultVariant = 'red';   resultLabel = 'Défaite'  }
+    else                                          { resultVariant = 'gray';  resultLabel = 'Nul'      }
+  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
