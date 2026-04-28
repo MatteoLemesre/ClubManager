@@ -5,7 +5,7 @@ import { Avatar, RoleBadge } from '../ui'
 import { CLUB, USERS } from '../../data/mock'
 import {
   CalendarDays, Shield, Users, Calendar, MessageCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronUp,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -42,8 +42,9 @@ const NAV_ITEMS = [
 ]
 
 export default function AppLayout() {
-  const { currentUser, switchUser } = useAuth()
-  const [expanded, setExpanded] = useState(false)
+  const { currentUser, login } = useAuth()
+  const [expanded,  setExpanded]  = useState(false)
+  const [devOpen,   setDevOpen]   = useState(false)
 
   const visibleNav = NAV_ITEMS.filter(item =>
     item.roles.includes(currentUser?.role)
@@ -126,41 +127,45 @@ export default function AppLayout() {
           </Link>
 
           {/* Dev switcher */}
-          <div className="relative group">
+          <div className="relative">
             <button
-              className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl
-                          hover:bg-surface-100 text-xs text-gray-400 transition-colors`}
+              onClick={() => setDevOpen(o => !o)}
+              className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl
+                         hover:bg-surface-100 text-xs text-gray-400 transition-colors"
             >
-              {expanded ? 'Changer de rôle (dev)' : '⚙'}
+              {expanded
+                ? <><span>Changer de rôle</span><ChevronUp size={12} className={devOpen ? '' : 'rotate-180'} /></>
+                : '⚙'
+              }
             </button>
-            <div
-              className="absolute bottom-full left-0 mb-1 bg-white rounded-2xl shadow-xl
-                          border border-surface-200 p-2 w-52 hidden group-hover:block z-50"
-            >
-              <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
-                Changer de rôle (dev)
-              </div>
-              {USERS.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => switchUser(u.id)}
-                  className={`w-full flex items-center gap-2 px-2 py-2 rounded-xl text-left
-                               hover:bg-surface-50 transition-colors
-                               ${currentUser?.id === u.id ? 'bg-brand-50' : ''}`}
-                >
-                  <Avatar user={u} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-gray-800 truncate">
-                      {u.firstName} {u.lastName}
+            {devOpen && (
+              <div className="absolute bottom-full left-0 mb-1 bg-white rounded-2xl shadow-xl
+                              border border-surface-200 p-2 w-52 z-[100]">
+                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
+                  Changer de rôle (dev)
+                </div>
+                {USERS.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => { login(u.id); setDevOpen(false) }}
+                    className={`w-full flex items-center gap-2 px-2 py-2 rounded-xl text-left
+                                hover:bg-surface-50 transition-colors
+                                ${currentUser?.id === u.id ? 'bg-brand-50' : ''}`}
+                  >
+                    <Avatar user={u} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-800 truncate">
+                        {u.firstName} {u.lastName}
+                      </div>
+                      <div className="text-xs text-gray-400 capitalize">{u.role}</div>
                     </div>
-                    <div className="text-xs text-gray-400 capitalize">{u.role}</div>
-                  </div>
-                  {currentUser?.id === u.id && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-600 flex-shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
+                    {currentUser?.id === u.id && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand-600 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Toggle expand/collapse */}

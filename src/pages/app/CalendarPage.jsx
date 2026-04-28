@@ -51,25 +51,32 @@ export default function CalendarPage() {
     // Entraînements — pas pour supporter / parent
     if (showTrainings && !isSupporter && !isParent) {
       TRAININGS
-        .filter(t => isPresident || t.teamId === currentUser.teamId)
-        .forEach(t => items.push({ ...t, _type: 'training', _date: t.date }))
+        .filter(t => isPresident || currentUser.teamIds?.includes(t.teamId))
+        .forEach(t => items.push({ ...t, _type: 'training', _dateObj: parseISO(t.date) }))
     }
 
     // Matchs — tout le monde, filtrés par équipe sauf président/supporter/parent
     if (showMatches) {
       MATCHES
-        .filter(m => isPresident || isSupporter || isParent || m.teamId === currentUser.teamId)
-        .forEach(m => items.push({ ...m, _type: 'match', _date: m.date }))
+        .filter(m => isPresident || isSupporter || isParent || currentUser.teamIds?.includes(m.teamId))
+        .forEach(m => items.push({ ...m, _type: 'match', _dateObj: m.scheduledAt }))
     }
 
-    // Événements — teamId null = club entier, sinon équipe concernée
+    // Événements — category club = visible par tous (filtre visibility), team = selon équipe
     if (showEvents) {
       EVENTS
         .filter(ev => {
-          if (!ev.teamId) return true
-          return isPrivileged || ev.teamId === currentUser.teamId
+          if (ev.category === 'club') {
+            if (ev.visibility === 'club') return true
+            if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
+            return false
+          }
+          if (ev.category === 'team') {
+            return isPrivileged || currentUser.teamIds?.includes(ev.teamId)
+          }
+          return false
         })
-        .forEach(e => items.push({ ...e, _type: 'event', _date: e.date }))
+        .forEach(e => items.push({ ...e, _type: 'event', _dateObj: e.startsAt }))
     }
 
     if (teamFilter) return items.filter(i => !i.teamId || i.teamId === teamFilter)
@@ -78,7 +85,7 @@ export default function CalendarPage() {
 
   function itemsForDay(day) {
     const str = format(day, 'yyyy-MM-dd')
-    return allItems.filter(i => format(parseISO(i._date), 'yyyy-MM-dd') === str)
+    return allItems.filter(i => i._dateObj && format(i._dateObj, 'yyyy-MM-dd') === str)
   }
 
   const selectedDayItems = itemsForDay(selectedDay)
@@ -195,7 +202,7 @@ export default function CalendarPage() {
                                            ${TYPE_COLOR[item._type]?.dot}`} />
                           <span className="text-xs text-surface-600 truncate leading-tight">
                             {item._type === 'training' && 'Entraînement'}
-                            {item._type === 'match'    && `vs ${item.opponent}`}
+                            {item._type === 'match'    && `vs ${item.opponentName}`}
                             {item._type === 'event'    && item.title}
                           </span>
                         </div>
@@ -227,11 +234,11 @@ export default function CalendarPage() {
               {selectedDayItems.map((item, idx) => {
                 const tc   = TYPE_COLOR[item._type]
                 const team = item.teamId ? getTeamById(item.teamId) : null
-                const time = format(parseISO(item._date), "HH'h'mm")
+                const time = item._dateObj ? format(item._dateObj, "HH'h'mm") : '—'
 
                 // ── Entraînement ──
                 if (item._type === 'training') {
-                  const trainingPlayers = USERS.filter(u => u.role === 'player' && u.teamId === item.teamId)
+                  const trainingPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(item.teamId))
                   const presentCount    = item.attendances?.filter(a => a.status === 'present').length ?? 0
                   const absentCount     = item.attendances?.filter(a => a.status === 'absent').length ?? 0
                   const noResponseCount = trainingPlayers.filter(p => !item.attendances?.find(a => a.userId === p.id)).length
@@ -316,15 +323,15 @@ export default function CalendarPage() {
                     <Card key={idx} className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`w-2 h-2 rounded-full ${
-                          item.location === 'home' ? 'bg-brand-500' : 'bg-orange-400'
+                          item.isHome ? 'bg-brand-500' : 'bg-orange-400'
                         }`} />
-                        <Badge variant={item.location === 'home' ? 'brand' : 'orange'}>
-                          {item.location === 'home' ? 'Domicile' : 'Extérieur'}
+                        <Badge variant={item.isHome ? 'brand' : 'orange'}>
+                          {item.isHome ? 'Domicile' : 'Déplacement'}
                         </Badge>
                         {team && <Badge variant="gray">{team.name}</Badge>}
                       </div>
                       <p className="font-semibold text-surface-900 text-sm">
-                        {item.location === 'home' ? 'vs' : '@'} {item.opponent}
+                        vs {item.opponentName}
                       </p>
                       <p className="text-xs text-surface-400 mt-0.5">{item.competition}</p>
                       <div className="mt-2 space-y-1">
@@ -332,7 +339,7 @@ export default function CalendarPage() {
                           <Clock size={11} /> {time}
                         </p>
                         <p className="text-xs text-surface-500 flex items-center gap-1">
-                          <MapPin size={11} /> {item.ground}
+                          <MapPin size={11} /> {item.location}
                         </p>
                         {team && (
                           <p className="text-xs text-surface-500">🏷 {team.category}</p>
@@ -341,10 +348,10 @@ export default function CalendarPage() {
                           🟨 {item.referee ?? 'Arbitre non renseigné'}
                         </p>
                       </div>
-                      {item.status === 'played' && item.score && (
+                      {item.status === 'played' && (
                         <p className="text-sm font-bold text-surface-900 text-center mt-2 pt-2
                                       border-t border-surface-100">
-                          {item.score.home} – {item.score.away}
+                          {item.scoreHome} – {item.scoreAway}
                         </p>
                       )}
                       <Link
