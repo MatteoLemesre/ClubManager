@@ -33,44 +33,40 @@ src/
 │   └── mock.js                    # Toutes les données + helpers
 ├── pages/
 │   ├── auth/
-│   │   ├── LoginPage.jsx          # ❌ À CRÉER
-│   │   └── RegisterPage.jsx       # ❌ À CRÉER
+│   │   ├── LoginPage.jsx
+│   │   └── RegisterPage.jsx
 │   └── app/
-│       ├── EventsPage.jsx         # ✅ FAIT
-│       ├── TeamPage.jsx           # ✅ FAIT (à mettre à jour : top stats + classement)
-│       ├── MembersPage.jsx        # ❌ À CRÉER
-│       ├── CalendarPage.jsx       # ❌ À CRÉER
-│       ├── MessagesPage.jsx       # ❌ À CRÉER
-│       ├── MatchPage.jsx          # ❌ À CRÉER  (/app/matches/:id)
-│       └── ProfilePage.jsx        # ❌ À CRÉER  (/app/profile et /app/profile/:id)
-├── App.jsx                        # ❌ À CRÉER
-└── main.jsx                       # ✅ existe
+│       ├── EventsPage.jsx         # Événements ponctuels + matchs selon rôle
+│       ├── TeamPage.jsx           # Vue équipes avec sous-onglets
+│       ├── MembersPage.jsx        # Membres du club
+│       ├── CalendarPage.jsx       # Calendrier entraînements + matchs + événements
+│       ├── MessagesPage.jsx       # Messagerie
+│       ├── MatchPage.jsx          # Fiche match (/app/matches/:id)
+│       └── ProfilePage.jsx        # Profil (/app/profile et /app/profile/:id)
+├── App.jsx
+└── main.jsx
 ```
 
 ---
 
 ## Navigation par rôle — DÉFINITIVE
 
-La sidebar filtre les items selon le rôle. Voici la nav exacte par rôle :
-
 | Page | Président | Coach | Joueur | Supporter |
 |------|:---------:|:-----:|:------:|:---------:|
 | Événements `/app/events` | ✅ | ✅ | ✅ | ✅ |
 | Équipes `/app/team` | ✅ | ✅ | ✅ | ✅ |
-| Membres `/app/members` | ✅ | ✅ (label "Joueurs") | ❌ | ❌ |
+| Membres `/app/members` | ✅ | ✅ label "Joueurs" | ❌ | ❌ |
 | Calendrier `/app/calendar` | ✅ | ✅ | ✅ | ✅ |
-| Messagerie `/app/messages` | ✅ | ✅ | ✅ | ❌ |
-
-> Le parent a les mêmes droits que le supporter + messagerie.
+| Messagerie `/app/messages` | ✅ | ✅ | ✅ | ✅ discussions libres |
 
 ```js
 const NAV_ITEMS = [
   { to: '/app/events',   icon: CalendarDays,  label: 'Événements', roles: ['president','coach','player','supporter','parent'] },
   { to: '/app/team',     icon: Shield,        label: 'Équipes',    roles: ['president','coach','player','supporter','parent'] },
-  { to: '/app/members',  icon: Users,         label: (role) => role === 'coach' ? 'Joueurs' : 'Membres',
-                                               roles: ['president','coach'] },
+  { to: '/app/members',  icon: Users,         label: 'Membres',    roles: ['president','coach'],
+    labelFn: (role) => role === 'coach' ? 'Joueurs' : 'Membres' },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier', roles: ['president','coach','player','supporter','parent'] },
-  { to: '/app/messages', icon: MessageCircle, label: 'Messagerie', roles: ['president','coach','player','parent'] },
+  { to: '/app/messages', icon: MessageCircle, label: 'Messagerie', roles: ['president','coach','player','supporter','parent'] },
 ]
 ```
 
@@ -82,9 +78,9 @@ const NAV_ITEMS = [
 |------|-----|-------------|
 | `president` | u-1 | Accès complet club |
 | `coach` | u-2, u-3 | Ses équipes uniquement |
-| `player` | u-4→u-7 | Son profil + son équipe |
-| `supporter` | u-8 | Matchs, favoris, discussions |
-| `parent` | u-9 | Supporter + conv parent |
+| `player` | u-4→u-7 | Son équipe, événements, calendrier |
+| `supporter` | u-8 | Vision externe — matchs, équipes, événements publics |
+| `parent` | u-9 | Comme supporter + messagerie parent |
 
 **Règle absolue :** ne jamais rediriger — adapter le contenu affiché selon le rôle.
 
@@ -102,267 +98,316 @@ login('u-4')              // dev seulement
 
 ---
 
-## AppLayout.jsx — sidebar rétractable
+## Mock data — référence complète
 
-### États
-- **Compact (défaut)** : 64px — logo + icônes seules + avatar en bas
-- **Étendu** : 220px — logo + nom club + icônes + labels + nom utilisateur
+### À ajouter / mettre à jour dans mock.js
 
-```jsx
-const [expanded, setExpanded] = useState(false)
+**Users — ajouter sur chaque joueur :**
+```js
+birthPlace: 'Paris (75)',
+birthDate: '2001-03-15',     // déjà présent, vérifier format ISO string
+documents: {
+  license:     { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+  medicalCert: { uploaded: false, url: null },
+  photo:       { uploaded: true,  url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/R36.pdf' },
+}
+```
 
-<aside className={`${expanded ? 'w-56' : 'w-16'} bg-white border-r border-surface-200
-                   flex flex-col transition-all duration-200 flex-shrink-0`}>
+**EVENTS — 3 catégories désormais :**
+```js
+// category: 'club' = événement principal du club (visible par tous)
+// category: 'team' = événement interne équipe (visible pres + coach + joueurs de l'équipe)
+// category: 'match' = match programmé (affiché dans EventsPage pour supporters)
 
-  {/* Logo */}
-  <div className={`flex items-center gap-3 p-4 border-b border-surface-100 ${!expanded && 'justify-center'}`}>
-    <div className="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0">
-      {/* SVG foot */}
-    </div>
-    {expanded && <span className="font-display font-bold text-sm truncate">{CLUB.name}</span>}
-  </div>
+export const EVENTS = [
+  {
+    id: 'ev-1',
+    title: 'Covoiturage — Déplacement FC Aubervilliers',
+    description: 'Organisation du covoiturage pour le match de samedi.',
+    category: 'team',         // ← NOUVEAU CHAMP
+    type: 'carpool',
+    visibility: 'team',
+    teamId: 'team-1',
+    startsAt: new Date(2026, 2, 15, 13, 30),
+    location: 'Parking Terrain Nord',
+    createdBy: 'u-2',
+    attendees: ['u-4', 'u-5', 'u-7', 'u-8'],
+    carpoolOffers: 4,
+    carpoolRequests: 6,
+  },
+  {
+    id: 'ev-2',
+    title: 'Réunion coachs — Bilan mi-saison',
+    description: 'Point sur les résultats, présences et besoins équipement.',
+    category: 'club',
+    type: 'meeting',
+    visibility: 'role',
+    targetRoles: ['president', 'coach'],
+    startsAt: new Date(2026, 2, 25, 20, 0),
+    location: 'Local du club',
+    createdBy: 'u-1',
+    attendees: ['u-1', 'u-2', 'u-3'],
+  },
+  {
+    id: 'ev-3',
+    title: 'Repas de fin de saison',
+    description: 'Grand repas annuel pour tous les membres, familles et supporters.',
+    category: 'club',
+    type: 'social',
+    visibility: 'club',
+    startsAt: new Date(2026, 5, 28, 18, 0),
+    location: 'Salle des fêtes, Saint-Denis',
+    createdBy: 'u-1',
+    attendees: ['u-1', 'u-2', 'u-3', 'u-4', 'u-5', 'u-8'],
+    maxAttendees: 80,
+  },
+  {
+    id: 'ev-4',
+    title: 'Tournoi de Pâques U9/U11',
+    description: '4 équipes de 8 joueurs. Journée complète avec arbitrage.',
+    category: 'club',
+    type: 'tournament',
+    visibility: 'club',
+    startsAt: new Date(2026, 3, 6, 9, 0),
+    endsAt:   new Date(2026, 3, 6, 17, 0),
+    location: 'Terrain Nord',
+    createdBy: 'u-1',
+    attendees: ['u-1', 'u-3'],
+    maxAttendees: 60,
+  },
+  {
+    id: 'ev-5',
+    title: 'BBQ de fin de saison',
+    description: 'Grand barbecue pour fêter la fin de saison avec tous les membres, familles et supporters. Boissons et grillades offertes par le club !',
+    category: 'club',
+    type: 'social',
+    visibility: 'club',
+    startsAt: new Date(2026, 5, 21, 13, 0),
+    endsAt:   new Date(2026, 5, 21, 19, 0),
+    location: 'Terrain Nord — FC Saint-Denis',
+    createdBy: 'u-1',
+    attendees: ['u-1', 'u-2', 'u-3', 'u-8'],
+    maxAttendees: 80,
+  },
+]
+```
 
-  {/* Nav */}
-  <nav className="flex-1 flex flex-col gap-1 p-2 overflow-hidden">
-    {visibleNav.map(item => (
-      <NavLink key={item.to} to={item.to}
-        className={({ isActive }) =>
-          `flex items-center gap-3 px-2 py-2.5 rounded-xl transition-all
-           ${!expanded && 'justify-center'}
-           ${isActive ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-surface-100 hover:text-gray-700'}`
-        }>
-        <item.icon size={20} strokeWidth={1.8} className="flex-shrink-0" />
-        {expanded && <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>}
-      </NavLink>
-    ))}
-  </nav>
-
-  {/* Profil + toggle */}
-  <div className="p-2 border-t border-surface-100">
-    {/* Clic avatar → /app/profile */}
-    <Link to="/app/profile"
-      className={`flex items-center gap-2 p-2 rounded-xl hover:bg-surface-100 mb-2
-                  ${!expanded && 'justify-center'}`}>
-      <Avatar user={currentUser} size="sm" />
-      {expanded && (
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-semibold text-gray-800 truncate">
-            {currentUser?.firstName} {currentUser?.lastName}
-          </div>
-          <div className="text-[10px] text-gray-400 capitalize">{currentUser?.role}</div>
-        </div>
-      )}
-    </Link>
-
-    {/* Dev switcher */}
-    <div className="relative group mb-2">
-      <button className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl
-                          hover:bg-surface-100 text-xs text-gray-400`}>
-        {expanded ? 'Changer de rôle (dev)' : '⚙'}
-      </button>
-      <div className="absolute bottom-full left-0 mb-1 bg-white rounded-2xl shadow-xl
-                      border border-surface-200 p-2 w-52 hidden group-hover:block z-50">
-        {USERS.map(u => (
-          <button key={u.id} onClick={() => login(u.id)}
-            className={`w-full flex items-center gap-2 px-2 py-2 rounded-xl text-left
-                        hover:bg-surface-50 ${currentUser?.id === u.id ? 'bg-brand-50' : ''}`}>
-            <Avatar user={u} size="sm" />
-            <div>
-              <div className="text-sm font-medium">{u.firstName} {u.lastName}</div>
-              <div className="text-xs text-gray-400 capitalize">{u.role}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-
-    {/* Bouton toggle */}
-    <button onClick={() => setExpanded(e => !e)}
-      className="w-full flex items-center justify-center p-2 rounded-xl
-                 hover:bg-surface-100 text-gray-400 hover:text-gray-600">
-      {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-    </button>
-  </div>
-</aside>
+**MATCHES — ajouter champ carpool :**
+```js
+// Sur chaque match, ajouter :
+carpool: [
+  {
+    id: 'cp-1',
+    userId: 'u-5',        // qui propose
+    departure: 'Porte de la Chapelle',
+    time: '13h30',
+    seats: 3,             // places disponibles
+    takenBy: ['u-4'],     // qui a pris une place
+  }
+]
 ```
 
 ---
 
-## EventsPage.jsx ✅ — clarification
+## EventsPage.jsx — REFAIRE
 
-**Les événements sont UNIQUEMENT les événements ponctuels du club** : covoiturage, réunions, repas, tournois internes, etc.  
-**Les entraînements et matchs ne sont PAS des événements** — ils ont leurs propres pages (TeamPage, CalendarPage).
+### Principe des 3 catégories
 
-Filtrage visibilité :
-```js
-const visibleEvents = EVENTS.filter(ev => {
+```
+Onglet "Club"   → événements category:'club' visibles par tous
+Onglet "Équipe" → événements category:'team' (pres + coach + joueurs concernés)
+Onglet "Matchs" → MATCHES programmés (status:'scheduled') — surtout utile pour supporters
+```
+
+### Contenu par rôle
+
+**Président :**
+- Voit les 3 onglets
+- Onglet Club : tous les événements club + bouton "Créer"
+- Onglet Équipe : tous les événements d'équipe de toutes les équipes + bouton "Créer"
+- Onglet Matchs : tous les matchs programmés
+
+**Coach :**
+- Voit les 3 onglets
+- Onglet Club : événements club (lecture)
+- Onglet Équipe : événements de ses équipes uniquement + bouton "Créer"
+- Onglet Matchs : matchs de ses équipes
+
+**Joueur :**
+- Voit les 3 onglets
+- Onglet Club : événements club (lecture)
+- Onglet Équipe : événements de son équipe (lecture)
+- Onglet Matchs : matchs de son équipe
+
+**Supporter :**
+- Voit 2 onglets : Club + Matchs (pas d'onglet Équipe)
+- Onglet Club : événements visibility:'club' uniquement
+- Onglet Matchs : tous les matchs programmés du club
+
+### Implémentation
+
+```jsx
+// Onglets
+const tabs = [
+  { id: 'club',   label: 'Club' },
+  { id: 'team',   label: 'Équipe', hidden: is('supporter') },
+  { id: 'matches',label: 'Matchs' },
+].filter(t => !t.hidden)
+
+// Filtrage événements Club
+const clubEvents = EVENTS.filter(ev => {
+  if (ev.category !== 'club') return false
   if (ev.visibility === 'club') return true
-  if (ev.visibility === 'team') return isOneOf('president','coach') || currentUser.teamIds?.includes(ev.teamId)
   if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
   return false
 })
+
+// Filtrage événements Équipe
+const teamEvents = EVENTS.filter(ev => {
+  if (ev.category !== 'team') return false
+  if (is('president')) return true
+  return currentUser.teamIds?.includes(ev.teamId)
+})
+
+// Matchs programmés
+const upcomingMatches = MATCHES.filter(m => {
+  if (m.status !== 'scheduled') return false
+  if (isOneOf('president','supporter')) return true
+  return currentUser.teamIds?.includes(m.teamId)
+})
 ```
 
-Bouton "Créer" : visible uniquement pour `president` et `coach`.
-
----
-
-## TeamPage.jsx ✅ — METTRE À JOUR
-
-### Ce qui change
-
-**1. Affichage des matchs à venir — infos visibles AVANT d'entrer dans la fiche :**
-
-Sur la carte "Prochain match" et dans la liste des matchs, afficher directement :
-- Heure et jour (`format(scheduledAt, "EEE d MMM · HH'h'mm", { locale: fr })`)
-- Terrain (`location`)
-- Arbitre(s) (`referee` — peut être null → afficher "Arbitre non renseigné")
-- Catégorie de l'équipe (`team.category` : U9, U13, Séniors…)
+### Carte match dans l'onglet Matchs
 
 ```jsx
-<div className="text-xs text-gray-500 space-y-0.5">
-  <div>📅 {format(match.scheduledAt, "EEE d MMM · HH'h'mm", { locale: fr })}</div>
-  <div>📍 {match.location}</div>
-  <div>🏷 {team.category}</div>
-  <div>🟨 {match.referee ?? 'Arbitre non renseigné'}</div>
-</div>
-```
-
-**2. Top stats et classement (section en bas de TeamPage) :**
-
-Uniquement pour le football (Phase 1). Stats affichées : **Buts · Passes décisives · Matchs joués** — pas plus.
-
-```jsx
-// Top 3 buteurs de l'équipe
-const topScorers = USERS
-  .filter(u => u.role === 'player' && u.teamIds?.includes(activeTeamId) && u.stats?.goals > 0)
-  .sort((a, b) => b.stats.goals - a.stats.goals)
-  .slice(0, 3)
-
-// Top 3 passeurs
-const topAssists = USERS
-  .filter(u => u.role === 'player' && u.teamIds?.includes(activeTeamId) && u.stats?.assists > 0)
-  .sort((a, b) => b.stats.assists - a.stats.assists)
-  .slice(0, 3)
-```
-
-**Affichage top stats :**
-```jsx
-<Card className="p-4">
-  <SectionHeader title="Top stats — Séniors A" action={
-    <button onClick={() => setShowFullRanking(!showFullRanking)}
-      className="text-xs text-brand-600 hover:underline">
-      {showFullRanking ? 'Réduire' : 'Classement complet'}
-    </button>
-  } />
-
-  {/* Top 3 compacts */}
-  {!showFullRanking && (
-    <div className="grid grid-cols-3 gap-4">
-      <div>
-        <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">⚽ Buteurs</div>
-        {topScorers.map((u, i) => (
-          <div key={u.id} className="flex items-center gap-2 py-1">
-            <span className="text-xs font-bold text-gray-300 w-4">{i+1}</span>
-            <Avatar user={u} size="sm" />
-            <span className="text-sm font-medium flex-1">{u.lastName}</span>
-            <span className="text-sm font-bold text-gray-900">{u.stats.goals}</span>
-          </div>
-        ))}
-      </div>
-      <div>
-        <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">🅰️ Passeurs</div>
-        {topAssists.map((u, i) => (
-          <div key={u.id} className="flex items-center gap-2 py-1">
-            <span className="text-xs font-bold text-gray-300 w-4">{i+1}</span>
-            <Avatar user={u} size="sm" />
-            <span className="text-sm font-medium flex-1">{u.lastName}</span>
-            <span className="text-sm font-bold text-gray-900">{u.stats.assists}</span>
-          </div>
-        ))}
-      </div>
-      <div>
-        <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">📋 Matchs</div>
-        {[...USERS]
-          .filter(u => u.role === 'player' && u.teamIds?.includes(activeTeamId))
-          .sort((a,b) => (b.stats?.matches ?? 0) - (a.stats?.matches ?? 0))
-          .slice(0,3)
-          .map((u, i) => (
-            <div key={u.id} className="flex items-center gap-2 py-1">
-              <span className="text-xs font-bold text-gray-300 w-4">{i+1}</span>
-              <Avatar user={u} size="sm" />
-              <span className="text-sm font-medium flex-1">{u.lastName}</span>
-              <span className="text-sm font-bold text-gray-900">{u.stats?.matches ?? 0}</span>
-            </div>
-          ))}
-      </div>
-    </div>
-  )}
-
-  {/* Classement complet — tableau déroulant */}
-  {showFullRanking && (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-xs text-gray-400 border-b border-surface-200">
-          <th className="text-left py-2">Joueur</th>
-          <th className="text-center py-2">⚽ Buts</th>
-          <th className="text-center py-2">🅰️ Passes</th>
-          <th className="text-center py-2">📋 Matchs</th>
-        </tr>
-      </thead>
-      <tbody>
-        {USERS
-          .filter(u => u.role === 'player' && u.teamIds?.includes(activeTeamId))
-          .sort((a,b) => (b.stats?.goals ?? 0) - (a.stats?.goals ?? 0))
-          .map(u => (
-            <tr key={u.id} className="border-b border-surface-100 hover:bg-surface-50">
-              <td className="py-2 flex items-center gap-2">
-                <Avatar user={u} size="sm" />
-                <span className="font-medium">{u.firstName} {u.lastName}</span>
-              </td>
-              <td className="text-center font-bold">{u.stats?.goals ?? 0}</td>
-              <td className="text-center">{u.stats?.assists ?? 0}</td>
-              <td className="text-center">{u.stats?.matches ?? 0}</td>
-            </tr>
-          ))}
-      </tbody>
-    </table>
-  )}
+<Card key={m.id} className="p-4" onClick={() => navigate(`/app/matches/${m.id}`)}>
+  <div className="flex items-center justify-between mb-2">
+    <span className="font-semibold text-gray-900">{getTeamById(m.teamId)?.name}</span>
+    <Badge variant="blue">{getTeamById(m.teamId)?.category}</Badge>
+  </div>
+  <div className="text-lg font-bold text-gray-900 mb-2">
+    vs {m.opponentName}
+  </div>
+  <div className="space-y-1 text-xs text-gray-500">
+    <div>📅 {format(m.scheduledAt, "EEE d MMM yyyy · HH'h'mm", { locale: fr })}</div>
+    <div>📍 {m.location}</div>
+    <div>🟨 {m.referee ?? 'Arbitre non renseigné'}</div>
+    <div>{m.isHome ? '🏠 Domicile' : '🚌 Déplacement'}</div>
+  </div>
 </Card>
 ```
 
----
+### Vue détail événement (panel/modal au clic)
 
-## MembersPage.jsx ❌ — specs mises à jour
-
-### Accès
-
-| Rôle | Accès |
-|------|-------|
-| Président | Tous les membres du club, avec licences |
-| Coach | Uniquement ses joueurs (filtre automatique), avec licences |
-| Joueur | ❌ Pas dans sa nav |
-| Supporter | ❌ Pas dans sa nav |
-
-### Ce qu'on supprime
-- ❌ Les colonnes stats (matchs, buts, présence) dans la liste membres
-- ❌ La vue grille
-
-### Ce qu'on garde / ajoute
-- ✅ Liste avec colonnes : Membre (avatar + nom + poste) · Équipe · Rôle · Licence
-- ✅ Tri par équipe (select équipe)
-- ✅ Recherche par nom/prénom
-- ✅ Filtre statut licence
-- ✅ Clic sur une ligne → `ProfilePage` du membre (`/app/profile/:id`)
+Au clic sur une carte événement → afficher un panel latéral droit ou une modal avec :
+- Titre + badge type
+- Description complète
+- Date début + fin si endsAt
+- Lieu
+- Nombre inscrits / max si maxAttendees
+- Avatars + noms des participants
+- Bouton toggle "Je viens" / "Je ne viens plus"
+- Bouton "Modifier" si createdBy === currentUser.id ou is('president')
+- Bouton fermer (×)
 
 ```jsx
-// Filtrage automatique pour le coach
+const [selectedEvent, setSelectedEvent] = useState(null)
+// Clic carte → setSelectedEvent(ev)
+// Clic × → setSelectedEvent(null)
+```
+
+---
+
+## TeamPage.jsx — REFAIRE
+
+### Structure générale
+
+```
+Barre sélection équipe (toutes les équipes — visible par tous)
+  └── Onglets : [Équipe] [Joueurs & Staff]
+```
+
+### Onglet "Équipe" — visible par tous
+
+Affiche pour l'équipe sélectionnée :
+- Prochain match : heure, jour, terrain, catégorie, arbitre → cliquable vers `/app/matches/:id`
+- Dernier match joué : score + événements (buts, cartons)
+- Top stats : top 3 buteurs · passeurs · matchs joués + bouton "Classement complet"
+
+**En plus pour président et coach DE cette équipe :**
+- Récapitulatif présences entraînements (barres de progression)
+- Réponses convocations (X dispo · X indispo · X en attente)
+- Boutons : "Convocations", "Publier compo", "+ Entraînement", "+ Match"
+
+**En plus pour le joueur DE cette équipe :**
+- Boutons Présent/Absent pour le prochain entraînement
+- Boutons Disponible/Indispo pour le prochain match
+
+### Onglet "Joueurs & Staff" — visible par tous
+
+Liste de tous les membres de l'équipe sélectionnée :
+
+```jsx
+// Joueurs
+const players = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(activeTeamId))
+// Coachs
+const coaches = USERS.filter(u => u.role === 'coach' && u.teamIds?.includes(activeTeamId))
+```
+
+**Affichage de chaque personne :**
+```jsx
+// Pour chaque joueur
+<div className="flex items-center gap-3 py-3 border-b border-surface-100">
+  <Avatar user={u} size="md" />
+  <div>
+    <div className="font-semibold text-gray-900">{u.firstName} {u.lastName}</div>
+    <div className="text-sm text-gray-500">
+      {u.position ?? 'Poste non renseigné'} · N°{u.jerseyNumber}
+    </div>
+    <div className="text-xs text-gray-400">
+      {format(new Date(u.birthDate), 'd MMMM yyyy', { locale: fr })}
+      {' '}({differenceInYears(new Date(), new Date(u.birthDate))} ans)
+    </div>
+  </div>
+</div>
+
+// Pour chaque coach
+<div className="flex items-center gap-3 py-3 border-b border-surface-100">
+  <Avatar user={u} size="md" />
+  <div>
+    <div className="font-semibold text-gray-900">{u.firstName} {u.lastName}</div>
+    <div className="text-sm text-gray-500">Coach</div>
+  </div>
+</div>
+```
+
+### Sous-onglets par catégorie d'équipe
+
+Regrouper les équipes par catégorie dans la barre de sélection :
+```js
+const grouped = TEAMS.reduce((acc, t) => {
+  const cat = t.category  // 'Séniors', 'U13', 'U9', 'Vétérans'...
+  if (!acc[cat]) acc[cat] = []
+  acc[cat].push(t)
+  return acc
+}, {})
+// Afficher : [Séniors] [U13] [U9] [Vétérans]
+// Chaque bouton = une équipe, regroupées par catégorie si plusieurs équipes dans la même catégorie
+```
+
+---
+
+## MembersPage.jsx
+
+### Président : tous les membres (président + coachs + joueurs)
+### Coach : uniquement les joueurs de ses équipes
+
+```jsx
 const visibleUsers = USERS.filter(u => {
+  // Coach : uniquement ses joueurs
   if (is('coach')) {
-    const myPlayerIds = USERS
-      .filter(p => p.role === 'player' && p.teamIds?.some(t => currentUser.teamIds.includes(t)))
-      .map(p => p.id)
-    if (!myPlayerIds.includes(u.id)) return false
+    if (u.role !== 'player') return false
+    if (!u.teamIds?.some(t => currentUser.teamIds.includes(t))) return false
   }
   const matchSearch = `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase())
   const matchTeam   = !teamFilter || u.teamIds?.includes(teamFilter)
@@ -371,245 +416,381 @@ const visibleUsers = USERS.filter(u => {
 })
 ```
 
-**Toolbar :**
-```jsx
-<input placeholder="Rechercher..." />
-<select> Toutes les équipes | team-1 | team-2... </select>
-<select> Toutes licences | Valide | Expirée | Bientôt </select>
-{is('president') && <button>+ Ajouter membre</button>}
-```
-
-**Colonnes du tableau :**
-```
-Membre (avatar + Prénom Nom + poste)  |  Équipe  |  Rôle  |  Licence
-```
+**Colonnes :** Membre (avatar + nom + poste) · Équipe · Rôle · Licence  
+**Clic ligne → `/app/profile/:id`**  
+**Pas de stats dans cette liste.**
 
 ---
 
-## ProfilePage.jsx ❌ — À CRÉER
+## ProfilePage.jsx
 
-**Deux routes :**
-- `/app/profile` → profil de l'utilisateur connecté (accessible depuis l'avatar dans la sidebar)
-- `/app/profile/:id` → profil d'un autre membre (accessible depuis MembersPage)
+**Routes :** `/app/profile` (soi-même) et `/app/profile/:id` (autre membre)
 
-**Accès au profil d'un autre membre :**
+**Accès :**
 - Président : tout le monde
-- Coach : uniquement ses joueurs
-- Joueur/Supporter/Parent : uniquement son propre profil (`/app/profile` uniquement, pas `/:id`)
+- Coach : ses joueurs uniquement
+- Joueur/Supporter : soi-même uniquement (`/app/profile` sans `:id`)
 
-**Contenu de la fiche profil :**
-
+**Contenu :**
 ```jsx
-// Section infos personnelles
-<section>
-  <Avatar user={u} size="xl" />
-  <h1>{u.firstName} {u.lastName}</h1>
-  <RoleBadge role={u.role} />
-  {u.position && <span>{u.position}</span>}
-  {u.jerseyNumber && <span>N°{u.jerseyNumber}</span>}
-</section>
+// Infos personnelles — toujours affichées
+<Avatar size="xl" />
+<h1>{firstName} {lastName}</h1>
+<RoleBadge />
+{position && <span>{position} · N°{jerseyNumber}</span>}
 
-// Données personnelles (toujours visibles par le membre lui-même, et par président/coach)
-<section title="Informations personnelles">
-  <Field label="Date de naissance" value={format(new Date(u.birthDate), 'd MMMM yyyy', { locale: fr })} />
-  <Field label="Âge"               value={`${differenceInYears(new Date(), new Date(u.birthDate))} ans`} />
-  <Field label="Lieu de naissance"  value={u.birthPlace ?? 'Non renseigné'} />
-  <Field label="Email"              value={u.email} />
-  <Field label="Téléphone"          value={u.phone} />
-</section>
+// Section "Informations"
+<Field label="Date de naissance"
+  value={`${format(new Date(birthDate), 'd MMMM yyyy', { locale: fr })} (${differenceInYears(new Date(), new Date(birthDate))} ans)`} />
+<Field label="Lieu de naissance" value={birthPlace ?? 'Non renseigné'} />
+<Field label="Email"    value={email} />
+<Field label="Téléphone" value={phone} />
 
-// Licence (visible uniquement par président et coach)
+// Section "Licence" — président et coach uniquement
 {isOneOf('president','coach') && (
-  <section title="Licence">
-    <LicenseBadge status={u.licenseStatus} />
-    <Field label="Numéro"      value="FFF-93-004521" />
-    <Field label="Saison"      value="2024-2025" />
-    <Field label="Expiration"  value="30/06/2025" />
-    {/* Bouton "Voir document" si doc uploadé */}
+  <section>
+    <LicenseBadge status={licenseStatus} />
+    <Field label="Numéro"     value="FFF-93-004521" />
+    <Field label="Saison"     value="2024-2025" />
+    <Field label="Expiration" value="30/06/2025" />
   </section>
 )}
 
-// Documents (visible uniquement par président et coach)
+// Onglet "Documents" — président et coach uniquement
 {isOneOf('president','coach') && (
-  <section title="Documents">
-    <DocItem label="Licence PDF"            status="uploaded" />
-    <DocItem label="Certificat médical"     status="missing" />
-    <DocItem label="Photo d'identité"       status="uploaded" />
-  </section>
+  <div>
+    {Object.entries(user.documents ?? {}).map(([key, doc]) => (
+      doc.uploaded
+        ? <a key={key} href={doc.url} target="_blank" rel="noopener noreferrer"
+             className="flex items-center gap-2 p-3 rounded-xl border hover:bg-surface-50">
+            <FileText size={16} className="text-red-500" />
+            <span className="text-sm font-medium">{docLabels[key]}</span>
+            <ExternalLink size={12} className="text-gray-400 ml-auto" />
+          </a>
+        : <div key={key} className="flex items-center gap-2 p-3 rounded-xl border border-dashed text-gray-400">
+            <FileX size={16} />
+            <span className="text-sm">{docLabels[key]} — manquant</span>
+          </div>
+    ))}
+  </div>
 )}
-```
 
-**Ajouter dans mock.js** les champs manquants sur les users :
-```js
-birthPlace: 'Paris',          // lieu de naissance
-documents: {
-  license: true,              // licence uploadée
-  medicalCert: false,         // certificat médical manquant
-  photo: true,
+const docLabels = {
+  license:     'Licence PDF',
+  medicalCert: 'Certificat médical',
+  photo:       'Photo d\'identité',
 }
 ```
 
 ---
 
-## CalendarPage.jsx ❌
+## MatchPage.jsx — /app/matches/:id
 
-Le calendrier affiche **entraînements + matchs + événements ponctuels**.  
-Sur chaque item match affiché dans le calendrier et dans le panel de détail, afficher :
-- Heure, terrain, catégorie équipe, arbitre(s)
+### Hero (toujours visible par tous)
 
-Filtrage par rôle :
-```js
-const getVisibleItems = () => {
-  const items = []
-
-  // Entraînements — pas pour supporter/parent
-  if (showTrainings && !isOneOf('supporter','parent')) {
-    TRAININGS
-      .filter(t => is('president') || currentUser.teamIds?.includes(t.teamId))
-      .forEach(t => items.push({ ...t, _type: 'training', _date: t.scheduledAt }))
-  }
-
-  // Matchs — tout le monde
-  if (showMatches) {
-    MATCHES
-      .filter(m => is('president') || isOneOf('supporter','parent') || currentUser.teamIds?.includes(m.teamId))
-      .forEach(m => items.push({ ...m, _type: 'match', _date: m.scheduledAt }))
-  }
-
-  // Événements ponctuels — selon visibilité
-  if (showEvents) {
-    EVENTS
-      .filter(ev => {
-        if (ev.visibility === 'club') return true
-        if (ev.visibility === 'team') return isOneOf('president','coach') || currentUser.teamIds?.includes(ev.teamId)
-        if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
-        return false
-      })
-      .forEach(e => items.push({ ...e, _type: 'event', _date: e.startsAt }))
-  }
-
-  if (teamFilter) return items.filter(i => !i.teamId || i.teamId === teamFilter)
-  return items
-}
-```
-
-Panel de détail d'un match :
 ```jsx
-{item._type === 'match' && (
-  <div className="space-y-1 text-xs text-gray-500">
-    <div>📅 {format(item._date, "HH'h'mm", { locale: fr })}</div>
-    <div>📍 {item.location}</div>
-    <div>🏷 {getTeamById(item.teamId)?.category}</div>
-    <div>🟨 {item.referee ?? 'Arbitre non renseigné'}</div>
-    <Link to={`/app/matches/${item.id}`} className="text-brand-600 text-xs font-medium mt-2 block">
-      Voir la fiche →
-    </Link>
+<div>
+  <div>{getTeamById(match.teamId)?.name} vs {match.opponentName}</div>
+  {match.status === 'played'
+    ? <div className="text-4xl font-bold">{match.scoreHome} — {match.scoreAway}</div>
+    : <div className="text-lg text-gray-500">À venir</div>
+  }
+  <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mt-3">
+    <div>📅 {format(match.scheduledAt, "EEE d MMM yyyy · HH'h'mm", { locale: fr })}</div>
+    <div>📍 {match.location}</div>
+    <div>🏷 {getTeamById(match.teamId)?.category}</div>
+    <div>🟨 {match.referee ?? 'Arbitre non renseigné'}</div>
+    <div>{match.isHome ? '🏠 Domicile' : '🚌 Déplacement'}</div>
   </div>
-)}
-```
-
----
-
-## MessagesPage.jsx ❌
-
-Accessible à : président, coach, joueur, parent. **Pas au supporter.**
-
-Types de conversations :
-- `team_chat` : tous les membres de l'équipe peuvent écrire
-- `coach_channel` : coach écrit, joueurs lisent uniquement
-- `parent_chat` : parent + joueur concerné + coach(s)
-
-```js
-const myConvs = CONVERSATIONS.filter(c => c.members.includes(currentUser.id))
-```
-
-Règle lecture seule coach_channel :
-```jsx
-const isReadOnly = conv.type === 'coach_channel' && is('player')
-{isReadOnly ? (
-  <div className="p-3 bg-surface-50 border border-surface-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
-    <Lock size={14} /> Canal coach — lecture seule
-  </div>
-) : (
-  <input placeholder="Écrire un message..." ... />
-)}
-```
-
----
-
-## MatchPage.jsx ❌
-
-Infos visibles AVANT d'entrer dans les onglets (hero toujours affiché) :
-```jsx
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-600">
-  <div>📅 {format(match.scheduledAt, "EEE d MMM · HH'h'mm", { locale: fr })}</div>
-  <div>📍 {match.location}</div>
-  <div>🏷 {getTeamById(match.teamId)?.category}</div>
-  <div>🟨 {match.referee ?? 'Non renseigné'}</div>
 </div>
 ```
 
-Onglets selon rôle :
+### Onglets selon rôle
+
 ```js
 const tabs = [
-  { id: 'summary',  label: 'Résumé',          show: true },
-  { id: 'lineup',   label: 'Composition',      show: true },
-  { id: 'squad',    label: 'Convocations',     show: isOneOf('president','coach') },
-  { id: 'result',   label: 'Saisir résultat',  show: isOneOf('president','coach') && match.status === 'played' },
-  { id: 'ratings',  label: 'Notation',         show: is('player') && match.squad?.[currentUser.id] === 'confirmed' },
+  {
+    id: 'summary',
+    label: 'Résumé',
+    show: true,
+    // Avant match : info + bouton dispo (joueur) ou convocations (coach)
+    // Après match : score + événements (buts, cartons)
+  },
+  {
+    id: 'lineup',
+    label: 'Composition',
+    show: true,
+    // Terrain visuel si compo publiée, sinon message
+  },
+  {
+    id: 'carpool',
+    label: 'Covoiturage',
+    show: true,  // TOUT LE MONDE voit cet onglet
+  },
+  {
+    id: 'squad',
+    label: 'Convocations',
+    show: isOneOf('president','coach') && canManageTeam(match.teamId),
+  },
+  {
+    id: 'result',
+    label: 'Saisir résultat',
+    show: isOneOf('president','coach') && canManageTeam(match.teamId),
+  },
+  {
+    id: 'ratings',
+    label: 'Notation',
+    show: is('player') && match.teamId && currentUser.teamIds?.includes(match.teamId),
+    // Joueur de cette équipe : peut noter SI il a joué, peut voir SI il n'a pas joué
+  },
 ].filter(t => t.show)
+```
+
+### Onglet Covoiturage (tous les rôles)
+
+```jsx
+// Liste des covoiturages proposés
+{(match.carpool ?? []).map(cp => {
+  const driver = getUserById(cp.userId)
+  const taken = cp.takenBy?.length ?? 0
+  const available = cp.seats - taken
+  return (
+    <Card key={cp.id} className="p-4">
+      <div className="flex items-center gap-3 mb-2">
+        <Avatar user={driver} size="sm" />
+        <div>
+          <div className="font-semibold text-sm">{driver?.firstName} {driver?.lastName}</div>
+          <div className="text-xs text-gray-500">Départ : {cp.departure} · {cp.time}</div>
+        </div>
+        <div className="ml-auto text-sm font-medium text-emerald-600">
+          {available} place{available > 1 ? 's' : ''} dispo
+        </div>
+      </div>
+      {available > 0 && cp.userId !== currentUser.id && (
+        <button className="w-full text-sm py-2 rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100">
+          Prendre une place
+        </button>
+      )}
+    </Card>
+  )
+})}
+
+// Bouton proposer un covoiturage
+<button className="w-full py-3 border-2 border-dashed border-surface-300 rounded-2xl
+                   text-sm text-gray-400 hover:border-brand-300 hover:text-brand-600">
+  + Proposer un covoiturage
+</button>
+```
+
+### Onglet Résumé — avant match
+
+```jsx
+{match.status === 'scheduled' && (
+  <>
+    {/* Joueur de cette équipe */}
+    {is('player') && currentUser.teamIds?.includes(match.teamId) && (
+      <div>
+        <div className="text-sm text-gray-600 mb-3">Ma disponibilité :</div>
+        <div className="flex gap-3">
+          <button className="flex-1 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+            ✓ Disponible
+          </button>
+          <button className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 border border-red-200">
+            ✗ Indisponible
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Coach/Président de cette équipe */}
+    {canManageTeam(match.teamId) && (
+      <div>
+        <div className="text-sm font-semibold mb-3">Réponses convocations</div>
+        <div className="flex gap-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600">
+              {Object.values(match.squad ?? {}).filter(s => s === 'confirmed').length}
+            </div>
+            <div className="text-xs text-gray-400">Disponibles</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-500">
+              {Object.values(match.squad ?? {}).filter(s => s === 'absent').length}
+            </div>
+            <div className="text-xs text-gray-400">Indisponibles</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-400">
+              {Object.values(match.squad ?? {}).filter(s => s === 'called').length}
+            </div>
+            <div className="text-xs text-gray-400">En attente</div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+)}
+```
+
+### Onglet Résumé — après match
+
+```jsx
+{match.status === 'played' && (
+  <div className="space-y-2">
+    {(match.events ?? []).map((ev, i) => {
+      const player = getUserById(ev.userId)
+      const assist = getUserById(ev.assistUserId)
+      return (
+        <div key={i} className="flex items-center gap-3 py-2 border-b border-surface-100">
+          <span className="text-xs font-mono text-gray-400 w-8">{ev.minute}'</span>
+          <span>{ev.type === 'goal' ? '⚽' : ev.type === 'yellow_card' ? '🟨' : '🟥'}</span>
+          <span className="text-sm font-medium">{player?.lastName}</span>
+          {assist && <span className="text-xs text-gray-400">(pass. {assist.lastName})</span>}
+        </div>
+      )
+    })}
+  </div>
+)}
+```
+
+### Onglet Saisir résultat (coach/président uniquement)
+
+```jsx
+// Score
+<div className="flex items-center gap-4">
+  <input type="number" placeholder="0" className="w-20 text-center text-2xl font-bold" />
+  <span className="text-2xl text-gray-400">—</span>
+  <input type="number" placeholder="0" className="w-20 text-center text-2xl font-bold" />
+</div>
+
+// Ajouter événements
+<button>+ But</button>
+<button>+ Carton jaune</button>
+<button>+ Carton rouge</button>
+
+// Pour chaque événement ajouté : sélectionner le joueur + minute
+<select>{players.map(p => <option key={p.id}>{p.firstName} {p.lastName}</option>)}</select>
+<input type="number" placeholder="Minute" />
+
+// Valider
+<button className="btn-primary">Enregistrer le résultat</button>
+```
+
+### Onglet Notation (joueurs de cette équipe uniquement)
+
+```jsx
+// Règle : joueur de l'équipe concernée
+// - A joué (squad[userId] === 'confirmed' et match joué) → peut noter ET voir
+// - N'a pas joué → peut voir uniquement
+
+const hasPlayed = match.status === 'played' && match.squad?.[currentUser.id] === 'confirmed'
+const isTeamPlayer = is('player') && currentUser.teamIds?.includes(match.teamId)
+
+{isTeamPlayer && match.status === 'played' && (
+  <>
+    {!hasPlayed && (
+      <div className="text-sm text-gray-500 mb-4 p-3 bg-surface-50 rounded-xl">
+        Vous n'avez pas joué ce match — vous pouvez consulter les notes mais pas noter.
+      </div>
+    )}
+
+    {players
+      .filter(p => p.id !== currentUser.id && match.squad?.[p.id] === 'confirmed')
+      .map(p => (
+        <div key={p.id} className="flex items-center gap-3 py-3 border-b border-surface-100">
+          <Avatar user={p} size="md" />
+          <span className="font-medium flex-1">{p.firstName} {p.lastName}</span>
+          {hasPlayed ? (
+            // Étoiles cliquables 1→10
+            <div className="flex gap-1">
+              {[...Array(10)].map((_, i) => (
+                <button key={i} className="text-lg">
+                  {i < (ratings[p.id] ?? 0) ? '⭐' : '☆'}
+                </button>
+              ))}
+            </div>
+          ) : (
+            // Lecture seule
+            <div className="text-sm text-gray-500">
+              {ratings[p.id] ? `${ratings[p.id]}/10` : 'Pas encore noté'}
+            </div>
+          )}
+        </div>
+      ))}
+  </>
+)}
 ```
 
 ---
 
-## LoginPage.jsx ❌
+## CalendarPage.jsx
 
-Layout 2 colonnes : gauche `bg-brand-950` avec logo + tagline, droite formulaire blanc.
+Affiche entraînements + matchs + événements ponctuels.
 
-Connexion rapide dev :
+**Contenu par rôle :**
+- Président : tout
+- Coach : ses équipes (entraînements + matchs) + événements visibles
+- Joueur : son équipe + événements visibles
+- Supporter/Parent : matchs uniquement + événements club
+
+Chaque item match dans le panel détail affiche : heure, terrain, catégorie, arbitre + lien "Voir la fiche →".
+
+---
+
+## MessagesPage.jsx
+
+**Supporter :** voit uniquement les conversations `custom` et `direct` dont il est membre.  
+Ne voit pas `team_chat` ni `coach_channel`.  
+Peut créer une nouvelle discussion.
+
+**Joueur, Coach, Président :** voient leurs conversations habituelles.
+
+**Coach_channel :** joueurs en lecture seule.
+
 ```jsx
-<details className="mt-6 border border-surface-200 rounded-xl p-3">
-  <summary className="text-xs text-gray-400 cursor-pointer select-none">Connexion rapide (dev)</summary>
-  <div className="mt-3 flex flex-col gap-1">
-    {USERS.map(u => (
-      <button key={u.id}
-        onClick={() => { login(u.id); navigate('/app/events') }}
-        className="text-left px-3 py-2 rounded-xl hover:bg-surface-100 flex items-center gap-2 text-sm">
-        <Avatar user={u} size="sm" />
-        <span>{u.firstName} {u.lastName}</span>
-        <RoleBadge role={u.role} />
-      </button>
-    ))}
-  </div>
+const isReadOnly = conv.type === 'coach_channel' && is('player')
+```
+
+---
+
+## LoginPage.jsx
+
+Layout 2 colonnes : gauche `bg-brand-950` avec logo + tagline, droite formulaire.
+
+```jsx
+<details className="mt-4 border rounded-xl p-3">
+  <summary className="text-xs text-gray-400 cursor-pointer">Connexion rapide (dev)</summary>
+  {USERS.map(u => (
+    <button key={u.id} onClick={() => { login(u.id); navigate('/app/events') }}
+      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-100 text-sm">
+      <Avatar user={u} size="sm" />
+      {u.firstName} {u.lastName} — <RoleBadge role={u.role} />
+    </button>
+  ))}
 </details>
 ```
 
 ---
 
-## RegisterPage.jsx ❌
+## RegisterPage.jsx
 
 3 étapes : `['Votre club', 'Vos infos', 'Votre rôle']`
 
-Étape 3 — sélecteur de rôle avec affichage conditionnel :
 ```jsx
-// Si joueur → select équipe
-{selectedRole === 'player' && (
-  <select>
-    {TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-  </select>
-)}
-
-// Panel info validation
 const validationInfo = {
-  supporter: { icon: '⚡', title: 'Accès immédiat',        desc: 'Compte créé instantanément.' },
-  coach:     { icon: '⏳', title: 'Validation président',  desc: 'Le président reçoit un email.' },
-  player:    { icon: '⏳', title: 'Validation coach',      desc: 'Le coach de ton équipe reçoit un email.' },
+  supporter: { icon: '⚡', title: 'Accès immédiat',       desc: 'Compte créé instantanément.' },
+  coach:     { icon: '⏳', title: 'Validation président', desc: 'Le président reçoit un email.' },
+  player:    { icon: '⏳', title: 'Validation coach',     desc: 'Le coach de ton équipe reçoit un email.' },
 }
+
+{selectedRole === 'player' && (
+  <select>{TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+)}
 ```
 
 ---
 
-## App.jsx ❌
+## App.jsx
 
 ```jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -653,33 +834,6 @@ export default function App() {
 
 ---
 
-## Mock data — référence rapide
-
-```js
-CLUB      // { id, name, sport, city, department, region, phone, email, address }
-TEAMS     // [{ id, name, category, season, gender }]
-USERS     // [{ id, firstName, lastName, email, phone, role, teamIds,
-           //    licenseStatus, stats?, position?, jerseyNumber?,
-           //    birthPlace?,     ← À AJOUTER
-           //    documents?       ← À AJOUTER { license, medicalCert, photo } }]
-EVENTS    // événements ponctuels UNIQUEMENT (pas entraînements, pas matchs)
-TRAININGS // [{ id, teamId, title, scheduledAt, durationMinutes, location, attendances }]
-MATCHES   // [{ id, teamId, opponentName, scheduledAt, location, isHome,
-           //    referee, status, squad, scoreHome, scoreAway, events? }]
-CONVERSATIONS // [{ id, type, teamId?, name, members, messages }]
-
-getUserById(id), getTeamById(id), getFullName(user), getInitials(user)
-ROLE_LABELS, LICENSE_STATUS, EVENT_TYPES
-```
-
-**Ajouter dans mock.js sur chaque user player :**
-```js
-birthPlace: 'Paris (75)',
-documents: { license: true, medicalCert: false, photo: true }
-```
-
----
-
 ## Composants UI — src/components/ui/index.jsx
 
 ```jsx
@@ -715,22 +869,24 @@ Section hd  : text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3
 1. **Ne jamais rediriger** — adapter le contenu selon le rôle
 2. **Ne jamais recréer** un composant de `src/components/ui/index.jsx`
 3. **Tailwind uniquement** — pas de style inline
-4. **date-fns + locale fr** pour toutes les dates
-5. **lucide-react** pour toutes les icônes
-6. **Pas d'API calls** — uniquement `src/data/mock.js`
-7. **differenceInYears** de date-fns pour calculer l'âge
+4. **date-fns + locale fr** : `format(date, "EEE d MMM · HH'h'mm", { locale: fr })`
+5. **differenceInYears** de date-fns pour calculer l'âge
+6. **lucide-react** pour toutes les icônes
+7. **Pas d'API calls** — uniquement `src/data/mock.js`
 
 ---
 
 ## Ordre de priorité
 
-1. **`AppLayout.jsx`** — refaire entièrement (sidebar rétractable + nav par rôle + lien profil)
-2. **`App.jsx`** — routes complètes
-3. **`MembersPage.jsx`** — liste sans stats, avec licences
-4. **`ProfilePage.jsx`** — profil perso + profil d'un autre
-5. **`CalendarPage.jsx`** — calendrier avec infos match complètes
-6. **`MessagesPage.jsx`** — messagerie
-7. **`TeamPage.jsx`** — ajouter top stats + classement + infos match avant fiche
-8. **`LoginPage.jsx`**
-9. **`RegisterPage.jsx`**
-10. **`MatchPage.jsx`**
+1. **mock.js** — mettre à jour avec category sur EVENTS, carpool sur MATCHES, birthPlace + documents sur USERS
+2. **EventsPage.jsx** — refaire avec 3 onglets Club/Équipe/Matchs + vue détail événement
+3. **TeamPage.jsx** — refaire avec barre équipes + onglets Équipe/Joueurs&Staff
+4. **AppLayout.jsx** — sidebar rétractable + nav par rôle
+5. **App.jsx** — routes complètes
+6. **MembersPage.jsx**
+7. **ProfilePage.jsx**
+8. **MatchPage.jsx** — avec onglet covoiturage + notation
+9. **CalendarPage.jsx**
+10. **MessagesPage.jsx**
+11. **LoginPage.jsx**
+12. **RegisterPage.jsx**

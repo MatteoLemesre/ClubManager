@@ -1,73 +1,77 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { EVENTS, getTeamById, getUserById, getFullName } from '../../data/mock'
+import { EVENTS, MATCHES, getTeamById, getUserById, getFullName } from '../../data/mock'
 import { Card, Badge, EmptyState, Avatar } from '../../components/ui'
-import { format, isAfter, isPast, parseISO, differenceInMinutes } from 'date-fns'
+import { format, differenceInMinutes } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
-  Car, Users, PartyPopper, Trophy, Calendar, MapPin,
-  X, Pencil, CheckCircle2, UserPlus, Plus,
+  Car, Users, PartyPopper, Trophy, CalendarDays, MapPin,
+  X, Pencil, UserPlus, Plus, Home, Bus,
 } from 'lucide-react'
 
+// ─── Config types événements ───────────────────────────────────────────────
 const EVENT_TYPE_CONFIG = {
-  carpooling: { icon: Car,         label: 'Covoiturage', variant: 'blue'   },
+  carpool:    { icon: Car,         label: 'Covoiturage', variant: 'blue'   },
   meeting:    { icon: Users,       label: 'Réunion',     variant: 'gray'   },
   social:     { icon: PartyPopper, label: 'Social',      variant: 'purple' },
   tournament: { icon: Trophy,      label: 'Tournoi',     variant: 'orange' },
 }
 
-const FILTERS = [
-  { key: 'upcoming',    label: 'À venir'      },
-  { key: 'all',         label: 'Tous'         },
-  { key: 'club',        label: 'Club entier'  },
-  { key: 'team',        label: 'Équipe'       },
-  { key: 'carpooling',  label: 'Covoiturage'  },
-  { key: 'past',        label: 'Passés'       },
+// ─── Onglets ───────────────────────────────────────────────────────────────
+const ALL_TABS = [
+  { id: 'club',    label: 'Club'   },
+  { id: 'team',    label: 'Équipe' },
+  { id: 'matches', label: 'Matchs' },
 ]
 
-// Gère Date objects (ev-5) et ISO strings (anciens events)
-function toDate(val) {
-  if (!val) return null
-  if (val instanceof Date) return val
-  return parseISO(val)
-}
-
-function getStartDate(event) {
-  return toDate(event.startsAt ?? event.date)
-}
-
-function getEndDate(event) {
-  return toDate(event.endsAt ?? null)
-}
-
 export default function EventsPage() {
-  const { currentUser } = useAuth()
+  const { currentUser, is, isOneOf, canManageTeam } = useAuth()
+  const navigate = useNavigate()
 
-  const [activeFilter,        setActiveFilter]        = useState('upcoming')
-  const [selectedEvent,       setSelectedEvent]       = useState(null)
+  const [activeTab,          setActiveTab]          = useState('club')
+  const [selectedEvent,      setSelectedEvent]      = useState(null)
   const [attendanceOverrides, setAttendanceOverrides] = useState({})
 
-  const canCreate = currentUser.role === 'president' || currentUser.role === 'coach'
-
-  // ── Filtrage ──────────────────────────────────────────────────────────────
-  const visibleEvents = EVENTS.filter(event => {
-    const d = getStartDate(event)
-    switch (activeFilter) {
-      case 'upcoming':   return d && isAfter(d, new Date())
-      case 'past':       return d && isPast(d)
-      case 'club':       return !event.teamId
-      case 'team':       return !!event.teamId
-      case 'carpooling': return event.type === 'carpooling'
-      default:           return true
-    }
-  }).sort((a, b) => {
-    const da = getStartDate(a)
-    const db = getStartDate(b)
-    if (!da || !db) return 0
-    return activeFilter === 'past' ? db - da : da - db
+  // ── Onglets visibles selon le rôle ─────────────────────────────────────
+  const tabs = ALL_TABS.filter(t => {
+    if (t.id === 'team') return !isOneOf('supporter', 'parent')
+    return true
   })
 
-  // ── Attendance helpers ────────────────────────────────────────────────────
+  // Si l'onglet actif n'est plus visible (ex: supporter passe à 'team'), reset
+  const safeTab = tabs.find(t => t.id === activeTab) ? activeTab : tabs[0]?.id
+
+  // ── Filtrage événements Club ────────────────────────────────────────────
+  const clubEvents = EVENTS.filter(ev => {
+    if (ev.category !== 'club') return false
+    if (ev.visibility === 'club') return true
+    if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
+    return false
+  }).sort((a, b) => a.startsAt - b.startsAt)
+
+  // ── Filtrage événements Équipe ──────────────────────────────────────────
+  const teamEvents = EVENTS.filter(ev => {
+    if (ev.category !== 'team') return false
+    if (is('president')) return true
+    return currentUser.teamIds?.includes(ev.teamId)
+  }).sort((a, b) => a.startsAt - b.startsAt)
+
+  // ── Matchs programmés ──────────────────────────────────────────────────
+  const upcomingMatches = MATCHES.filter(m => {
+    if (m.status !== 'scheduled') return false
+    if (isOneOf('president', 'supporter', 'parent')) return true
+    return currentUser.teamIds?.includes(m.teamId)
+  }).sort((a, b) => a.scheduledAt - b.scheduledAt)
+
+  // ── Peut créer selon l'onglet ──────────────────────────────────────────
+  function canCreate(tab) {
+    if (tab === 'club')    return is('president')
+    if (tab === 'team')    return isOneOf('president', 'coach')
+    return false
+  }
+
+  // ── Attendance helpers ─────────────────────────────────────────────────
   function isAttending(event) {
     if (event.id in attendanceOverrides) return attendanceOverrides[event.id]
     return (event.attendees ?? []).includes(currentUser.id)
@@ -83,19 +87,17 @@ export default function EventsPage() {
     return isAttending(event) ? [...base, currentUser.id] : base
   }
 
-  // ── Detail panel ──────────────────────────────────────────────────────────
+  // ── Panel détail ───────────────────────────────────────────────────────
   const detailEvent     = selectedEvent
   const detailCfg       = detailEvent ? (EVENT_TYPE_CONFIG[detailEvent.type] ?? EVENT_TYPE_CONFIG.meeting) : null
-  const detailStart     = detailEvent ? getStartDate(detailEvent) : null
-  const detailEnd       = detailEvent ? getEndDate(detailEvent) : null
   const detailAttend    = detailEvent ? getDisplayAttendees(detailEvent) : []
   const isCreatorOrPres = detailEvent &&
-    (detailEvent.createdBy === currentUser.id || currentUser.role === 'president')
+    (detailEvent.createdBy === currentUser.id || is('president'))
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="font-display font-bold text-3xl text-surface-900">Événements</h1>
@@ -103,7 +105,7 @@ export default function EventsPage() {
             {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
           </p>
         </div>
-        {canCreate && (
+        {canCreate(safeTab) && (
           <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
                              text-white rounded-xl text-sm font-medium transition-colors">
             <Plus size={15} /> Créer
@@ -111,111 +113,135 @@ export default function EventsPage() {
         )}
       </div>
 
-      {/* ── Filtres ─────────────────────────────────────────────────────────── */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {FILTERS.map(f => (
+      {/* ── Onglets ─────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 mb-6 border-b border-surface-200">
+        {tabs.map(tab => (
           <button
-            key={f.key}
-            onClick={() => setActiveFilter(f.key)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-              activeFilter === f.key
-                ? 'bg-brand-600 text-white'
-                : 'bg-white border border-surface-200 text-surface-600 hover:bg-surface-50'
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              safeTab === tab.id
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-surface-500 hover:text-surface-800'
             }`}
           >
-            {f.label}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* ── Grille événements ───────────────────────────────────────────────── */}
-      {visibleEvents.length === 0 ? (
-        <EmptyState
-          icon={<Calendar size={40} />}
-          title="Aucun événement"
-          description="Aucun événement ne correspond à ce filtre."
-        />
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {visibleEvents.map(event => {
-            const cfg      = EVENT_TYPE_CONFIG[event.type] ?? EVENT_TYPE_CONFIG.meeting
-            const Icon     = cfg.icon
-            const team     = event.teamId ? getTeamById(event.teamId) : null
-            const start    = getStartDate(event)
-            const attending = isAttending(event)
-            const past     = start && isPast(start)
-
-            return (
-              <Card
+      {/* ── Onglet Club ─────────────────────────────────────────────────── */}
+      {safeTab === 'club' && (
+        clubEvents.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays size={40} />}
+            title="Aucun événement club"
+            description="Aucun événement club n'est programmé pour le moment."
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {clubEvents.map(event => (
+              <EventCard
                 key={event.id}
-                className={`p-4 cursor-pointer transition-all hover:border-surface-300
-                            ${past ? 'opacity-60' : ''}`}
+                event={event}
+                currentUserId={currentUser.id}
+                attending={isAttending(event)}
+                onToggle={toggleAttendance}
                 onClick={() => setSelectedEvent(event)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
-                                   ${attending ? 'bg-brand-50' : 'bg-surface-100'}`}>
-                    <Icon size={18} className={attending ? 'text-brand-600' : 'text-surface-600'} />
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── Onglet Équipe ───────────────────────────────────────────────── */}
+      {safeTab === 'team' && (
+        teamEvents.length === 0 ? (
+          <EmptyState
+            icon={<Users size={40} />}
+            title="Aucun événement d'équipe"
+            description={
+              isOneOf('president', 'coach')
+                ? "Créez un covoiturage, une réunion ou un événement pour votre équipe."
+                : "Aucun événement n'est prévu pour votre équipe."
+            }
+            action={
+              isOneOf('president', 'coach') && (
+                <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
+                                   text-white rounded-xl text-sm font-medium transition-colors">
+                  <Plus size={15} /> Créer un événement
+                </button>
+              )
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {teamEvents.map(event => (
+              <EventCard
+                key={event.id}
+                event={event}
+                currentUserId={currentUser.id}
+                attending={isAttending(event)}
+                onToggle={toggleAttendance}
+                onClick={() => setSelectedEvent(event)}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── Onglet Matchs ───────────────────────────────────────────────── */}
+      {safeTab === 'matches' && (
+        upcomingMatches.length === 0 ? (
+          <EmptyState
+            icon={<Trophy size={40} />}
+            title="Aucun match programmé"
+            description="Les prochains matchs apparaîtront ici."
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {upcomingMatches.map(m => {
+              const team = getTeamById(m.teamId)
+              return (
+                <Card
+                  key={m.id}
+                  className="p-4 cursor-pointer hover:border-surface-300 transition-all"
+                  onClick={() => navigate(`/app/matches/${m.id}`)}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-semibold text-sm text-surface-900">{team?.name}</span>
+                    <Badge variant="blue">{team?.category}</Badge>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                      <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      {team && <Badge variant="gray">{team.name}</Badge>}
-                      {attending && !past && (
-                        <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                          <CheckCircle2 size={11} /> Inscrit
-                        </span>
-                      )}
+                  <div className="text-lg font-bold text-surface-900 mb-3">
+                    vs {m.opponentName}
+                  </div>
+                  <div className="space-y-1.5 text-xs text-surface-500">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays size={12} />
+                      {format(m.scheduledAt, "EEE d MMM yyyy · HH'h'mm", { locale: fr })}
                     </div>
-                    <h3 className="font-semibold text-surface-900 text-sm leading-snug">
-                      {event.title}
-                    </h3>
-                    <div className="mt-2 space-y-0.5 text-xs text-surface-500">
-                      {start && (
-                        <div className="flex items-center gap-1">
-                          <Calendar size={11} />
-                          {format(start, "EEE d MMM 'à' HH'h'mm", { locale: fr })}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 truncate">
-                        <MapPin size={11} />
-                        <span className="truncate">{event.location}</span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={12} />
+                      {m.location}
                     </div>
-                    {(event.attendees ?? []).length > 0 && (
-                      <div className="flex items-center gap-1 mt-2.5">
-                        <div className="flex -space-x-1">
-                          {(event.attendees ?? []).slice(0, 4).map(uid => {
-                            const u = getUserById(uid)
-                            return u ? <Avatar key={uid} user={u} size="xs" className="ring-2 ring-white" /> : null
-                          })}
-                        </div>
-                        <span className="text-xs text-surface-400 ml-1">
-                          {event.attendees.length}
-                          {event.maxAttendees ? ` / ${event.maxAttendees}` : ''}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      {m.isHome
+                        ? <><Home size={12} /> Domicile</>
+                        : <><Bus size={12} /> Déplacement</>
+                      }
+                    </div>
+                    {m.referee && (
+                      <div className="text-surface-400">Arbitre : {m.referee}</div>
                     )}
                   </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+        )
       )}
 
-      {/* ── CTA créer en bas ─────────────────────────────────────────────────── */}
-      {canCreate && (
-        <div className="mt-10 flex justify-center">
-          <button className="flex items-center gap-2 px-6 py-3 bg-white border border-surface-200
-                             hover:bg-surface-50 text-surface-700 rounded-2xl text-sm font-medium
-                             transition-colors shadow-sm">
-            <Plus size={16} /> Créer un nouvel événement
-          </button>
-        </div>
-      )}
-
-      {/* ── Panel détail ─────────────────────────────────────────────────────── */}
+      {/* ── Panel détail événement ──────────────────────────────────────── */}
       {detailEvent && (
         <div className="fixed inset-0 z-50 flex">
           <div
@@ -224,7 +250,7 @@ export default function EventsPage() {
           />
           <div className="w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden">
 
-            {/* Header panel */}
+            {/* Header */}
             <div className="flex items-start justify-between p-6 border-b border-surface-100">
               <div className="flex-1 min-w-0 pr-4">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -248,7 +274,6 @@ export default function EventsPage() {
 
             {/* Corps */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
               {detailEvent.description && (
                 <p className="text-sm text-surface-700 leading-relaxed">
                   {detailEvent.description}
@@ -256,30 +281,29 @@ export default function EventsPage() {
               )}
 
               <div className="space-y-2">
-                {detailStart && (
-                  <div className="flex items-start gap-3">
-                    <Calendar size={15} className="text-surface-400 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-surface-700">
-                      <span className="font-medium">
-                        {format(detailStart, "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })}
-                      </span>
-                      {detailEnd && (
-                        <span className="text-surface-400">
-                          {' '}→ {format(detailEnd, "HH'h'mm", { locale: fr })}
-                          <span className="text-xs ml-1">
-                            ({differenceInMinutes(detailEnd, detailStart)} min)
-                          </span>
+                <div className="flex items-start gap-3">
+                  <CalendarDays size={15} className="text-surface-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-surface-700">
+                    <span className="font-medium">
+                      {format(detailEvent.startsAt, "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })}
+                    </span>
+                    {detailEvent.endsAt && (
+                      <span className="text-surface-400">
+                        {' '}→ {format(detailEvent.endsAt, "HH'h'mm", { locale: fr })}
+                        <span className="text-xs ml-1">
+                          ({differenceInMinutes(detailEvent.endsAt, detailEvent.startsAt)} min)
                         </span>
-                      )}
-                    </div>
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="flex items-start gap-3">
                   <MapPin size={15} className="text-surface-400 mt-0.5 flex-shrink-0" />
                   <span className="text-sm text-surface-700">{detailEvent.location}</span>
                 </div>
               </div>
 
+              {/* Participants */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider">
@@ -287,15 +311,10 @@ export default function EventsPage() {
                   </p>
                   <span className="text-xs text-surface-500">
                     {detailAttend.length}
-                    {detailEvent.maxAttendees ? (
-                      <>
-                        {' / '}{detailEvent.maxAttendees}{' '}
-                        <span className={detailAttend.length >= detailEvent.maxAttendees
-                          ? 'text-red-500' : 'text-emerald-600'}>
-                          {detailAttend.length >= detailEvent.maxAttendees ? '(complet)' : 'places'}
-                        </span>
-                      </>
-                    ) : ' inscrits'}
+                    {detailEvent.maxAttendees
+                      ? ` / ${detailEvent.maxAttendees} ${detailAttend.length >= detailEvent.maxAttendees ? '(complet)' : 'places'}`
+                      : ' inscrits'
+                    }
                   </span>
                 </div>
 
@@ -346,7 +365,6 @@ export default function EventsPage() {
                   : <><UserPlus size={15} /> Je viens</>
                 }
               </button>
-
               {isCreatorOrPres && (
                 <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
                                    text-sm font-medium bg-white border border-surface-200
@@ -359,5 +377,59 @@ export default function EventsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Carte événement ───────────────────────────────────────────────────────
+function EventCard({ event, currentUserId, attending, onToggle, onClick }) {
+  const cfg  = EVENT_TYPE_CONFIG[event.type] ?? EVENT_TYPE_CONFIG.meeting
+  const Icon = cfg.icon
+  const team = event.teamId ? getTeamById(event.teamId) : null
+
+  return (
+    <Card
+      className="p-4 cursor-pointer hover:border-surface-300 transition-all"
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
+                         ${attending ? 'bg-brand-50' : 'bg-surface-100'}`}>
+          <Icon size={18} className={attending ? 'text-brand-600' : 'text-surface-500'} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+            {team && <Badge variant="gray">{team.name}</Badge>}
+          </div>
+          <h3 className="font-semibold text-surface-900 text-sm leading-snug">
+            {event.title}
+          </h3>
+          <div className="mt-2 space-y-0.5 text-xs text-surface-500">
+            <div className="flex items-center gap-1.5">
+              <CalendarDays size={11} />
+              {format(event.startsAt, "EEE d MMM 'à' HH'h'mm", { locale: fr })}
+            </div>
+            <div className="flex items-center gap-1.5 truncate">
+              <MapPin size={11} />
+              <span className="truncate">{event.location}</span>
+            </div>
+          </div>
+          {(event.attendees ?? []).length > 0 && (
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <div className="flex -space-x-1">
+                {(event.attendees ?? []).slice(0, 4).map(uid => {
+                  const u = getUserById(uid)
+                  return u ? <Avatar key={uid} user={u} size="xs" className="ring-2 ring-white" /> : null
+                })}
+              </div>
+              <span className="text-xs text-surface-400">
+                {event.attendees.length}
+                {event.maxAttendees ? ` / ${event.maxAttendees}` : ''}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   )
 }
