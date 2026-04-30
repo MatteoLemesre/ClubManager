@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { CONVERSATIONS, getUserById, getFullName, getTeamById } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge } from '../../components/ui'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -103,11 +103,12 @@ function NewConvModal({ currentUser, onClose, onCreate }) {
 
 export default function MessagesPage() {
   const { currentUser } = useAuth()
+  const { conversations, getUserById, getTeamById, getFullName } = useClubData()
   const isPlayer    = currentUser.role === 'player'
   const isSupporter = currentUser.role === 'supporter'
 
-  // Conversations du mock accessibles selon le rôle
-  const mockAccessible = CONVERSATIONS.filter(c => {
+  // Conversations accessibles selon le rôle
+  const mockAccessible = conversations.filter(c => {
     if (isSupporter) {
       // Supporter : pas de team_chat ni coach_channel
       if (c.type === 'team_chat' || c.type === 'coach_channel') return false

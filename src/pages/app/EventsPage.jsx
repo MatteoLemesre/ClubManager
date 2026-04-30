@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { EVENTS, MATCHES, getTeamById, getUserById, getFullName } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Card, Badge, EmptyState, Avatar } from '../../components/ui'
 import { format, differenceInMinutes } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -28,6 +28,7 @@ const ALL_TABS = [
 export default function EventsPage() {
   const { currentUser, is, isOneOf, canManageTeam } = useAuth()
   const navigate = useNavigate()
+  const { events, matches, loading, getUserById, getTeamById, getFullName } = useClubData()
 
   const [activeTab,          setActiveTab]          = useState('club')
   const [selectedEvent,      setSelectedEvent]      = useState(null)
@@ -43,7 +44,7 @@ export default function EventsPage() {
   const safeTab = tabs.find(t => t.id === activeTab) ? activeTab : tabs[0]?.id
 
   // ── Filtrage événements Club ────────────────────────────────────────────
-  const clubEvents = EVENTS.filter(ev => {
+  const clubEvents = events.filter(ev => {
     if (ev.category !== 'club') return false
     if (ev.visibility === 'club') return true
     if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
@@ -51,14 +52,14 @@ export default function EventsPage() {
   }).sort((a, b) => a.startsAt - b.startsAt)
 
   // ── Filtrage événements Équipe ──────────────────────────────────────────
-  const teamEvents = EVENTS.filter(ev => {
+  const teamEvents = events.filter(ev => {
     if (ev.category !== 'team') return false
     if (is('president')) return true
     return currentUser.teamIds?.includes(ev.teamId)
   }).sort((a, b) => a.startsAt - b.startsAt)
 
   // ── Matchs programmés ──────────────────────────────────────────────────
-  const upcomingMatches = MATCHES.filter(m => {
+  const upcomingMatches = matches.filter(m => {
     if (m.status !== 'scheduled') return false
     if (isOneOf('president', 'supporter', 'parent')) return true
     return currentUser.teamIds?.includes(m.teamId)
@@ -93,6 +94,14 @@ export default function EventsPage() {
   const detailAttend    = detailEvent ? getDisplayAttendees(detailEvent) : []
   const isCreatorOrPres = detailEvent &&
     (detailEvent.createdBy === currentUser.id || is('president'))
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -148,6 +157,8 @@ export default function EventsPage() {
                 attending={isAttending(event)}
                 onToggle={toggleAttendance}
                 onClick={() => setSelectedEvent(event)}
+                getTeamById={getTeamById}
+                getUserById={getUserById}
               />
             ))}
           </div>
@@ -184,6 +195,8 @@ export default function EventsPage() {
                 attending={isAttending(event)}
                 onToggle={toggleAttendance}
                 onClick={() => setSelectedEvent(event)}
+                getTeamById={getTeamById}
+                getUserById={getUserById}
               />
             ))}
           </div>
@@ -381,7 +394,7 @@ export default function EventsPage() {
 }
 
 // ─── Carte événement ───────────────────────────────────────────────────────
-function EventCard({ event, currentUserId, attending, onToggle, onClick }) {
+function EventCard({ event, currentUserId, attending, onToggle, onClick, getTeamById, getUserById }) {
   const cfg  = EVENT_TYPE_CONFIG[event.type] ?? EVENT_TYPE_CONFIG.meeting
   const Icon = cfg.icon
   const team = event.teamId ? getTeamById(event.teamId) : null

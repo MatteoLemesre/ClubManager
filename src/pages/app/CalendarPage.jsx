@@ -7,7 +7,7 @@ import {
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { EVENTS, TRAININGS, MATCHES, TEAMS, USERS, getTeamById, getFullName } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Card, Badge, Avatar } from '../../components/ui'
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 
@@ -23,6 +23,7 @@ const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
   const { currentUser } = useAuth()
+  const { events, trainings, matches, teams, users, loading, getTeamById, getFullName } = useClubData()
 
   const isPresident  = currentUser.role === 'president'
   const isSupporter  = currentUser.role === 'supporter'
@@ -50,21 +51,21 @@ export default function CalendarPage() {
 
     // Entraînements — pas pour supporter / parent
     if (showTrainings && !isSupporter && !isParent) {
-      TRAININGS
+      trainings
         .filter(t => isPresident || currentUser.teamIds?.includes(t.teamId))
         .forEach(t => items.push({ ...t, _type: 'training', _dateObj: parseISO(t.date) }))
     }
 
     // Matchs — tout le monde, filtrés par équipe sauf président/supporter/parent
     if (showMatches) {
-      MATCHES
+      matches
         .filter(m => isPresident || isSupporter || isParent || currentUser.teamIds?.includes(m.teamId))
         .forEach(m => items.push({ ...m, _type: 'match', _dateObj: m.scheduledAt }))
     }
 
     // Événements — category club = visible par tous (filtre visibility), team = selon équipe
     if (showEvents) {
-      EVENTS
+      events
         .filter(ev => {
           if (ev.category === 'club') {
             if (ev.visibility === 'club') return true
@@ -81,7 +82,7 @@ export default function CalendarPage() {
 
     if (teamFilter) return items.filter(i => !i.teamId || i.teamId === teamFilter)
     return items
-  }, [showTrainings, showMatches, showEvents, teamFilter, currentUser, isPresident, isSupporter, isParent, isPrivileged])
+  }, [showTrainings, showMatches, showEvents, teamFilter, currentUser, isPresident, isSupporter, isParent, isPrivileged, events, trainings, matches])
 
   function itemsForDay(day) {
     const str = format(day, 'yyyy-MM-dd')
@@ -89,6 +90,14 @@ export default function CalendarPage() {
   }
 
   const selectedDayItems = itemsForDay(selectedDay)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -130,7 +139,7 @@ export default function CalendarPage() {
                        text-surface-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
           >
             <option value="">Toutes les équipes</option>
-            {TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
       </div>
@@ -238,7 +247,7 @@ export default function CalendarPage() {
 
                 // ── Entraînement ──
                 if (item._type === 'training') {
-                  const trainingPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(item.teamId))
+                  const trainingPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(item.teamId))
                   const presentCount    = item.attendances?.filter(a => a.status === 'present').length ?? 0
                   const absentCount     = item.attendances?.filter(a => a.status === 'absent').length ?? 0
                   const noResponseCount = trainingPlayers.filter(p => !item.attendances?.find(a => a.userId === p.id)).length

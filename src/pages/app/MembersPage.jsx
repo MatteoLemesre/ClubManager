@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { USERS, TEAMS, getTeamById, getFullName } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge, Card, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { Search, UserPlus } from 'lucide-react'
 
@@ -10,6 +10,7 @@ const ALL = ''
 export default function MembersPage() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const { users, teams, loading, getTeamById, getFullName } = useClubData()
   const isPresident = currentUser.role === 'president'
   const isCoach     = currentUser.role === 'coach'
 
@@ -18,19 +19,28 @@ export default function MembersPage() {
   const [licFilter,  setLicFilter]  = useState(ALL)
 
   const members = useMemo(() => {
-    return USERS.filter(u => {
-      // Coach : uniquement ses joueurs (même équipe)
+    return users.filter(u => {
+      // Coach : uniquement ses joueurs de ses équipes
       if (isCoach) {
-        if (u.role !== 'player' || u.teamId !== currentUser.teamId) return false
+        if (u.role !== 'player') return false
+        if (!u.teamIds?.some(t => currentUser.teamIds?.includes(t))) return false
       }
 
       const matchSearch = getFullName(u).toLowerCase().includes(search.toLowerCase())
-      const matchTeam   = !teamFilter || u.teamId === teamFilter
+      const matchTeam   = !teamFilter || u.teamIds?.includes(teamFilter)
       const matchLic    = !licFilter  || u.license?.status === licFilter
 
       return matchSearch && matchTeam && matchLic
     })
-  }, [search, teamFilter, licFilter, currentUser, isCoach])
+  }, [search, teamFilter, licFilter, users, currentUser, isCoach, getFullName])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -74,7 +84,7 @@ export default function MembersPage() {
                      text-surface-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
         >
           <option value={ALL}>Toutes les équipes</option>
-          {TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
 
         <select
@@ -118,7 +128,7 @@ export default function MembersPage() {
             </thead>
             <tbody className="divide-y divide-surface-100">
               {members.map(member => {
-                const team = member.teamId ? getTeamById(member.teamId) : null
+                const team = member.teamIds?.[0] ? getTeamById(member.teamIds[0]) : null
                 return (
                   <tr
                     key={member.id}

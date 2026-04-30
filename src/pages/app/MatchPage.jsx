@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { MATCHES, USERS, getUserById, getTeamById, getFullName } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge, Card, SectionHeader } from '../../components/ui'
 import {
   ArrowLeft, Clock, MapPin, Target, Home, Bus,
@@ -34,8 +34,8 @@ function Tabs({ tabs, active, onChange }) {
 
 // ─── Tab Résumé ───────────────────────────────────────────────────────────────
 
-function TabSummary({ match, currentUser, is, canManageTeam }) {
-  const teamPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
+function TabSummary({ match, currentUser, is, canManageTeam, users, getUserById }) {
+  const teamPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
   const isMyTeam    = is('player') && currentUser.teamIds?.includes(match.teamId)
   const isManager   = canManageTeam(match.teamId)
 
@@ -144,7 +144,7 @@ function TabSummary({ match, currentUser, is, canManageTeam }) {
 
 // ─── Tab Composition ──────────────────────────────────────────────────────────
 
-function TabLineup({ match }) {
+function TabLineup({ match, getUserById, getFullName }) {
   const squad = match.squad ?? {}
   const confirmedIds = Object.entries(squad)
     .filter(([, status]) => status === 'confirmed')
@@ -183,7 +183,7 @@ function TabLineup({ match }) {
 
 // ─── Tab Covoiturage ──────────────────────────────────────────────────────────
 
-function TabCarpool({ match, currentUser }) {
+function TabCarpool({ match, currentUser, getUserById }) {
   const carpools = match.carpool ?? []
 
   return (
@@ -259,8 +259,8 @@ function TabCarpool({ match, currentUser }) {
 
 // ─── Tab Convocations ─────────────────────────────────────────────────────────
 
-function TabSquad({ match }) {
-  const teamPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
+function TabSquad({ match, users, getFullName }) {
+  const teamPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
   const squad       = match.squad ?? {}
 
   const STATUS_CONFIG = {
@@ -301,7 +301,7 @@ function TabSquad({ match }) {
 
 // ─── Tab Saisir résultat ──────────────────────────────────────────────────────
 
-function TabResult({ match }) {
+function TabResult({ match, users, getTeamById, getUserById }) {
   const [scoreHome, setScoreHome] = useState(match.scoreHome ?? 0)
   const [scoreAway, setScoreAway] = useState(match.scoreAway ?? 0)
   const [events,    setEvents]    = useState(match.events ?? [])
@@ -310,7 +310,7 @@ function TabResult({ match }) {
   const [newMinute, setNewMinute] = useState('')
 
   const team        = getTeamById(match.teamId)
-  const teamPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
+  const teamPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
 
   const inputCls = `w-20 text-center text-2xl font-bold bg-surface-50 border border-surface-200
                     rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300`
@@ -437,7 +437,7 @@ function TabResult({ match }) {
 
 // ─── Tab Notation ─────────────────────────────────────────────────────────────
 
-function TabRatings({ match, currentUser, is }) {
+function TabRatings({ match, currentUser, is, users }) {
   const [ratings, setRatings] = useState({})
 
   const isTeamPlayer = is('player') && currentUser.teamIds?.includes(match.teamId)
@@ -451,7 +451,7 @@ function TabRatings({ match, currentUser, is }) {
     )
   }
 
-  const rateablePlayers = USERS.filter(u =>
+  const rateablePlayers = users.filter(u =>
     u.role === 'player' &&
     u.teamIds?.includes(match.teamId) &&
     u.id !== currentUser.id &&
@@ -520,8 +520,17 @@ export default function MatchPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser, is, isOneOf, canManageTeam } = useAuth()
+  const { matches, users, loading, getUserById, getTeamById, getFullName } = useClubData()
 
-  const match = MATCHES.find(m => m.id === id)
+  const match = matches.find(m => m.id === id)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   if (!match) {
     return (
@@ -535,6 +544,7 @@ export default function MatchPage() {
   }
 
   const team = getTeamById(match.teamId)
+
 
   // ── Onglets selon rôle ──────────────────────────────────────────────────
   const tabs = [
@@ -684,14 +694,16 @@ export default function MatchPage() {
           currentUser={currentUser}
           is={is}
           canManageTeam={canManageTeam}
+          users={users}
+          getUserById={getUserById}
         />
       )}
-      {activeTab === 'lineup'  && <TabLineup  match={match} />}
-      {activeTab === 'carpool' && <TabCarpool match={match} currentUser={currentUser} />}
-      {activeTab === 'squad'   && <TabSquad   match={match} />}
-      {activeTab === 'result'  && <TabResult  match={match} />}
+      {activeTab === 'lineup'  && <TabLineup  match={match} getUserById={getUserById} getFullName={getFullName} />}
+      {activeTab === 'carpool' && <TabCarpool match={match} currentUser={currentUser} getUserById={getUserById} />}
+      {activeTab === 'squad'   && <TabSquad   match={match} users={users} getFullName={getFullName} />}
+      {activeTab === 'result'  && <TabResult  match={match} users={users} getTeamById={getTeamById} getUserById={getUserById} />}
       {activeTab === 'ratings' && (
-        <TabRatings match={match} currentUser={currentUser} is={is} />
+        <TabRatings match={match} currentUser={currentUser} is={is} users={users} />
       )}
     </div>
   )

@@ -1,42 +1,110 @@
-import { createContext, useContext, useState } from 'react'
-import { USERS, TEAMS } from '../data/mock'
+import { createContext, useContext, useState, useEffect } from 'react'
+import * as db from '../services/db'
 
 const AuthContext = createContext(null)
 
-export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(USERS[0]) // president par défaut
+// Dérive role et team_ids depuis user_roles pour compatibilité avec is() / canManageTeam()
+function normalizeUser(user) {
+  if (!user) return null
+  const roles = user.user_roles ?? []
+  const primaryRole = roles[0]?.role_type ?? null
+  const teamIds = roles
+    .filter(r => r.scope_type === 'team')
+    .map(r => r.scope_id)
+  return {
+    ...user,
+    role:      primaryRole,
+    team_ids:  teamIds,
+    teamIds,
+    firstName: user.persons?.first_name ?? user.firstName,
+    lastName:  user.persons?.last_name  ?? user.lastName,
+    birthDate: user.persons?.birth_date ?? user.birthDate,
+    birthPlace: user.persons?.birth_place ?? user.birthPlace,
+    phone:     user.persons?.phone ?? user.phone,
+  }
+}
 
-  function login(userId) {
-    const user = USERS.find(u => u.id === userId)
-    if (user) setCurrentUser(user)
+export function AuthProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading]         = useState(true)
+
+  // Restaurer la session au démarrage
+  useEffect(() => {
+    const restore = async () => {
+      const userId = db.getSession()
+      if (userId) {
+        try {
+          const user = await db.getUserById(userId)
+          if (user?.account_status === 'active') {
+            setCurrentUser(normalizeUser(user))
+          } else {
+            db.clearSession()
+          }
+        } catch {
+          db.clearSession()
+        }
+      }
+      setLoading(false)
+    }
+    restore()
+  }, [])
+
+  const login = async (email, password) => {
+    const user = await db.getUserByEmail(email)
+    if (!user)                               throw new Error('Email introuvable')
+    if (!db.checkPassword(password, user.password_hash))
+                                             throw new Error('Mot de passe incorrect')
+    if (user.account_status === 'pending')   throw new Error('Votre compte est en attente de validation')
+    if (user.account_status === 'disabled')  throw new Error('Votre compte a été désactivé')
+
+    await db.updateUser(user.id, { last_login_at: new Date().toISOString() })
+
+    db.setSession(user.id)
+    const normalized = normalizeUser(user)
+    setCurrentUser(normalized)
+    return normalized
   }
 
-  function logout() {
+  const logout = () => {
+    db.clearSession()
     setCurrentUser(null)
   }
 
-  function is(role) {
-    return currentUser?.role === role
+  const refreshUser = async () => {
+    if (currentUser) {
+      const updated = await db.getUserById(currentUser.id)
+      setCurrentUser(normalizeUser(updated))
+    }
   }
 
-  function isOneOf(...roles) {
-    return roles.includes(currentUser?.role)
+  // Dev : connexion directe sans mot de passe
+  const devLogin = async (userId) => {
+    try {
+      const user = await db.getUserById(userId)
+      if (user) {
+        db.setSession(user.id)
+        setCurrentUser(normalizeUser(user))
+      }
+    } catch {}
   }
 
-  function canManageTeam(teamId) {
-    if (currentUser?.role === 'president') return true
-    if (currentUser?.role === 'coach') return currentUser.teamIds?.includes(teamId)
-    return false
-  }
+  const is            = (role)    => currentUser?.role === role
+  const isOneOf       = (...roles) => roles.includes(currentUser?.role)
+  const canManageTeam = (teamId)  =>
+    is('president') || (is('coach') && currentUser?.team_ids?.includes(teamId))
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, is, isOneOf, canManageTeam, users: USERS }}>
-      {children}
+    <AuthContext.Provider value={{
+      currentUser, loading,
+      login, logout, refreshUser, devLogin,
+      is, isOneOf, canManageTeam,
+    }}>
+      {!loading && children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx

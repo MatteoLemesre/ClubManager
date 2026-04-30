@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import {
-  TEAMS, MATCHES, TRAININGS, USERS,
-  getUserById, getTeamById, getFullName,
-} from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Card, Badge, SectionHeader, Avatar, EmptyState } from '../../components/ui'
 import { format, isPast, parseISO, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -25,8 +22,9 @@ function groupTeamsByCategory(teams) {
 export default function TeamPage() {
   const { currentUser, is, isOneOf, canManageTeam } = useAuth()
   const navigate = useNavigate()
+  const { teams, users, matches, trainings, loading, getUserById, getTeamById, getFullName } = useClubData()
 
-  const defaultTeam = currentUser.teamIds?.[0] ?? TEAMS[0].id
+  const defaultTeam = currentUser.teamIds?.[0] ?? teams[0]?.id ?? ''
   const [selectedTeam,    setSelectedTeam]    = useState(defaultTeam)
   const [activeTab,       setActiveTab]       = useState('team')
   const [showFullRanking, setShowFullRanking] = useState(false)
@@ -36,21 +34,21 @@ export default function TeamPage() {
   const isMyTeam   = is('player') && currentUser.teamIds?.includes(selectedTeam)
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const teamMatches = MATCHES
+  const teamMatches = matches
     .filter(m => m.teamId === selectedTeam)
     .sort((a, b) => a.scheduledAt - b.scheduledAt)
 
   const nextMatch  = teamMatches.find(m => m.status === 'scheduled')
   const lastResult = [...teamMatches].reverse().find(m => m.status === 'played')
 
-  const teamTrainings = TRAININGS
+  const teamTrainings = trainings
     .filter(t => t.teamId === selectedTeam)
     .sort((a, b) => parseISO(a.date) - parseISO(b.date))
 
   const nextTraining = teamTrainings.find(t => !isPast(parseISO(t.date)))
 
-  const teamPlayers = USERS.filter(u => u.role === 'player' && u.teamIds?.includes(selectedTeam))
-  const teamCoaches = USERS.filter(u => u.role === 'coach'  && u.teamIds?.includes(selectedTeam))
+  const teamPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(selectedTeam))
+  const teamCoaches = users.filter(u => u.role === 'coach'  && u.teamIds?.includes(selectedTeam))
 
   const topScorers = [...teamPlayers]
     .filter(u => (u.stats?.goals ?? 0) > 0)
@@ -77,7 +75,15 @@ export default function TeamPage() {
     setShowFullRanking(false)
   }
 
-  const grouped = groupTeamsByCategory(TEAMS)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  const grouped = groupTeamsByCategory(teams)
 
   return (
     <div className="p-8 max-w-3xl mx-auto">

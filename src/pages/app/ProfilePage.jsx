@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { format, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { USERS, getTeamById } from '../../data/mock'
+import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
 
@@ -57,14 +57,23 @@ export default function ProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
+  const { users, loading, getTeamById } = useClubData()
 
   const isPresident  = currentUser.role === 'president'
   const isCoach      = currentUser.role === 'coach'
   const isPrivileged = isPresident || isCoach
 
   // Résoudre l'utilisateur à afficher
-  const targetUser = id ? USERS.find(u => u.id === id) : currentUser
+  const targetUser = id ? users.find(u => u.id === id) : currentUser
   const isOwnProfile = !id || id === currentUser.id
+
+  if (loading && id) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   // Contrôle d'accès
   if (!isOwnProfile) {
@@ -78,7 +87,7 @@ export default function ProfilePage() {
         </div>
       )
     }
-    if (isCoach && targetUser?.teamId !== currentUser.teamId) {
+    if (isCoach && !targetUser?.teamIds?.some(t => currentUser.teamIds?.includes(t))) {
       return (
         <div className="p-8 max-w-lg mx-auto">
           <EmptyState
@@ -98,7 +107,7 @@ export default function ProfilePage() {
     )
   }
 
-  const team = targetUser.teamId ? getTeamById(targetUser.teamId) : null
+  const team = targetUser.teamIds?.[0] ? getTeamById(targetUser.teamIds[0]) : null
 
   const age = targetUser.birthDate
     ? differenceInYears(new Date(), new Date(targetUser.birthDate))
