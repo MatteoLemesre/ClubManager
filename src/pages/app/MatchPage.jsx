@@ -521,6 +521,7 @@ export default function MatchPage() {
   const navigate = useNavigate()
   const { currentUser, is, isOneOf, canManageTeam } = useAuth()
   const { matches, users, loading, getUserById, getTeamById, getFullName } = useClubData()
+  const [activeTab, setActiveTab] = useState('summary')
 
   const match = matches.find(m => m.id === id)
 
@@ -580,7 +581,8 @@ export default function MatchPage() {
     },
   ].filter(t => t.show)
 
-  const [activeTab, setActiveTab] = useState(tabs[0].id)
+  // Recaler l'onglet actif si celui en mémoire n'est pas visible
+  const safeTab = tabs.find(t => t.id === activeTab) ? activeTab : tabs[0]?.id ?? 'summary'
 
   // ── Badge résultat ──────────────────────────────────────────────────────
   let resultVariant = 'gray'
@@ -685,10 +687,10 @@ export default function MatchPage() {
       </Card>
 
       {/* ── Onglets ───────────────────────────────────────────────────────── */}
-      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={tabs} active={safeTab} onChange={setActiveTab} />
 
       {/* ── Contenu ───────────────────────────────────────────────────────── */}
-      {activeTab === 'summary' && (
+      {safeTab === 'summary' && (
         <TabSummary
           match={match}
           currentUser={currentUser}
@@ -698,11 +700,11 @@ export default function MatchPage() {
           getUserById={getUserById}
         />
       )}
-      {activeTab === 'lineup'  && <TabLineup  match={match} getUserById={getUserById} getFullName={getFullName} />}
-      {activeTab === 'carpool' && <TabCarpool match={match} currentUser={currentUser} getUserById={getUserById} />}
-      {activeTab === 'squad'   && <TabSquad   match={match} users={users} getFullName={getFullName} />}
-      {activeTab === 'result'  && <TabResult  match={match} users={users} getTeamById={getTeamById} getUserById={getUserById} />}
-      {activeTab === 'ratings' && (
+      {safeTab === 'lineup'  && <TabLineup  match={match} getUserById={getUserById} getFullName={getFullName} />}
+      {safeTab === 'carpool' && <TabCarpool match={match} currentUser={currentUser} getUserById={getUserById} />}
+      {safeTab === 'squad'   && <TabSquad   match={match} users={users} getFullName={getFullName} />}
+      {safeTab === 'result'  && <TabResult  match={match} users={users} getTeamById={getTeamById} getUserById={getUserById} />}
+      {safeTab === 'ratings' && (
         <TabRatings match={match} currentUser={currentUser} is={is} users={users} />
       )}
     </div>
