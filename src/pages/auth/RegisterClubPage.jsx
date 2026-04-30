@@ -28,11 +28,29 @@ export default function RegisterClubPage() {
   const [error,   setError]   = useState(null)
   const [loading, setLoading] = useState(false)
 
+  const SPORTS_FALLBACK = [
+    'Athlétisme', 'Badminton', 'Basketball', 'Cyclisme',
+    'Football', 'Handball', 'Natation', 'Rugby', 'Tennis', 'Volleyball',
+  ]
+
   useEffect(() => {
-    db.getSports().then(data => {
-      setSports(data)
-      if (data.length > 0) setSportId(data[0].id)
-    }).catch(() => {})
+    const load = async () => {
+      try {
+        const data = await db.getSports()
+        console.log('getSports:', data)
+        const list = data?.length > 0
+          ? data
+          : SPORTS_FALLBACK.map((name, i) => ({ id: String(i), name }))
+        setSports(list)
+        setSportId(list[0].id)
+      } catch (err) {
+        console.error('Erreur chargement sports:', err)
+        const list = SPORTS_FALLBACK.map((name, i) => ({ id: String(i), name }))
+        setSports(list)
+        setSportId(list[0].id)
+      }
+    }
+    load()
   }, [])
 
   const handleSubmit = async (e) => {
