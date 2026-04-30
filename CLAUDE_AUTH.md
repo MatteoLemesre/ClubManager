@@ -1,4 +1,4 @@
-# ClubManager — Prompt Auth & Inscription
+# ClubManager — Prompt Auth & Inscription 2
 
 Ce prompt couvre uniquement le système d'authentification et d'inscription.
 À utiliser APRÈS avoir lu CLAUDE.md pour le contexte général du projet.
