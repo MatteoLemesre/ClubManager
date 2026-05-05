@@ -80,11 +80,12 @@ export default function RegisterClubPage() {
         if (found) {
           finalSportId = found.id
         } else {
-          const { data: created } = await supabase
+          const { data: created, error: sportErr } = await supabase
             .from('sports')
             .insert({ name: sportName })
             .select()
             .single()
+          if (sportErr || !created) throw new Error('Impossible de créer le sport')
           finalSportId = created.id
         }
       }
@@ -94,11 +95,13 @@ export default function RegisterClubPage() {
         address, postal_code: postalCode, city, country,
         email: clubEmail, phone: clubPhone,
       })
+      if (!club?.id) throw new Error('Erreur création club')
 
       const person = await db.createPerson({
         club_id: club.id, first_name: firstName, last_name: lastName,
-        birth_date: birthDate, phone: presidentPhone,
+        birth_date: birthDate || null, phone: presidentPhone || null,
       })
+      if (!person?.id) throw new Error('Erreur création profil')
 
       const user = await db.createUser({
         person_id: person.id,
@@ -106,6 +109,7 @@ export default function RegisterClubPage() {
         password_hash: db.hashPassword(password),
         account_status: 'active',
       })
+      if (!user?.id) throw new Error('Erreur création compte')
 
       await db.createUserRole({
         user_id: user.id,
