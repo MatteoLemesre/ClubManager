@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import * as db from '../../services/db'
-import { supabase } from '../../lib/supabase'
 
 export default function RegisterClubPage() {
   const navigate = useNavigate()
@@ -27,34 +26,25 @@ export default function RegisterClubPage() {
   const [password,        setPassword]        = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  const [error,   setError]   = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const SPORTS_FALLBACK = [
-    'Athlétisme', 'Badminton', 'Basketball', 'Cyclisme',
-    'Football', 'Handball', 'Natation', 'Rugby', 'Tennis', 'Volleyball',
-  ]
+  const [error,       setError]       = useState(null)
+  const [loading,     setLoading]     = useState(false)
+  const [sportsError, setSportsError] = useState('')
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await db.getSports()
-        console.log('getSports:', data)
-        const list = data?.length > 0
-          ? data
-          : SPORTS_FALLBACK.map(name => ({ id: null, name }))
-        setSports(list)
-        setSportId(list[0].id ?? '')
-        setSportName(list[0].name)
-      } catch (err) {
-        console.error('Erreur chargement sports:', err)
-        const list = SPORTS_FALLBACK.map(name => ({ id: null, name }))
-        setSports(list)
-        setSportId('')
-        setSportName(list[0].name)
-      }
-    }
-    load()
+    db.getSports()
+      .then(data => {
+        if (data.length === 0) {
+          setSportsError('Aucun sport disponible')
+        } else {
+          setSports(data)
+          setSportId(data[0].id)
+          setSportName(data[0].name)
+        }
+      })
+      .catch(err => {
+        console.error(err)
+        setSportsError('Impossible de charger les sports : ' + err.message)
+      })
   }, [])
 
   const handleSubmit = async (e) => {
@@ -69,29 +59,10 @@ export default function RegisterClubPage() {
       const existing = await db.getUserByEmail(email)
       if (existing) { setError('Cet email est déjà utilisé'); setLoading(false); return }
 
-      // Résoudre le sport_id (UUID réel requis par Supabase)
-      let finalSportId = sportId
-      if (!finalSportId) {
-        const { data: found } = await supabase
-          .from('sports')
-          .select('id')
-          .eq('name', sportName)
-          .single()
-        if (found) {
-          finalSportId = found.id
-        } else {
-          const { data: created, error: sportErr } = await supabase
-            .from('sports')
-            .insert({ name: sportName })
-            .select()
-            .single()
-          if (sportErr || !created) throw new Error('Impossible de créer le sport')
-          finalSportId = created.id
-        }
-      }
+      if (!sportId) throw new Error('Veuillez sélectionner un sport')
 
       const club = await db.createClub({
-        name: clubName, sport_id: finalSportId,
+        name: clubName, sport_id: sportId,
         address, postal_code: postalCode, city, country,
         email: clubEmail, phone: clubPhone,
       })
@@ -157,21 +128,25 @@ export default function RegisterClubPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sport <span className="text-red-500">*</span>
                 </label>
-                <select
-                  required
-                  value={sportId || sportName}
-                  onChange={e => {
-                    const selected = sports.find(s => s.id === e.target.value || s.name === e.target.value)
-                    setSportId(selected?.id ?? '')
-                    setSportName(selected?.name ?? '')
-                  }}
-                  className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
-                >
-                  {sports.length === 0 && <option value="">Chargement…</option>}
-                  {sports.map(s => (
-                    <option key={s.name} value={s.id ?? s.name}>{s.name}</option>
-                  ))}
-                </select>
+                {sportsError ? (
+                  <div className="text-red-500 text-sm">{sportsError}</div>
+                ) : (
+                  <select
+                    required
+                    value={sportId}
+                    onChange={e => {
+                      const selected = sports.find(s => s.id === e.target.value)
+                      setSportId(selected?.id ?? '')
+                      setSportName(selected?.name ?? '')
+                    }}
+                    className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    {sports.length === 0 && <option value="">Chargement…</option>}
+                    {sports.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>

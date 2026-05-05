@@ -5,10 +5,13 @@ import bcrypt from 'bcryptjs'
 export const getSports = async () => {
   const { data, error } = await supabase
     .from('sports')
-    .select('*')
+    .select('id, name')
     .order('name')
-  if (error) throw error
-  return data
+  if (error) {
+    console.error('getSports error:', error)
+    throw error
+  }
+  return data ?? []
 }
 
 // ── CLUBS ─────────────────────────────────────────────────
