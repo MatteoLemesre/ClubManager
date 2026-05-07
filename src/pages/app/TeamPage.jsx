@@ -9,7 +9,8 @@ import {
   Trophy, Clock, MapPin, ChevronRight, CheckCircle2, XCircle,
   AlertCircle, Target, Plus, ClipboardList, LayoutGrid, Home, Bus, Search,
 } from 'lucide-react'
-import { getFollowedClubs, getTeamsByClub } from '../../services/db'
+import { getFollowedClubs, getTeamsByClub, getCurrentSeason, createNotification } from '../../services/db'
+import { supabase } from '../../lib/supabase'
 
 // ─── Groupement équipes par catégorie ──────────────────────────────────────
 function groupTeamsByCategory(teams) {
@@ -29,6 +30,14 @@ export default function TeamPage() {
   const [selectedTeam,    setSelectedTeam]    = useState(defaultTeam)
   const [activeTab,       setActiveTab]       = useState('team')
   const [showFullRanking, setShowFullRanking] = useState(false)
+
+  // Coach — proposer une équipe
+  const [showCreateTeam,    setShowCreateTeam]    = useState(false)
+  const [newTeamName,       setNewTeamName]       = useState('')
+  const [newTeamCategory,   setNewTeamCategory]   = useState('')
+  const [newTeamGender,     setNewTeamGender]     = useState('mixed')
+  const [createTeamLoading, setCreateTeamLoading] = useState(false)
+  const [createTeamError,   setCreateTeamError]   = useState('')
 
   // Supporter multi-clubs
   const [followedClubs,    setFollowedClubs]    = useState([])
@@ -104,6 +113,48 @@ export default function TeamPage() {
   const nbAbsent    = Object.values(squadStatus).filter(s => s === 'absent').length
   const nbCalled    = Object.values(squadStatus).filter(s => s === 'called').length
 
+  async function handleCreateTeamRequest() {
+    setCreateTeamError('')
+    if (!newTeamName.trim()) return setCreateTeamError('Donnez un nom à l\'équipe')
+    if (!newTeamCategory)    return setCreateTeamError('Choisissez une catégorie')
+    setCreateTeamLoading(true)
+    try {
+      const season = await getCurrentSeason(currentUser.current_club_id)
+      const { data, error } = await supabase.from('team_requests').insert({
+        club_id:   currentUser.current_club_id,
+        coach_id:  currentUser.id,
+        team_name: newTeamName.trim(),
+        category:  newTeamCategory,
+        gender:    newTeamGender,
+        season,
+        status:    'pending',
+      }).select('id').single()
+      if (error) throw error
+
+      const presidents = users.filter(u =>
+        u.user_roles?.some(r => r.role_type === 'president') || u.role === 'president'
+      )
+      for (const p of presidents) {
+        await createNotification({
+          to_user_id:      p.id,
+          type:            'team_request',
+          title:           'Nouvelle équipe proposée',
+          body:            `${currentUser.firstName} ${currentUser.lastName} propose de créer l'équipe "${newTeamName.trim()}".`,
+          team_request_id: data.id,
+        })
+      }
+
+      setShowCreateTeam(false)
+      setNewTeamName('')
+      setNewTeamCategory('')
+      setNewTeamGender('mixed')
+    } catch (err) {
+      setCreateTeamError(err.message ?? 'Une erreur est survenue')
+    } finally {
+      setCreateTeamLoading(false)
+    }
+  }
+
   function switchTeam(id) {
     setSelectedTeam(id)
     setShowFullRanking(false)
@@ -148,9 +199,20 @@ export default function TeamPage() {
     <div className="p-8 max-w-3xl mx-auto">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-3xl text-surface-900">Équipes</h1>
-        <p className="text-surface-500 mt-1">Matchs, entraînements et effectif</p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-display font-bold text-3xl text-surface-900">Équipes</h1>
+          <p className="text-surface-500 mt-1">Matchs, entraînements et effectif</p>
+        </div>
+        {is('coach') && (
+          <button
+            onClick={() => { setShowCreateTeam(true); setCreateTeamError('') }}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
+                       text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            <Plus size={15} /> Proposer une équipe
+          </button>
+        )}
       </div>
 
       {/* ── Filtre club (supporters uniquement) ─────────────────────────── */}
@@ -560,6 +622,106 @@ export default function TeamPage() {
               </Card>
             </section>
           )}
+        </div>
+      )}
+
+      {/* ── Modal proposer une équipe (coach) ──────────────────────────── */}
+      {showCreateTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="font-display font-bold text-lg text-surface-900 mb-4">
+              Proposer une nouvelle équipe
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-surface-400 uppercase tracking-wider mb-1.5">
+                  Nom de l'équipe *
+                </label>
+                <input
+                  autoFocus
+                  value={newTeamName}
+                  onChange={e => setNewTeamName(e.target.value)}
+                  placeholder="Ex: Séniors A, U13 1…"
+                  className="w-full bg-surface-50 border border-surface-200 rounded-xl
+                             px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                             focus:ring-brand-300 focus:border-brand-400 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-400 uppercase tracking-wider mb-1.5">
+                  Catégorie *
+                </label>
+                <select
+                  value={newTeamCategory}
+                  onChange={e => setNewTeamCategory(e.target.value)}
+                  className="w-full bg-surface-50 border border-surface-200 rounded-xl
+                             px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                             focus:ring-brand-300 focus:border-brand-400 transition-all"
+                >
+                  <option value="">Choisir une catégorie…</option>
+                  {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15','U16','U17','U18','U19','U20','Seniors','Vétérans'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-400 uppercase tracking-wider mb-1.5">
+                  Genre
+                </label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'mixed',  label: 'Mixte'   },
+                    { value: 'male',   label: 'Masculin' },
+                    { value: 'female', label: 'Féminin'  },
+                  ].map(g => (
+                    <button
+                      key={g.value}
+                      onClick={() => setNewTeamGender(g.value)}
+                      className={`flex-1 py-2 text-sm rounded-xl border transition-colors ${
+                        newTeamGender === g.value
+                          ? 'bg-brand-50 border-brand-400 text-brand-700 font-medium'
+                          : 'border-surface-200 text-surface-600 hover:bg-surface-50'
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {createTeamError && (
+              <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm
+                              rounded-xl px-4 py-3">
+                {createTeamError}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowCreateTeam(false); setNewTeamName(''); setNewTeamCategory(''); setNewTeamGender('mixed'); setCreateTeamError('') }}
+                className="flex-1 py-2.5 border border-surface-200 text-surface-600
+                           hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreateTeamRequest}
+                disabled={createTeamLoading}
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                           rounded-xl text-sm font-medium transition-colors
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createTeamLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent
+                                  rounded-full animate-spin mx-auto" />
+                ) : 'Envoyer la demande'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

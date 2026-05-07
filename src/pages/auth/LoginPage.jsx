@@ -139,8 +139,8 @@ export default function LoginPage() {
           <div className="mt-6 space-y-2 text-center text-sm text-gray-500">
             <p>
               Pas encore membre ?{' '}
-              <Link to="/register/member" className="text-brand-600 hover:underline font-medium">
-                Rejoindre un club
+              <Link to="/register" className="text-brand-600 hover:underline font-medium">
+                Créer un compte
               </Link>
             </p>
             <p>

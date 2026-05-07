@@ -525,6 +525,210 @@ export const getAllActiveClubs = async () => {
   return data ?? []
 }
 
+// ── CLUB JOIN REQUESTS ────────────────────────────────────
+export const createJoinRequest = async (request) => {
+  const { data, error } = await supabase
+    .from('club_join_requests')
+    .insert(request)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export const getJoinRequestsByClub = async (clubId) => {
+  const { data, error } = await supabase
+    .from('club_join_requests')
+    .select('*, users(first_name, last_name, email, phone)')
+    .eq('club_id', clubId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export const getJoinRequestsForCoach = async (teamIds) => {
+  if (!teamIds?.length) return []
+  const { data, error } = await supabase
+    .from('club_join_requests')
+    .select('*, users(first_name, last_name, email, phone)')
+    .in('team_id', teamIds)
+    .eq('status', 'pending')
+    .eq('role_type', 'player')
+  if (error) throw error
+  return data ?? []
+}
+
+export const approveJoinRequest = async (requestId, reviewerId) => {
+  const { data: req } = await supabase
+    .from('club_join_requests')
+    .select('*')
+    .eq('id', requestId)
+    .single()
+
+  if (!req) throw new Error('Demande introuvable')
+
+  // Mettre à jour current_club_id du user
+  await supabase
+    .from('users')
+    .update({ current_club_id: req.club_id })
+    .eq('id', req.user_id)
+
+  // Créer le rôle
+  await supabase.from('user_roles').insert({
+    user_id:    req.user_id,
+    role_type:  req.role_type,
+    scope_type: req.team_id ? 'team' : 'club',
+    scope_id:   req.team_id ?? req.club_id,
+  })
+
+  // Si joueur → ajouter à team_players
+  if (req.role_type === 'player' && req.team_id) {
+    await supabase.from('team_players').insert({
+      team_id:   req.team_id,
+      user_id:   req.user_id,
+      season:    req.season,
+      is_active: true,
+    })
+  }
+
+  // Si coach → ajouter à team_coaches
+  if (req.role_type === 'coach' && req.team_id) {
+    await supabase.from('team_coaches').insert({
+      team_id:   req.team_id,
+      user_id:   req.user_id,
+      season:    req.season,
+      is_active: true,
+    })
+  }
+
+  // Créer l'entrée d'historique
+  await supabase.from('club_memberships').insert({
+    user_id:   req.user_id,
+    club_id:   req.club_id,
+    role_type: req.role_type,
+    team_id:   req.team_id ?? null,
+    season:    req.season,
+    joined_at: new Date().toISOString(),
+  })
+
+  // Marquer la demande comme approuvée
+  await supabase
+    .from('club_join_requests')
+    .update({
+      status:      'approved',
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+
+  // Notifier le demandeur
+  await createNotification({
+    to_user_id: req.user_id,
+    type:       'request_approved',
+    title:      'Demande approuvée !',
+    body:       'Vous pouvez maintenant accéder au club.',
+    request_id: requestId,
+  })
+}
+
+export const rejectJoinRequest = async (requestId, reviewerId) => {
+  const { data: req } = await supabase
+    .from('club_join_requests')
+    .select('user_id')
+    .eq('id', requestId)
+    .single()
+
+  await supabase
+    .from('club_join_requests')
+    .update({
+      status:      'rejected',
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+
+  await createNotification({
+    to_user_id: req.user_id,
+    type:       'request_rejected',
+    title:      'Demande refusée',
+    body:       "Votre demande d'adhésion a été refusée.",
+    request_id: requestId,
+  })
+}
+
+// ── SEASONS ───────────────────────────────────────────────
+export const getCurrentSeason = async (clubId) => {
+  const { data } = await supabase
+    .from('seasons')
+    .select('name')
+    .eq('club_id', clubId)
+    .eq('is_current', true)
+    .single()
+  if (!data) {
+    const now  = new Date()
+    const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+    return `${year}-${year + 1}`
+  }
+  return data.name
+}
+
+export const startNewSeason = async (clubId, seasonName, userId) => {
+  const { error } = await supabase.rpc('start_new_season', {
+    p_club_id: clubId,
+    p_season:  seasonName,
+    p_user_id: userId,
+  })
+  if (error) throw error
+}
+
+// ── PLAYER HISTORY ────────────────────────────────────────
+export const getPlayerHistory = async (userId) => {
+  const { data, error } = await supabase
+    .from('player_history')
+    .select('*, teams(name, category), clubs(name)')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+// ── NOTIFY FOR JOIN REQUEST ───────────────────────────────
+export const notifyForJoinRequest = async (role, club, teamId, user) => {
+  const clubUsers = await getUsersByClub(club.id)
+
+  if (role === 'coach' || role === 'president') {
+    const presidents = clubUsers.filter(u =>
+      u.user_roles?.some(r => r.role_type === 'president')
+    )
+    for (const p of presidents) {
+      await createNotification({
+        to_user_id: p.id,
+        type:       'registration_request',
+        title:      `Nouvelle demande — ${role === 'coach' ? 'Coach' : 'Président'}`,
+        body:       `${user.first_name} ${user.last_name} souhaite rejoindre comme ${role}.`,
+      })
+    }
+  }
+
+  if (role === 'player' && teamId) {
+    const { data: coaches } = await supabase
+      .from('team_coaches')
+      .select('user_id')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+
+    for (const { user_id } of coaches ?? []) {
+      await createNotification({
+        to_user_id: user_id,
+        type:       'registration_request',
+        title:      'Nouvelle demande de joueur',
+        body:       `${user.first_name} ${user.last_name} souhaite rejoindre votre équipe.`,
+      })
+    }
+  }
+}
+
 // ── AUTH HELPERS ──────────────────────────────────────────
 export const hashPassword  = (pwd)       => bcrypt.hashSync(pwd, 10)
 export const checkPassword = (pwd, hash) => bcrypt.compareSync(pwd, hash)

@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
-import { getMemberships } from '../../services/db'
+import { getMemberships, getPlayerHistory } from '../../services/db'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -69,11 +69,17 @@ export default function ProfilePage() {
   const targetUser = id ? users.find(u => u.id === id) : currentUser
   const isOwnProfile = !id || id === currentUser.id
 
-  // Historique des appartenances
-  const [memberships, setMemberships] = useState([])
+  // Historique des appartenances (clubs)
+  const [memberships,   setMemberships]   = useState([])
+  // Historique des équipes (joueurs uniquement)
+  const [playerHistory, setPlayerHistory] = useState([])
+
   useEffect(() => {
     if (!targetUser?.id) return
     getMemberships(targetUser.id).then(setMemberships).catch(() => {})
+    if (targetUser.role === 'player') {
+      getPlayerHistory(targetUser.id).then(setPlayerHistory).catch(() => {})
+    }
   }, [targetUser?.id])
 
   if (loading && id) {
@@ -259,6 +265,49 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+        </Card>
+      )}
+
+      {/* Historique des équipes — joueurs uniquement */}
+      {targetUser.role === 'player' && playerHistory.length > 0 && (
+        <Card className="p-5 mb-5">
+          <SectionHeader title="Historique des équipes" className="mb-0" />
+          <div className="mt-3 space-y-0 divide-y divide-surface-100">
+            {playerHistory.map((entry, i) => {
+              const teamName  = entry.teams?.name     ?? 'Équipe inconnue'
+              const teamCat   = entry.teams?.category ?? null
+              const clubName  = entry.clubs?.name     ?? null
+              return (
+                <div key={i} className="flex items-start justify-between py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-surface-900">{teamName}</div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {teamCat && (
+                        <span className="text-xs bg-surface-100 text-surface-600
+                                         px-2 py-0.5 rounded-lg font-medium">
+                          {teamCat}
+                        </span>
+                      )}
+                      {clubName && (
+                        <span className="text-xs text-surface-400">{clubName}</span>
+                      )}
+                      {entry.season && (
+                        <span className="text-xs text-surface-400">Saison {entry.season}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-surface-400 flex-shrink-0 ml-4">
+                    <div>{entry.joined_at ? format(new Date(entry.joined_at), 'MMM yyyy', { locale: fr }) : '—'}</div>
+                    {entry.left_at ? (
+                      <div>→ {format(new Date(entry.left_at), 'MMM yyyy', { locale: fr })}</div>
+                    ) : (
+                      <span className="text-emerald-600 font-medium">Actuel</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </Card>
       )}
 
