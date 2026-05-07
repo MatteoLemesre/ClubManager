@@ -10,6 +10,8 @@ import MatchPage          from './pages/app/MatchPage'
 import ProfilePage        from './pages/app/ProfilePage'
 import ExploreClubsPage  from './pages/app/ExploreClubsPage'
 import AdminPage         from './pages/app/AdminPage'
+import ResultsPage       from './pages/app/ResultsPage'
+import TeamHistoryPage   from './pages/app/TeamHistoryPage'
 import HomePage           from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterPage       from './pages/auth/RegisterPage'
@@ -48,8 +50,10 @@ function AppRoutes() {
         <Route path="matches/:id" element={<MatchPage />} />
         <Route path="profile"     element={<ProfilePage />} />
         <Route path="profile/:id" element={<ProfilePage />} />
-        <Route path="explore"     element={<ExploreClubsPage />} />
-        <Route path="admin"       element={<AdminPage />} />
+        <Route path="explore"                   element={<ExploreClubsPage />} />
+        <Route path="admin"                     element={<AdminPage />} />
+        <Route path="results"                   element={<ResultsPage />} />
+        <Route path="history/:teamId/:season"   element={<TeamHistoryPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

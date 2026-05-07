@@ -729,6 +729,59 @@ export const notifyForJoinRequest = async (role, club, teamId, user) => {
   }
 }
 
+// ── LEAVE CLUB ────────────────────────────────────────────
+export const leaveClub = async (userId, clubId) => {
+  const { error } = await supabase.rpc('leave_club', {
+    p_user_id: userId,
+    p_club_id: clubId,
+    p_reason:  'left',
+  })
+  if (error) throw error
+}
+
+export const canPresidentLeave = async (userId, clubId) => {
+  const { data, error } = await supabase.rpc('can_president_leave', {
+    p_user_id: userId,
+    p_club_id: clubId,
+  })
+  if (error) throw error
+  return data
+}
+
+// ── RESULTS (inter-clubs) ─────────────────────────────────
+export const getAllPlayedMatches = async () => {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('*, teams(name, category, club_id, clubs(name, sport_id))')
+    .eq('status', 'played')
+    .order('scheduled_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+  return data ?? []
+}
+
+// ── TEAM HISTORY ──────────────────────────────────────────
+export const getTeamById = async (teamId) => {
+  const { data, error } = await supabase
+    .from('teams')
+    .select('*, clubs(name)')
+    .eq('id', teamId)
+    .single()
+  if (error) throw error
+  return data
+}
+
+export const getMatchesByTeamAndSeason = async (teamId, season) => {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('season', season)
+    .order('scheduled_at')
+  if (error) throw error
+  return data ?? []
+}
+
 // ── AUTH HELPERS ──────────────────────────────────────────
 export const hashPassword  = (pwd)       => bcrypt.hashSync(pwd, 10)
 export const checkPassword = (pwd, hash) => bcrypt.compareSync(pwd, hash)

@@ -5,18 +5,18 @@ import { Avatar, RoleBadge, Card } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
 import {
-  CalendarDays, Shield, Users, Calendar, MessageCircle,
+  CalendarDays, Shield, Users, Calendar, MessageCircle, Trophy,
   ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, Search, Settings,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/app/events',   icon: CalendarDays,  label: 'Événements', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
   { to: '/app/team',     icon: Shield,        label: 'Équipes',    roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/explore',  icon: Search,        label: 'Explorer',   roles: ['supporter', 'parent'] },
+  { to: '/app/results',  icon: Trophy,        label: 'Résultats',  roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
   { to: '/app/members',  icon: Users,         label: (role) => role === 'coach' ? 'Joueurs' : 'Membres', roles: ['president', 'coach'] },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
   { to: '/app/messages', icon: MessageCircle, label: 'Messagerie', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/admin',   icon: Settings,      label: 'Admin',      roles: ['president'] },
+  { to: '/app/admin',    icon: Settings,      label: 'Admin',      roles: ['president'] },
 ]
 
 export default function AppLayout() {
@@ -285,39 +285,6 @@ export default function AppLayout() {
 
   const clubName  = club?.name ?? '…'
   const clubSport = club?.sports?.name ?? ''
-
-  // User connecté mais non rattaché à un club → card redirect
-  if (currentUser && !clubId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50 p-6">
-        <Card className="p-8 max-w-md text-center">
-          <div className="text-4xl mb-4">🏟️</div>
-          <h1 className="font-display text-xl font-bold text-gray-900 mb-2">
-            Vous n'êtes rattaché à aucun club
-          </h1>
-          <p className="text-gray-500 text-sm mb-5">
-            Rejoignez un club pour accéder à l'application.
-          </p>
-          <div className="flex flex-col gap-3">
-            <Link
-              to="/join-club"
-              className="inline-flex items-center justify-center px-4 py-2 bg-brand-600
-                         hover:bg-brand-700 text-white rounded-xl text-sm font-medium
-                         transition-colors"
-            >
-              Rejoindre un club
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              Se déconnecter
-            </button>
-          </div>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-screen bg-surface-50 overflow-hidden">

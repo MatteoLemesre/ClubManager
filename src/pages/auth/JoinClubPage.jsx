@@ -74,6 +74,7 @@ export default function JoinClubPage() {
   const [teams,        setTeams]          = useState([])
   const [message,      setMessage]        = useState('')
   const [search,       setSearch]         = useState('')
+  const [searchMode,   setSearchMode]     = useState('name')
   const [loading,      setLoading]        = useState(false)
   const [clubsLoading, setClubsLoading]   = useState(true)
   const [error,        setError]          = useState('')
@@ -97,10 +98,17 @@ export default function JoinClubPage() {
       .catch(() => {})
   }, [selectedClub])
 
-  const filteredClubs = clubs.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.city?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredClubs = clubs.filter(c => {
+    const q = search.toLowerCase().trim()
+    if (!q) return true
+    if (searchMode === 'name')   return c.name.toLowerCase().includes(q)
+    if (searchMode === 'city')   return c.city?.toLowerCase().includes(q)
+    if (searchMode === 'region') return (
+      c.region?.toLowerCase().includes(q) ||
+      c.postal_code?.startsWith(q)
+    )
+    return false
+  })
 
   const handleSubmit = async () => {
     setError('')
@@ -205,13 +213,40 @@ export default function JoinClubPage() {
                 Rechercher votre club
               </p>
 
+              {/* Sélecteur de mode */}
+              <div className="flex gap-2">
+                {[
+                  { id: 'name',   label: 'Nom' },
+                  { id: 'city',   label: 'Ville' },
+                  { id: 'region', label: 'Région / Dép.' },
+                ].map(mode => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => { setSearchMode(mode.id); setSearch('') }}
+                    className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                      searchMode === mode.id
+                        ? 'bg-brand-600 text-white border-brand-600'
+                        : 'bg-white text-gray-600 border-surface-200 hover:border-surface-300'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Champ de recherche */}
               <div className="relative">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   autoFocus
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Nom du club ou ville…"
+                  placeholder={
+                    searchMode === 'name'   ? 'Nom du club…' :
+                    searchMode === 'city'   ? 'Ville…' :
+                    'Région ou code postal…'
+                  }
                   className="w-full pl-9 pr-3 py-2.5 bg-surface-50 border border-surface-200
                              rounded-xl text-sm focus:outline-none focus:ring-2
                              focus:ring-brand-300 focus:border-brand-400 transition-all"
@@ -233,21 +268,21 @@ export default function JoinClubPage() {
                     <button
                       key={c.id}
                       onClick={() => setSelectedClub(c)}
-                      className="w-full text-left p-4 rounded-xl border border-surface-200
+                      className="w-full text-left p-4 rounded-2xl border border-surface-200
                                  hover:border-brand-300 hover:bg-brand-50 transition-all
-                                 flex items-center justify-between group"
+                                 flex items-start justify-between group"
                     >
                       <div>
                         <div className="font-semibold text-sm text-gray-900">{c.name}</div>
                         <div className="text-xs text-gray-500 mt-0.5">
-                          {c.sports?.name}{c.city ? ` · ${c.city}` : ''}
-                          {c.postal_code ? ` (${c.postal_code.slice(0, 2)})` : ''}
+                          {c.sports?.name}
                         </div>
                       </div>
-                      <ChevronRight
-                        size={15}
-                        className="text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0"
-                      />
+                      <div className="text-right text-xs text-gray-400 flex-shrink-0 ml-3">
+                        {c.city && <div>{c.city}</div>}
+                        {c.postal_code && <div>{c.postal_code}</div>}
+                        {c.region && <div>{c.region}</div>}
+                      </div>
                     </button>
                   ))}
                 </div>

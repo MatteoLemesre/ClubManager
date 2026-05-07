@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
-import { getMemberships, getPlayerHistory } from '../../services/db'
+import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave } from '../../services/db'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ function DocItem({ label, uploaded, url }) {
 export default function ProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const { currentUser, refreshUser, is, isOneOf } = useAuth()
   const { users, loading, getTeamById } = useClubData()
 
   const isPresident  = currentUser.role === 'president'
@@ -74,6 +74,14 @@ export default function ProfilePage() {
   // Historique des équipes (joueurs uniquement)
   const [playerHistory, setPlayerHistory] = useState([])
 
+  // Club actuel
+  const [club,            setClub]            = useState(null)
+  // Départ de club
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [leaveLoading,     setLeaveLoading]     = useState(false)
+  const [leaveError,       setLeaveError]       = useState('')
+  const [isLastPresident,  setIsLastPresident]  = useState(false)
+
   useEffect(() => {
     if (!targetUser?.id) return
     getMemberships(targetUser.id).then(setMemberships).catch(() => {})
@@ -81,6 +89,42 @@ export default function ProfilePage() {
       getPlayerHistory(targetUser.id).then(setPlayerHistory).catch(() => {})
     }
   }, [targetUser?.id])
+
+  // Charger les infos du club courant
+  useEffect(() => {
+    if (!currentUser?.current_club_id) { setClub(null); return }
+    getClubById(currentUser.current_club_id).then(setClub).catch(() => {})
+  }, [currentUser?.current_club_id])
+
+  // Vérifier si le président peut partir
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'president' || !currentUser.current_club_id) return
+    canPresidentLeave(currentUser.id, currentUser.current_club_id)
+      .then(can => setIsLastPresident(!can))
+      .catch(() => {})
+  }, [currentUser])
+
+  const handleLeaveClub = async () => {
+    setLeaveLoading(true)
+    setLeaveError('')
+    try {
+      if (currentUser.role === 'president') {
+        const canLeave = await canPresidentLeave(currentUser.id, currentUser.current_club_id)
+        if (!canLeave) {
+          setLeaveError('Vous devez nommer un autre président avant de partir.')
+          return
+        }
+      }
+      await leaveClub(currentUser.id, currentUser.current_club_id)
+      await refreshUser()
+      setShowLeaveConfirm(false)
+      navigate('/app/profile')
+    } catch (err) {
+      setLeaveError(err.message ?? 'Une erreur est survenue')
+    } finally {
+      setLeaveLoading(false)
+    }
+  }
 
   if (loading && id) {
     return (
@@ -144,6 +188,56 @@ export default function ProfilePage() {
         >
           <ArrowLeft size={16} /> Retour
         </button>
+      )}
+
+      {/* Bannière club — profil personnel uniquement */}
+      {isOwnProfile && !currentUser.current_club_id && (
+        <div className="mb-6 p-4 bg-brand-50 border border-brand-200 rounded-2xl
+                        flex items-center justify-between gap-4">
+          <div>
+            <div className="font-semibold text-brand-900">Vous n'êtes dans aucun club</div>
+            <div className="text-sm text-brand-600 mt-0.5">
+              Rejoignez un club existant ou créez le vôtre
+            </div>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => navigate('/join-club')}
+              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm
+                         font-medium rounded-xl transition-colors"
+            >
+              Rejoindre un club
+            </button>
+            <button
+              onClick={() => navigate('/register/club')}
+              className="px-3 py-1.5 bg-white hover:bg-surface-50 text-brand-700 text-sm
+                         font-medium rounded-xl border border-brand-200 transition-colors"
+            >
+              Créer un club
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isOwnProfile && currentUser.current_club_id && (
+        <div className="mb-6 p-4 bg-surface-100 border border-surface-200 rounded-2xl
+                        flex items-center justify-between gap-4">
+          <div>
+            <div className="font-semibold text-gray-900">{club?.name ?? '…'}</div>
+            <div className="text-sm text-gray-500 mt-0.5 capitalize">
+              {currentUser.role}
+              {club?.sports?.name ? ` · ${club.sports.name}` : ''}
+              {club?.city ? ` · ${club.city}` : ''}
+            </div>
+          </div>
+          <button
+            onClick={() => { setLeaveError(''); setShowLeaveConfirm(true) }}
+            className="flex-shrink-0 text-sm text-red-500 hover:text-red-700 hover:bg-red-50
+                       px-3 py-1.5 rounded-xl border border-red-200 transition-all"
+          >
+            Quitter le club
+          </button>
+        </div>
       )}
 
       {/* Hero */}
@@ -349,6 +443,69 @@ export default function ProfilePage() {
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Modal confirmation départ */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6">
+            <h2 className="font-display text-xl font-bold mb-2">
+              Quitter {club?.name} ?
+            </h2>
+            <p className="text-gray-500 text-sm mb-5 leading-relaxed">
+              Vous perdrez immédiatement accès aux informations internes du club.
+              Votre historique sera conservé dans votre profil.
+              Vous pourrez rejoindre un autre club quand vous le souhaitez.
+            </p>
+
+            {/* Avertissement coach seul */}
+            {currentUser.role === 'coach' && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl
+                              text-sm text-orange-700 mb-4">
+                ℹ️ Si vous étiez le seul coach d'une équipe, le président sera assigné
+                comme responsable jusqu'à la nomination d'un nouveau coach.
+              </div>
+            )}
+
+            {/* Blocage président seul */}
+            {isLastPresident && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl
+                              text-sm text-red-700 mb-4">
+                ⚠️ Vous êtes le seul président de ce club.
+                Nommez un autre président avant de partir.
+              </div>
+            )}
+
+            {leaveError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl
+                              text-sm text-red-700 mb-4">
+                {leaveError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 py-2 px-4 bg-surface-100 hover:bg-surface-200 text-gray-700
+                           text-sm font-medium rounded-xl transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                disabled={isLastPresident || leaveLoading}
+                onClick={handleLeaveClub}
+                className="flex-1 py-2 px-4 bg-red-500 hover:bg-red-600 disabled:opacity-40
+                           text-white text-sm font-medium rounded-xl transition-all
+                           flex items-center justify-center gap-2"
+              >
+                {leaveLoading
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : 'Confirmer le départ'
+                }
+              </button>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   )
