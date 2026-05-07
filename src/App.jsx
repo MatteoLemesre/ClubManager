@@ -8,6 +8,7 @@ import CalendarPage       from './pages/app/CalendarPage'
 import MessagesPage       from './pages/app/MessagesPage'
 import MatchPage          from './pages/app/MatchPage'
 import ProfilePage        from './pages/app/ProfilePage'
+import ExploreClubsPage  from './pages/app/ExploreClubsPage'
 import HomePage           from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterClubPage   from './pages/auth/RegisterClubPage'
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="matches/:id" element={<MatchPage />} />
         <Route path="profile"     element={<ProfilePage />} />
         <Route path="profile/:id" element={<ProfilePage />} />
+        <Route path="explore"     element={<ExploreClubsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

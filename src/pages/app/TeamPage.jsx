@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
@@ -7,8 +7,9 @@ import { format, isPast, parseISO, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Trophy, Clock, MapPin, ChevronRight, CheckCircle2, XCircle,
-  AlertCircle, Target, Plus, ClipboardList, LayoutGrid, Home, Bus,
+  AlertCircle, Target, Plus, ClipboardList, LayoutGrid, Home, Bus, Search,
 } from 'lucide-react'
+import { getFollowedClubs, getTeamsByClub } from '../../services/db'
 
 // ─── Groupement équipes par catégorie ──────────────────────────────────────
 function groupTeamsByCategory(teams) {
@@ -29,7 +30,40 @@ export default function TeamPage() {
   const [activeTab,       setActiveTab]       = useState('team')
   const [showFullRanking, setShowFullRanking] = useState(false)
 
-  const team       = getTeamById(selectedTeam)
+  // Supporter multi-clubs
+  const [followedClubs,    setFollowedClubs]    = useState([])
+  const [allFollowedTeams, setAllFollowedTeams] = useState([])
+  const [clubFilter,       setClubFilter]       = useState('')
+  const [followedLoading,  setFollowedLoading]  = useState(false)
+
+  const isSupporter = isOneOf('supporter', 'parent')
+
+  useEffect(() => {
+    if (!isSupporter) return
+    setFollowedLoading(true)
+    getFollowedClubs(currentUser.id)
+      .then(async (clubs) => {
+        setFollowedClubs(clubs)
+        const teamArrays = await Promise.all(clubs.map(c => getTeamsByClub(c.id)))
+        const flat = teamArrays.flat()
+        setAllFollowedTeams(flat)
+        if (flat.length > 0) setSelectedTeam(t => t || flat[0].id)
+      })
+      .catch(() => {})
+      .finally(() => setFollowedLoading(false))
+  }, [currentUser.id])
+
+  // Équipes affichées selon le rôle
+  const displayTeams = isSupporter
+    ? allFollowedTeams.filter(t => !clubFilter || t.club_id === clubFilter)
+    : teams
+
+  // getTeamById étendu pour inclure les équipes des clubs suivis
+  function findTeam(id) {
+    return getTeamById(id) ?? allFollowedTeams.find(t => t.id === id) ?? null
+  }
+
+  const team       = findTeam(selectedTeam)
   const isManager  = canManageTeam(selectedTeam)
   const isMyTeam   = is('player') && currentUser.teamIds?.includes(selectedTeam)
 
@@ -75,7 +109,7 @@ export default function TeamPage() {
     setShowFullRanking(false)
   }
 
-  if (loading) {
+  if (loading || (isSupporter && followedLoading)) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
@@ -83,7 +117,32 @@ export default function TeamPage() {
     )
   }
 
-  const grouped = groupTeamsByCategory(teams)
+  // Supporter sans clubs suivis
+  if (isSupporter && !followedLoading && allFollowedTeams.length === 0) {
+    return (
+      <div className="p-8 max-w-3xl mx-auto">
+        <div className="mb-6">
+          <h1 className="font-display font-bold text-3xl text-surface-900">Équipes</h1>
+        </div>
+        <div className="text-center py-14">
+          <div className="text-4xl mb-3">🔍</div>
+          <div className="font-semibold text-surface-700 mb-2">Vous ne suivez aucun club</div>
+          <p className="text-sm text-surface-400 mb-5">
+            Suivez des clubs pour voir leurs équipes ici
+          </p>
+          <button
+            onClick={() => navigate('/app/explore')}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600
+                       hover:bg-brand-700 text-white rounded-xl text-sm font-medium"
+          >
+            <Search size={15} /> Explorer les clubs
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const grouped = groupTeamsByCategory(displayTeams)
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
@@ -94,14 +153,32 @@ export default function TeamPage() {
         <p className="text-surface-500 mt-1">Matchs, entraînements et effectif</p>
       </div>
 
+      {/* ── Filtre club (supporters uniquement) ─────────────────────────── */}
+      {isSupporter && followedClubs.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Club</span>
+          <select
+            value={clubFilter}
+            onChange={e => { setClubFilter(e.target.value); setShowFullRanking(false) }}
+            className="bg-surface-50 border border-surface-200 rounded-xl
+                       px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+          >
+            <option value="">Tous mes clubs suivis</option>
+            {followedClubs.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* ── Barre sélection équipes groupées par catégorie ──────────────── */}
       <div className="flex flex-wrap gap-x-6 gap-y-3 mb-6">
-        {Object.entries(grouped).map(([category, teams]) => (
+        {Object.entries(grouped).map(([category, catTeams]) => (
           <div key={category} className="flex items-center gap-2">
             <span className="text-xs font-semibold text-surface-400 uppercase tracking-wider">
               {category}
             </span>
-            {teams.map(t => (
+            {catTeams.map(t => (
               <button
                 key={t.id}
                 onClick={() => switchTeam(t.id)}

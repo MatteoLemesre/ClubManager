@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
@@ -7,8 +7,9 @@ import { format, differenceInMinutes } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Car, Users, PartyPopper, Trophy, CalendarDays, MapPin,
-  X, Pencil, UserPlus, Plus, Home, Bus,
+  X, Pencil, UserPlus, Plus, Home, Bus, Search,
 } from 'lucide-react'
+import { getEventsFromFollowedClubs } from '../../services/db'
 
 // ─── Config types événements ───────────────────────────────────────────────
 const EVENT_TYPE_CONFIG = {
@@ -30,9 +31,22 @@ export default function EventsPage() {
   const navigate = useNavigate()
   const { events, matches, loading, getUserById, getTeamById, getFullName } = useClubData()
 
-  const [activeTab,          setActiveTab]          = useState('club')
-  const [selectedEvent,      setSelectedEvent]      = useState(null)
+  const [activeTab,           setActiveTab]           = useState('club')
+  const [selectedEvent,       setSelectedEvent]       = useState(null)
   const [attendanceOverrides, setAttendanceOverrides] = useState({})
+
+  // Événements des clubs suivis — supporters / parents uniquement
+  const [followedEvents,  setFollowedEvents]  = useState([])
+  const [followedLoading, setFollowedLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isOneOf('supporter', 'parent')) return
+    setFollowedLoading(true)
+    getEventsFromFollowedClubs(currentUser.id)
+      .then(setFollowedEvents)
+      .catch(() => {})
+      .finally(() => setFollowedLoading(false))
+  }, [currentUser.id])
 
   // ── Onglets visibles selon le rôle ─────────────────────────────────────
   const tabs = ALL_TABS.filter(t => {
@@ -140,8 +154,64 @@ export default function EventsPage() {
       </div>
 
       {/* ── Onglet Club ─────────────────────────────────────────────────── */}
-      {safeTab === 'club' && (
-        clubEvents.length === 0 ? (
+      {safeTab === 'club' && (() => {
+        // Supporter / parent → événements des clubs suivis
+        if (isOneOf('supporter', 'parent')) {
+          if (followedLoading) {
+            return (
+              <div className="flex items-center justify-center h-40">
+                <div className="w-7 h-7 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+              </div>
+            )
+          }
+          if (followedEvents.length === 0) {
+            return (
+              <div className="text-center py-14">
+                <div className="text-4xl mb-3">🔍</div>
+                <div className="font-semibold text-surface-700 mb-2">
+                  Vous ne suivez aucun club
+                </div>
+                <p className="text-sm text-surface-400 mb-5">
+                  Suivez des clubs pour voir leurs événements ici
+                </p>
+                <button
+                  onClick={() => navigate('/app/explore')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600
+                             hover:bg-brand-700 text-white rounded-xl text-sm font-medium"
+                >
+                  <Search size={15} /> Explorer les clubs
+                </button>
+              </div>
+            )
+          }
+          return (
+            <div className="space-y-6">
+              {/* Regrouper par club suivi */}
+              {Object.entries(
+                followedEvents.reduce((acc, ev) => {
+                  const key = ev.club_id
+                  if (!acc[key]) acc[key] = { name: ev.clubs?.name ?? 'Club', events: [] }
+                  acc[key].events.push(ev)
+                  return acc
+                }, {})
+              ).map(([clubId, { name, events: evs }]) => (
+                <div key={clubId}>
+                  <p className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-3">
+                    {name}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {evs.map(ev => (
+                      <FollowedEventCard key={ev.id} event={ev} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+
+        // Autres rôles → comportement inchangé
+        return clubEvents.length === 0 ? (
           <EmptyState
             icon={<CalendarDays size={40} />}
             title="Aucun événement club"
@@ -163,7 +233,7 @@ export default function EventsPage() {
             ))}
           </div>
         )
-      )}
+      })()}
 
       {/* ── Onglet Équipe ───────────────────────────────────────────────── */}
       {safeTab === 'team' && (
@@ -390,6 +460,41 @@ export default function EventsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Carte événement (clubs suivis — données Supabase snake_case) ─────────
+function FollowedEventCard({ event }) {
+  const cfg = EVENT_TYPE_CONFIG[event.type] ?? EVENT_TYPE_CONFIG.meeting
+  const Icon = cfg.icon
+  return (
+    <Card className="p-4">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-surface-100 flex items-center justify-center flex-shrink-0">
+          <Icon size={18} className="text-surface-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+          </div>
+          <h3 className="font-semibold text-surface-900 text-sm leading-snug">{event.title}</h3>
+          <div className="mt-2 space-y-0.5 text-xs text-surface-500">
+            {event.starts_at && (
+              <div className="flex items-center gap-1.5">
+                <CalendarDays size={11} />
+                {format(new Date(event.starts_at), "EEE d MMM 'à' HH'h'mm", { locale: fr })}
+              </div>
+            )}
+            {event.location && (
+              <div className="flex items-center gap-1.5 truncate">
+                <MapPin size={11} />
+                <span className="truncate">{event.location}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
   )
 }
 

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -5,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
+import { getMemberships } from '../../services/db'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -66,6 +68,13 @@ export default function ProfilePage() {
   // Résoudre l'utilisateur à afficher
   const targetUser = id ? users.find(u => u.id === id) : currentUser
   const isOwnProfile = !id || id === currentUser.id
+
+  // Historique des appartenances
+  const [memberships, setMemberships] = useState([])
+  useEffect(() => {
+    if (!targetUser?.id) return
+    getMemberships(targetUser.id).then(setMemberships).catch(() => {})
+  }, [targetUser?.id])
 
   if (loading && id) {
     return (
@@ -222,7 +231,7 @@ export default function ProfilePage() {
 
       {/* Stats — si joueur */}
       {targetUser.role === 'player' && targetUser.stats && (
-        <Card className="p-5">
+        <Card className="p-5 mb-5">
           <SectionHeader title="Statistiques saison" className="mb-0" />
           <div className="mt-4 grid grid-cols-3 gap-4">
             {[
@@ -250,6 +259,46 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+        </Card>
+      )}
+
+      {/* Historique des appartenances */}
+      {memberships.length > 0 && (
+        <Card className="p-5">
+          <SectionHeader title="Historique" className="mb-0" />
+          <div className="mt-3 space-y-3">
+            {memberships.map(m => (
+              <div key={m.id} className="flex items-start justify-between
+                                         py-3 border-b border-surface-100 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm text-surface-900">{m.club_name}</div>
+                  {m.team_name && (
+                    <div className="text-sm text-surface-500 mt-0.5">{m.team_name}</div>
+                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <RoleBadge role={m.role_type} />
+                    {m.season && (
+                      <span className="text-xs text-surface-400">Saison {m.season}</span>
+                    )}
+                    {m.leave_reason === 'club_deleted' && (
+                      <span className="text-xs text-orange-600 bg-orange-50
+                                       px-2 py-0.5 rounded-lg font-medium">
+                        Club dissous
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-surface-400 flex-shrink-0 ml-4">
+                  <div>{format(new Date(m.joined_at), 'MMM yyyy', { locale: fr })}</div>
+                  {m.left_at ? (
+                    <div>→ {format(new Date(m.left_at), 'MMM yyyy', { locale: fr })}</div>
+                  ) : (
+                    <span className="text-emerald-600 font-medium">Actuel</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
     </div>

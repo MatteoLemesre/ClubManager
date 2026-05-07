@@ -387,6 +387,144 @@ export const sendMessage = async (conversationId, senderId, content) => {
   return data
 }
 
+// ── CLUB MEMBERSHIPS (historique) ────────────────────────
+export const getMemberships = async (userId) => {
+  const { data, error } = await supabase
+    .from('club_memberships')
+    .select('*')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+// ── DELETE CLUB (soft) ────────────────────────────────────
+export const deleteClub = async (clubId) => {
+  const { data: members } = await supabase
+    .from('users')
+    .select('id')
+    .eq('current_club_id', clubId)
+
+  const { data: teams } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('club_id', clubId)
+
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('name')
+    .eq('id', clubId)
+    .single()
+
+  const season =
+    new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
+
+  for (const member of members ?? []) {
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role_type, scope_id, scope_type')
+      .eq('user_id', member.id)
+
+    const clubRole = roles?.find(
+      r => r.scope_type === 'club' && r.scope_id === clubId
+    )
+    const teamRole = roles?.find(r => r.scope_type === 'team')
+    const teamInfo = teamRole
+      ? teams?.find(t => t.id === teamRole.scope_id)
+      : null
+
+    await supabase.from('club_memberships').insert({
+      user_id:      member.id,
+      club_id:      clubId,
+      club_name:    club?.name,
+      role_type:    clubRole?.role_type ?? 'player',
+      team_id:      teamInfo?.id ?? null,
+      team_name:    teamInfo?.name ?? null,
+      joined_at:    new Date().toISOString(),
+      left_at:      new Date().toISOString(),
+      leave_reason: 'club_deleted',
+      season,
+    })
+
+    await supabase
+      .from('users')
+      .update({ current_club_id: null })
+      .eq('id', member.id)
+  }
+
+  await supabase
+    .from('user_roles')
+    .delete()
+    .eq('scope_id', clubId)
+
+  await supabase
+    .from('clubs')
+    .update({ status: 'deleted', deleted_at: new Date().toISOString() })
+    .eq('id', clubId)
+}
+
+// ── CLUB FOLLOWS (supporters) ─────────────────────────────
+export const followClub = async (userId, clubId) => {
+  const { error } = await supabase
+    .from('club_follows')
+    .insert({ user_id: userId, club_id: clubId })
+  if (error) throw error
+}
+
+export const unfollowClub = async (userId, clubId) => {
+  const { error } = await supabase
+    .from('club_follows')
+    .delete()
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+  if (error) throw error
+}
+
+export const getFollowedClubs = async (userId) => {
+  const { data, error } = await supabase
+    .from('club_follows')
+    .select('clubs(*)')
+    .eq('user_id', userId)
+  if (error) throw error
+  return data?.map(d => d.clubs) ?? []
+}
+
+export const isFollowingClub = async (userId, clubId) => {
+  const { data } = await supabase
+    .from('club_follows')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+    .single()
+  return !!data
+}
+
+export const getEventsFromFollowedClubs = async (userId) => {
+  const followed = await getFollowedClubs(userId)
+  if (!followed.length) return []
+
+  const clubIds = followed.map(c => c.id)
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, clubs(name, sport_id)')
+    .in('club_id', clubIds)
+    .eq('visibility', 'club_wide')
+    .order('starts_at')
+  if (error) throw error
+  return data ?? []
+}
+
+export const getAllActiveClubs = async () => {
+  const { data, error } = await supabase
+    .from('clubs')
+    .select('*, sports(name)')
+    .eq('status', 'active')
+    .order('name')
+  if (error) throw error
+  return data ?? []
+}
+
 // ── AUTH HELPERS ──────────────────────────────────────────
 export const hashPassword  = (pwd)       => bcrypt.hashSync(pwd, 10)
 export const checkPassword = (pwd, hash) => bcrypt.compareSync(pwd, hash)

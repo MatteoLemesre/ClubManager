@@ -43,6 +43,10 @@ export default function RegisterMemberPage() {
   const [teams,          setTeams]          = useState([])
   const [selectedTeamId, setSelectedTeamId] = useState('')
 
+  // User existant sans club actif (réinscription)
+  const [returningUser,   setReturningUser]   = useState(null)
+  const [emailChecking,   setEmailChecking]   = useState(false)
+
   const [error,   setError]   = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -63,12 +67,41 @@ export default function RegisterMemberPage() {
     c.city?.toLowerCase().includes(search.toLowerCase())
   )
 
+  // Vérifie l'email dès que l'user quitte le champ
+  const checkEmail = async () => {
+    if (!email || !email.includes('@')) return
+    setEmailChecking(true)
+    setError(null)
+    try {
+      const existing = await db.getUserByEmail(email)
+      if (existing) {
+        if (existing.current_club_id) {
+          setError('Cet email est déjà associé à un compte actif dans un autre club.')
+        } else {
+          // User existant sans club → réinscription
+          setReturningUser(existing)
+          setFirstName(existing.persons?.first_name ?? '')
+          setLastName(existing.persons?.last_name  ?? '')
+          setBirthDate(existing.persons?.birth_date ?? '')
+          setPhone(existing.persons?.phone ?? '')
+        }
+      } else {
+        setReturningUser(null)
+      }
+    } catch {}
+    setEmailChecking(false)
+  }
+
   const goNext = (e) => {
     e.preventDefault()
     setError(null)
     if (step === 1) {
-      if (password !== confirmPassword) return setError('Les mots de passe ne correspondent pas')
-      if (password.length < 8)          return setError('Mot de passe trop court (8 caractères minimum)')
+      if (!returningUser) {
+        if (password !== confirmPassword) return setError('Les mots de passe ne correspondent pas')
+        if (password.length < 8)          return setError('Mot de passe trop court (8 caractères minimum)')
+      }
+      // Bloquer si email appartient à un club actif (erreur déjà affichée par checkEmail)
+      if (error) return
     }
     setStep(s => s + 1)
   }
@@ -83,6 +116,60 @@ export default function RegisterMemberPage() {
 
     setLoading(true)
     try {
+      // ── Réinscription : user existant sans club actif ─────────────
+      if (returningUser) {
+        const token = crypto.randomUUID()
+        const request = await db.createRequest({
+          club_id:          selectedClub.id,
+          first_name:       returningUser.persons?.first_name,
+          last_name:        returningUser.persons?.last_name,
+          email:            returningUser.email,
+          role_type:        role,
+          team_id:          selectedTeamId || null,
+          password_hash:    returningUser.password_hash,
+          status:           'pending',
+          token,
+          is_returning:     true,
+          existing_user_id: returningUser.id,
+        })
+
+        if (role === 'coach') {
+          const clubUsers = await db.getUsersByClub(selectedClub.id)
+          const president = clubUsers.find(u =>
+            (u.user_roles ?? []).some(r => r.role_type === 'president')
+          )
+          if (president) {
+            await db.createNotification({
+              to_user_id: president.id,
+              type:       'registration_request',
+              title:      'Nouvelle demande de coach',
+              body:       `${returningUser.persons?.first_name} ${returningUser.persons?.last_name} souhaite rejoindre comme coach.`,
+              request_id: request.id,
+            })
+          }
+        }
+
+        if (role === 'player' && selectedTeamId) {
+          const { data: coaches } = await supabase
+            .from('team_coaches')
+            .select('user_id')
+            .eq('team_id', selectedTeamId)
+          for (const { user_id } of coaches ?? []) {
+            await db.createNotification({
+              to_user_id: user_id,
+              type:       'registration_request',
+              title:      'Nouvelle demande de joueur',
+              body:       `${returningUser.persons?.first_name} ${returningUser.persons?.last_name} souhaite rejoindre votre équipe.`,
+              request_id: request.id,
+            })
+          }
+        }
+
+        navigate('/register/pending')
+        return
+      }
+
+      // ── Nouveau user ───────────────────────────────────────────────
       const existing = await db.getUserByEmail(email)
       if (existing) { setError('Cet email est déjà utilisé'); setLoading(false); return }
 
@@ -293,15 +380,38 @@ export default function RegisterMemberPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email <span className="text-red-500">*</span>
                 </label>
-                <input
-                  required
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="vous@exemple.fr"
-                  className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
-                />
+                <div className="relative">
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setReturningUser(null); setError(null) }}
+                    onBlur={checkEmail}
+                    placeholder="vous@exemple.fr"
+                    className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                  {emailChecking && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2
+                                    w-4 h-4 border-2 border-brand-200 border-t-brand-600
+                                    rounded-full animate-spin" />
+                  )}
+                </div>
               </div>
+
+              {returningUser && (
+                <div className="flex items-start gap-3 p-4 rounded-xl border
+                                border-blue-200 bg-blue-50 text-blue-800">
+                  <span className="text-lg leading-none">👋</span>
+                  <div>
+                    <div className="font-semibold text-sm">Compte existant trouvé</div>
+                    <div className="text-xs mt-0.5 opacity-80">
+                      Vos informations ont été pré-remplies. Vous n'avez pas besoin
+                      de créer un nouveau mot de passe — votre mot de passe actuel
+                      sera conservé.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
@@ -314,34 +424,36 @@ export default function RegisterMemberPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mot de passe <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    required
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="8 caractères min."
-                    className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
-                  />
+              {!returningUser && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mot de passe <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      required
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="8 caractères min."
+                      className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirmer <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      required
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Répéter"
+                      className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirmer <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    required
-                    type="password"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Répéter"
-                    className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
@@ -373,6 +485,20 @@ export default function RegisterMemberPage() {
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
                 Votre fonction dans le club
               </div>
+
+              {returningUser && (
+                <div className="flex items-start gap-3 p-3 rounded-xl border
+                                border-blue-200 bg-blue-50 text-blue-800 text-xs mb-2">
+                  <span>👋</span>
+                  <span>
+                    Réinscription de{' '}
+                    <strong>
+                      {returningUser.persons?.first_name} {returningUser.persons?.last_name}
+                    </strong>
+                    {' '}dans <strong>{selectedClub?.name}</strong>
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-3">
                 {ROLE_OPTIONS.map(r => (

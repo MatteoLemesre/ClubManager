@@ -4,14 +4,16 @@ import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
+import NoClubPage from '../../pages/app/NoClubPage'
 import {
   CalendarDays, Shield, Users, Calendar, MessageCircle,
-  ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X,
+  ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, Search,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/app/events',   icon: CalendarDays,  label: 'Événements', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
   { to: '/app/team',     icon: Shield,        label: 'Équipes',    roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
+  { to: '/app/explore',  icon: Search,        label: 'Explorer',   roles: ['supporter', 'parent'] },
   { to: '/app/members',  icon: Users,         label: (role) => role === 'coach' ? 'Joueurs' : 'Membres', roles: ['president', 'coach'] },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
   { to: '/app/messages', icon: MessageCircle, label: 'Messagerie', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
@@ -29,7 +31,7 @@ export default function AppLayout() {
   const [club,         setClub]         = useState(null)
   const [devUsers,     setDevUsers]     = useState([])
 
-  const clubId = currentUser?.persons?.club_id
+  const clubId = currentUser?.current_club_id ?? currentUser?.persons?.club_id
 
   // Charger le club
   useEffect(() => {
@@ -172,6 +174,11 @@ export default function AppLayout() {
 
   const clubName  = club?.name ?? '…'
   const clubSport = club?.sports?.name ?? ''
+
+  // User connecté mais plus rattaché à un club actif
+  if (currentUser && !clubId) {
+    return <NoClubPage />
+  }
 
   return (
     <div className="flex h-screen bg-surface-50 overflow-hidden">
