@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge, Card, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { Search, UserPlus } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 const ALL = ''
 
@@ -11,8 +11,7 @@ export default function MembersPage() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
   const { users, teams, loading, getTeamById, getFullName } = useClubData()
-  const isPresident = currentUser.role === 'president'
-  const isCoach     = currentUser.role === 'coach'
+  const isCoach = currentUser.role === 'coach'
 
   const [search,     setSearch]     = useState('')
   const [teamFilter, setTeamFilter] = useState(ALL)
@@ -47,18 +46,7 @@ export default function MembersPage() {
 
       {/* Header */}
       <div className="mb-8">
-        <SectionHeader
-          title={isCoach ? 'Mes joueurs' : 'Membres'}
-          action={
-            isPresident && (
-              <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
-                                 text-white rounded-xl text-sm font-medium transition-colors">
-                <UserPlus size={15} />
-                Ajouter un membre
-              </button>
-            )
-          }
-        />
+        <SectionHeader title={isCoach ? 'Mes joueurs' : 'Membres'} />
         <p className="text-surface-500 text-sm">{members.length} membre{members.length > 1 ? 's' : ''}</p>
       </div>
 
@@ -102,11 +90,19 @@ export default function MembersPage() {
 
       {/* Tableau */}
       {members.length === 0 ? (
-        <EmptyState
-          icon={<Search size={36} />}
-          title="Aucun membre trouvé"
-          description="Modifiez vos filtres ou votre recherche."
-        />
+        search || teamFilter || licFilter ? (
+          <EmptyState
+            icon="🔍"
+            title="Aucun résultat"
+            description="Aucun membre ne correspond à votre recherche."
+          />
+        ) : (
+          <EmptyState
+            icon="👥"
+            title="Aucun membre pour l'instant"
+            description="Les membres rejoignent le club en faisant une demande d'adhésion."
+          />
+        )
       ) : (
         <Card>
           <table className="w-full">
