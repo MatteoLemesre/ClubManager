@@ -68,10 +68,24 @@ export const getPersonsByClub = async (clubId) => {
 export const createUser = async (user) => {
   const { data, error } = await supabase
     .from('users')
-    .insert(user)
+    .insert({
+      email:           user.email,
+      password_hash:   user.password_hash,
+      first_name:      user.first_name,
+      last_name:       user.last_name,
+      birth_date:      user.birth_date ?? null,
+      phone:           user.phone ?? null,
+      birth_place:     user.birth_place ?? null,
+      account_status:  user.account_status ?? 'active',
+      current_club_id: user.current_club_id ?? null,
+      // person_id intentionnellement omis — nullable
+    })
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('createUser error:', error)
+    throw error
+  }
   return data
 }
 
