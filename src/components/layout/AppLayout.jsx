@@ -72,15 +72,15 @@ export default function AppLayout() {
 
   // Nom affiché d'un user Supabase
   function userName(u) {
-    return `${u?.persons?.first_name ?? ''} ${u?.persons?.last_name ?? ''}`.trim()
+    return `${u?.first_name ?? ''} ${u?.last_name ?? ''}`.trim()
   }
 
   // User normalisé pour Avatar (attend firstName/lastName)
   function avatarUser(u) {
     return {
       ...u,
-      firstName: u?.persons?.first_name,
-      lastName:  u?.persons?.last_name,
+      firstName: u?.first_name ?? u?.firstName,
+      lastName:  u?.last_name  ?? u?.lastName,
     }
   }
 

@@ -16,11 +16,11 @@ function normalizeUser(user) {
     role:      primaryRole,
     team_ids:  teamIds,
     teamIds,
-    firstName: user.persons?.first_name ?? user.firstName,
-    lastName:  user.persons?.last_name  ?? user.lastName,
-    birthDate: user.persons?.birth_date ?? user.birthDate,
-    birthPlace: user.persons?.birth_place ?? user.birthPlace,
-    phone:     user.persons?.phone ?? user.phone,
+    firstName:  user.first_name  ?? user.firstName  ?? '',
+    lastName:   user.last_name   ?? user.lastName   ?? '',
+    birthDate:  user.birth_date  ?? user.birthDate  ?? null,
+    birthPlace: user.birth_place ?? user.birthPlace ?? null,
+    phone:      user.phone ?? null,
   }
 }
 
@@ -34,13 +34,21 @@ export function AuthProvider({ children }) {
       const userId = db.getSession()
       if (userId) {
         try {
-          const user = await db.getUserById(userId)
-          if (user?.account_status === 'active') {
-            setCurrentUser(normalizeUser(user))
+          const { supabase } = await import('../lib/supabase')
+          const { data, error } = await supabase
+            .from('users')
+            .select('*, user_roles(*)')
+            .eq('id', userId)
+            .single()
+          if (error || !data) {
+            db.clearSession()
+          } else if (data.account_status === 'active') {
+            setCurrentUser(normalizeUser(data))
           } else {
             db.clearSession()
           }
-        } catch {
+        } catch (err) {
+          console.error('Session restore error:', err)
           db.clearSession()
         }
       }

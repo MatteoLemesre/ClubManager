@@ -92,7 +92,7 @@ export const createUser = async (user) => {
 export const getUserById = async (id) => {
   const { data, error } = await supabase
     .from('users')
-    .select('*, persons(*), user_roles(*)')
+    .select('*, user_roles(*)')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -102,7 +102,7 @@ export const getUserById = async (id) => {
 export const getUserByEmail = async (email) => {
   const { data, error } = await supabase
     .from('users')
-    .select('*, persons(*), user_roles(*)')
+    .select('*, user_roles(*)')
     .eq('email', email.toLowerCase().trim())
     .single()
   if (error && error.code !== 'PGRST116') throw error  // PGRST116 = not found
@@ -112,10 +112,13 @@ export const getUserByEmail = async (email) => {
 export const getUsersByClub = async (clubId) => {
   const { data, error } = await supabase
     .from('users')
-    .select('*, persons!inner(*), user_roles(*)')
-    .eq('persons.club_id', clubId)
-  if (error) throw error
-  return data
+    .select('*, user_roles(*)')
+    .eq('current_club_id', clubId)
+  if (error) {
+    console.error('getUsersByClub error:', error)
+    throw error
+  }
+  return data ?? []
 }
 
 export const updateUser = async (id, changes) => {

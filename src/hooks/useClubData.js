@@ -15,11 +15,11 @@ function normalizeUser(u) {
     role,
     team_ids:  teamIds,
     teamIds,
-    firstName: u.persons?.first_name ?? u.firstName,
-    lastName:  u.persons?.last_name  ?? u.lastName,
-    birthDate: u.persons?.birth_date ?? u.birthDate,
-    birthPlace: u.persons?.birth_place ?? u.birthPlace,
-    phone:     u.persons?.phone ?? u.phone,
+    firstName:  u.first_name  ?? u.firstName  ?? '',
+    lastName:   u.last_name   ?? u.lastName   ?? '',
+    birthDate:  u.birth_date  ?? u.birthDate  ?? null,
+    birthPlace: u.birth_place ?? u.birthPlace ?? null,
+    phone:      u.phone ?? null,
   }
 }
 
@@ -60,7 +60,7 @@ function normalizeEvent(e) {
 
 export function useClubData() {
   const { currentUser } = useAuth()
-  const clubId = currentUser?.persons?.club_id
+  const clubId = currentUser?.current_club_id
 
   const [teams,   setTeams]   = useState([])
   const [users,   setUsers]   = useState([])
@@ -94,8 +94,8 @@ export function useClubData() {
   function getTeamById(id)  { return teams.find(t => t.id === id) ?? null }
   function getFullName(u) {
     if (!u) return 'Inconnu'
-    const fn = u.firstName ?? u.persons?.first_name ?? ''
-    const ln = u.lastName  ?? u.persons?.last_name  ?? ''
+    const fn = u.firstName ?? u.first_name ?? ''
+    const ln = u.lastName  ?? u.last_name  ?? ''
     return `${fn} ${ln}`.trim() || 'Inconnu'
   }
 

@@ -80,10 +80,10 @@ export default function RegisterMemberPage() {
         } else {
           // User existant sans club → réinscription
           setReturningUser(existing)
-          setFirstName(existing.persons?.first_name ?? '')
-          setLastName(existing.persons?.last_name  ?? '')
-          setBirthDate(existing.persons?.birth_date ?? '')
-          setPhone(existing.persons?.phone ?? '')
+          setFirstName(existing.first_name ?? '')
+          setLastName(existing.last_name  ?? '')
+          setBirthDate(existing.birth_date ?? '')
+          setPhone(existing.phone ?? '')
         }
       } else {
         setReturningUser(null)
@@ -121,8 +121,8 @@ export default function RegisterMemberPage() {
         const token = crypto.randomUUID()
         const request = await db.createRequest({
           club_id:          selectedClub.id,
-          first_name:       returningUser.persons?.first_name,
-          last_name:        returningUser.persons?.last_name,
+          first_name:       returningUser.first_name,
+          last_name:        returningUser.last_name,
           email:            returningUser.email,
           role_type:        role,
           team_id:          selectedTeamId || null,
@@ -143,7 +143,7 @@ export default function RegisterMemberPage() {
               to_user_id: president.id,
               type:       'registration_request',
               title:      'Nouvelle demande de coach',
-              body:       `${returningUser.persons?.first_name} ${returningUser.persons?.last_name} souhaite rejoindre comme coach.`,
+              body:       `${returningUser.first_name} ${returningUser.last_name} souhaite rejoindre comme coach.`,
               request_id: request.id,
             })
           }
@@ -159,7 +159,7 @@ export default function RegisterMemberPage() {
               to_user_id: user_id,
               type:       'registration_request',
               title:      'Nouvelle demande de joueur',
-              body:       `${returningUser.persons?.first_name} ${returningUser.persons?.last_name} souhaite rejoindre votre équipe.`,
+              body:       `${returningUser.first_name} ${returningUser.last_name} souhaite rejoindre votre équipe.`,
               request_id: request.id,
             })
           }
@@ -493,7 +493,7 @@ export default function RegisterMemberPage() {
                   <span>
                     Réinscription de{' '}
                     <strong>
-                      {returningUser.persons?.first_name} {returningUser.persons?.last_name}
+                      {returningUser.first_name} {returningUser.last_name}
                     </strong>
                     {' '}dans <strong>{selectedClub?.name}</strong>
                   </span>
