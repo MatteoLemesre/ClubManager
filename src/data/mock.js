@@ -560,7 +560,7 @@ export function getFullName(user) {
 
 export function getInitials(user) {
   if (!user) return '?'
-  const first = user.firstName ?? user.persons?.first_name ?? ''
-  const last  = user.lastName  ?? user.persons?.last_name  ?? ''
+  const first = user.firstName ?? user.first_name ?? ''
+  const last  = user.lastName  ?? user.last_name  ?? ''
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
 }

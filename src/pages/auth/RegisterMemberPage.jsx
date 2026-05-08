@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
 import { Search, ChevronLeft, ChevronRight, Zap, Clock } from 'lucide-react'
@@ -20,6 +21,7 @@ const VALIDATION_INFO = {
 
 export default function RegisterMemberPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   const [step, setStep] = useState(0)
 
@@ -174,23 +176,23 @@ export default function RegisterMemberPage() {
       if (existing) { setError('Cet email est déjà utilisé'); setLoading(false); return }
 
       if (role === 'supporter') {
-        const person = await db.createPerson({
-          club_id: selectedClub.id, first_name: firstName, last_name: lastName,
-          birth_date: birthDate, phone,
-        })
         const user = await db.createUser({
-          person_id: person.id,
-          email: email.toLowerCase().trim(),
-          password_hash: db.hashPassword(password),
-          account_status: 'active',
+          email:           email.toLowerCase().trim(),
+          password_hash:   db.hashPassword(password),
+          first_name:      firstName,
+          last_name:       lastName,
+          birth_date:      birthDate || null,
+          phone:           phone || null,
+          account_status:  'active',
+          current_club_id: selectedClub.id,
         })
         await db.createUserRole({
-          user_id: user.id,
-          role_type: 'supporter',
+          user_id:    user.id,
+          role_type:  'supporter',
           scope_type: 'club',
-          scope_id: selectedClub.id,
+          scope_id:   selectedClub.id,
         })
-        db.setSession(user.id)
+        await login(email, password)
         navigate('/app/events')
 
       } else {

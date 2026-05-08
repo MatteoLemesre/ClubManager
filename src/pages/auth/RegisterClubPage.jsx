@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import * as db from '../../services/db'
 
 export default function RegisterClubPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   // Club
   const [sports,      setSports]      = useState([])
@@ -68,28 +70,26 @@ export default function RegisterClubPage() {
       })
       if (!club?.id) throw new Error('Erreur création club')
 
-      const person = await db.createPerson({
-        club_id: club.id, first_name: firstName, last_name: lastName,
-        birth_date: birthDate || null, phone: presidentPhone || null,
-      })
-      if (!person?.id) throw new Error('Erreur création profil')
-
       const user = await db.createUser({
-        person_id: person.id,
-        email: email.toLowerCase().trim(),
-        password_hash: db.hashPassword(password),
-        account_status: 'active',
+        email:           email.toLowerCase().trim(),
+        password_hash:   db.hashPassword(password),
+        first_name:      firstName,
+        last_name:       lastName,
+        birth_date:      birthDate || null,
+        phone:           presidentPhone || null,
+        account_status:  'active',
+        current_club_id: club.id,
       })
       if (!user?.id) throw new Error('Erreur création compte')
 
       await db.createUserRole({
-        user_id: user.id,
-        role_type: 'president',
+        user_id:    user.id,
+        role_type:  'president',
         scope_type: 'club',
-        scope_id: club.id,
+        scope_id:   club.id,
       })
 
-      db.setSession(user.id)
+      await login(email, password)
       navigate('/app/events')
     } catch (err) {
       setError(err.message ?? 'Une erreur est survenue')

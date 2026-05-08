@@ -31,7 +31,7 @@ export default function AppLayout() {
   const [club,         setClub]         = useState(null)
   const [devUsers,     setDevUsers]     = useState([])
 
-  const clubId = currentUser?.current_club_id ?? currentUser?.persons?.club_id
+  const clubId = currentUser?.current_club_id
 
   // Charger le club
   useEffect(() => {
