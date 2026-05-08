@@ -5,18 +5,16 @@ import { Avatar, RoleBadge, Card } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
 import {
-  CalendarDays, Shield, Users, Calendar, MessageCircle, Trophy,
-  ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, Search, Settings,
+  CalendarDays, Shield, Calendar, MessageCircle,
+  ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, User,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { to: '/app/events',   icon: CalendarDays,  label: 'Événements', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/team',     icon: Shield,        label: 'Équipes',    roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/results',  icon: Trophy,        label: 'Résultats',  roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/members',  icon: Users,         label: (role) => role === 'coach' ? 'Joueurs' : 'Membres', roles: ['president', 'coach'] },
-  { to: '/app/calendar', icon: Calendar,      label: 'Calendrier', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/messages', icon: MessageCircle, label: 'Messagerie', roles: ['president', 'coach', 'player', 'supporter', 'parent'] },
-  { to: '/app/admin',    icon: Settings,      label: 'Admin',      roles: ['president'] },
+  { to: '/app/events',   icon: CalendarDays,  label: 'Événements' },
+  { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
+  { to: '/app/calendar', icon: Calendar,      label: 'Calendrier' },
+  { to: '/app/messages', icon: MessageCircle, label: 'Messagerie' },
+  { to: '/app/profile',  icon: User,          label: 'Profil'     },
 ]
 
 export default function AppLayout() {
@@ -63,12 +61,6 @@ export default function AppLayout() {
     if (!clubId) return
     db.getUsersByClub(clubId).then(setDevUsers).catch(() => {})
   }, [clubId])
-
-  const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(currentUser?.role))
-
-  function getLabel(item) {
-    return typeof item.label === 'function' ? item.label(currentUser?.role) : item.label
-  }
 
   // Nom affiché d'un user Supabase
   function userName(u) {
@@ -311,11 +303,11 @@ export default function AppLayout() {
 
         {/* Nav */}
         <nav className="flex-1 flex flex-col gap-1 p-2 overflow-hidden">
-          {visibleNav.map(item => (
+          {NAV_ITEMS.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
-              title={!expanded ? getLabel(item) : undefined}
+              title={!expanded ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-2 py-2.5 rounded-xl transition-all duration-150
                  ${!expanded ? 'justify-center' : ''}
@@ -323,7 +315,7 @@ export default function AppLayout() {
               }
             >
               <item.icon size={20} strokeWidth={1.8} className="flex-shrink-0" />
-              {expanded && <span className="text-sm font-medium whitespace-nowrap">{getLabel(item)}</span>}
+              {expanded && <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>}
             </NavLink>
           ))}
         </nav>

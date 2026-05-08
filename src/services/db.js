@@ -799,6 +799,127 @@ export const getMatchesByTeamAndSeason = async (teamId, season) => {
   return data ?? []
 }
 
+// ── TEAM PAGE — SEARCH & FOLLOW ──────────────────────────
+
+// Rechercher des clubs avec leurs équipes actives
+export const searchClubs = async (query, mode = 'name') => {
+  let qb = supabase
+    .from('clubs')
+    .select('*, sports(name), teams(id, name, category, status)')
+    .eq('status', 'active')
+    .eq('teams.status', 'active')
+
+  if (mode === 'name')       qb = qb.ilike('name',        `%${query}%`)
+  if (mode === 'city')       qb = qb.ilike('city',        `%${query}%`)
+  if (mode === 'department') qb = qb.ilike('postal_code', `${query}%`)
+  if (mode === 'region')     qb = qb.ilike('region',      `%${query}%`)
+
+  const { data, error } = await qb.limit(20)
+  if (error) throw error
+  return data ?? []
+}
+
+// Équipes actives d'un utilisateur (joueur ou coach)
+export const getMyTeams = async (userId) => {
+  const [players, coaches] = await Promise.all([
+    supabase
+      .from('team_players')
+      .select('teams(*, clubs(name, sport_id))')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .then(r => r.data?.map(d => ({ ...d.teams, _role: 'player' })) ?? []),
+    supabase
+      .from('team_coaches')
+      .select('teams(*, clubs(name, sport_id))')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .then(r => r.data?.map(d => ({ ...d.teams, _role: 'coach' })) ?? []),
+  ])
+  return [...players, ...coaches]
+}
+
+// Quitter une équipe (sans quitter le club)
+export const leaveTeam = async (userId, teamId) => {
+  await Promise.all([
+    supabase
+      .from('team_players')
+      .update({ is_active: false })
+      .eq('user_id', userId)
+      .eq('team_id', teamId),
+    supabase
+      .from('team_coaches')
+      .update({ is_active: false })
+      .eq('user_id', userId)
+      .eq('team_id', teamId),
+    supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('scope_id', teamId)
+      .eq('scope_type', 'team'),
+  ])
+  // Archiver dans player_history
+  await supabase
+    .from('player_history')
+    .update({ left_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('team_id', teamId)
+    .is('left_at', null)
+}
+
+// Suivre / ne plus suivre une équipe (favoris supporter)
+export const followTeam = async (userId, teamId) => {
+  const { error } = await supabase
+    .from('supporter_favorites')
+    .insert({ user_id: userId, team_id: teamId })
+  if (error && error.code !== '23505') throw error // ignorer doublon
+}
+
+export const unfollowTeam = async (userId, teamId) => {
+  const { error } = await supabase
+    .from('supporter_favorites')
+    .delete()
+    .eq('user_id', userId)
+    .eq('team_id', teamId)
+  if (error) throw error
+}
+
+export const getFollowedTeams = async (userId) => {
+  const { data, error } = await supabase
+    .from('supporter_favorites')
+    .select('team_id')
+    .eq('user_id', userId)
+  if (error) throw error
+  return new Set(data?.map(d => d.team_id) ?? [])
+}
+
+// Prochain match programmé d'une équipe
+export const getNextMatch = async (teamId) => {
+  const { data } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at')
+    .limit(1)
+    .single()
+  return data ?? null
+}
+
+// Prochain entraînement d'une équipe
+export const getNextTraining = async (teamId) => {
+  const { data } = await supabase
+    .from('trainings')
+    .select('*')
+    .eq('team_id', teamId)
+    .gte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at')
+    .limit(1)
+    .single()
+  return data ?? null
+}
+
 // ── AUTH HELPERS ──────────────────────────────────────────
 export const hashPassword  = (pwd)       => bcrypt.hashSync(pwd, 10)
 export const checkPassword = (pwd, hash) => bcrypt.compareSync(pwd, hash)
