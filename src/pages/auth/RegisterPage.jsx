@@ -51,9 +51,8 @@ export default function RegisterPage() {
         current_club_id: null,
       })
 
-      db.setSession(user.id)
       await login(email, password)
-      navigate('/app/profile?welcome=true')
+      navigate('/app/events')
 
     } catch (err) {
       setError(err.message ?? 'Une erreur est survenue')
@@ -253,30 +252,6 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Étapes */}
-        <div className="mt-8 flex items-start gap-6 justify-center px-4">
-          {[
-            { n: '1', title: 'Créer le compte',  active: true  },
-            { n: '2', title: 'Rejoindre un club', active: false },
-            { n: '3', title: 'Accéder au club',   active: false },
-          ].map((s, i) => (
-            <div key={s.n} className="flex items-center gap-2">
-              {i > 0 && <div className="w-8 h-px bg-brand-800 -ml-2 mr-0" />}
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  s.active
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-brand-800 text-brand-400'
-                }`}>
-                  {s.n}
-                </div>
-                <span className={`text-xs ${s.active ? 'text-white' : 'text-brand-500'}`}>
-                  {s.title}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

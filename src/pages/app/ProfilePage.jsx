@@ -5,8 +5,8 @@ import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
-import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave } from '../../services/db'
+import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react'
+import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave, createClub, updateUser, createUserRole, getSports } from '../../services/db'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -82,6 +82,19 @@ export default function ProfilePage() {
   const [leaveError,       setLeaveError]       = useState('')
   const [isLastPresident,  setIsLastPresident]  = useState(false)
 
+  // Création de club
+  const [showCreateClub,   setShowCreateClub]   = useState(false)
+  const [sports,           setSports]           = useState([])
+  const [clubName,         setClubName]         = useState('')
+  const [clubSport,        setClubSport]        = useState('')
+  const [clubCity,         setClubCity]         = useState('')
+  const [clubDept,         setClubDept]         = useState('')
+  const [clubRegion,       setClubRegion]       = useState('')
+  const [clubEmail,        setClubEmail]        = useState('')
+  const [clubPhone,        setClubPhone]        = useState('')
+  const [createLoading,    setCreateLoading]    = useState(false)
+  const [createError,      setCreateError]      = useState('')
+
   useEffect(() => {
     if (!targetUser?.id) return
     getMemberships(targetUser.id).then(setMemberships).catch(() => {})
@@ -103,6 +116,41 @@ export default function ProfilePage() {
       .then(can => setIsLastPresident(!can))
       .catch(() => {})
   }, [currentUser])
+
+  useEffect(() => {
+    if (!showCreateClub || sports.length > 0) return
+    getSports().then(list => setSports(list ?? [])).catch(() => {})
+  }, [showCreateClub])
+
+  const handleCreateClub = async (e) => {
+    e.preventDefault()
+    setCreateError('')
+    setCreateLoading(true)
+    try {
+      const club = await createClub({
+        name:       clubName.trim(),
+        sport_id:   clubSport || null,
+        city:       clubCity.trim()   || null,
+        department: clubDept.trim()   || null,
+        region:     clubRegion.trim() || null,
+        email:      clubEmail.trim()  || null,
+        phone:      clubPhone.trim()  || null,
+      })
+      await updateUser(currentUser.id, { current_club_id: club.id })
+      await createUserRole({
+        user_id:    currentUser.id,
+        role_type:  'president',
+        scope_type: 'club',
+        scope_id:   club.id,
+      })
+      await refreshUser()
+      setShowCreateClub(false)
+    } catch (err) {
+      setCreateError(err.message ?? 'Une erreur est survenue')
+    } finally {
+      setCreateLoading(false)
+    }
+  }
 
   const handleLeaveClub = async () => {
     setLeaveLoading(true)
@@ -192,30 +240,142 @@ export default function ProfilePage() {
 
       {/* Bannière club — profil personnel uniquement */}
       {isOwnProfile && !currentUser.current_club_id && (
-        <div className="mb-6 p-4 bg-brand-50 border border-brand-200 rounded-2xl
-                        flex items-center justify-between gap-4">
-          <div>
-            <div className="font-semibold text-brand-900">Vous n'êtes dans aucun club</div>
-            <div className="text-sm text-brand-600 mt-0.5">
-              Rejoignez un club existant ou créez le vôtre
+        <div className="mb-6 bg-brand-50 border border-brand-200 rounded-2xl overflow-hidden">
+          {!showCreateClub ? (
+            <div className="p-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="font-semibold text-brand-900">Vous n'êtes dans aucun club</div>
+                <div className="text-sm text-brand-600 mt-0.5">
+                  Rejoignez un club existant depuis l'onglet Équipes, ou créez le vôtre.
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateClub(true)}
+                className="flex-shrink-0 px-3 py-1.5 bg-brand-600 hover:bg-brand-700
+                           text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                Créer mon club
+              </button>
             </div>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <button
-              onClick={() => navigate('/join-club')}
-              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm
-                         font-medium rounded-xl transition-colors"
-            >
-              Rejoindre un club
-            </button>
-            <button
-              onClick={() => navigate('/register/club')}
-              className="px-3 py-1.5 bg-white hover:bg-surface-50 text-brand-700 text-sm
-                         font-medium rounded-xl border border-brand-200 transition-colors"
-            >
-              Créer un club
-            </button>
-          </div>
+          ) : (
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-semibold text-brand-900">Créer mon club</div>
+                <button
+                  onClick={() => { setShowCreateClub(false); setCreateError('') }}
+                  className="text-brand-400 hover:text-brand-700 text-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+              <form onSubmit={handleCreateClub} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-brand-800 mb-1">
+                      Nom du club <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      required
+                      value={clubName}
+                      onChange={e => setClubName(e.target.value)}
+                      placeholder="FC Saint-Denis"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Sport</label>
+                    <div className="relative">
+                      <select
+                        value={clubSport}
+                        onChange={e => setClubSport(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                   text-sm appearance-none focus:outline-none focus:ring-2
+                                   focus:ring-brand-300 pr-8"
+                      >
+                        <option value="">— Sport —</option>
+                        {sports.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Ville</label>
+                    <input
+                      value={clubCity}
+                      onChange={e => setClubCity(e.target.value)}
+                      placeholder="Saint-Denis"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Département</label>
+                    <input
+                      value={clubDept}
+                      onChange={e => setClubDept(e.target.value)}
+                      placeholder="93"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Région</label>
+                    <input
+                      value={clubRegion}
+                      onChange={e => setClubRegion(e.target.value)}
+                      placeholder="Île-de-France"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={clubEmail}
+                      onChange={e => setClubEmail(e.target.value)}
+                      placeholder="contact@club.fr"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={clubPhone}
+                      onChange={e => setClubPhone(e.target.value)}
+                      placeholder="01 xx xx xx xx"
+                      className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
+                                 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                </div>
+
+                {createError && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200
+                                  rounded-xl px-3 py-2">
+                    {createError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                             font-medium text-sm rounded-xl transition-colors
+                             disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {createLoading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : 'Créer le club'}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

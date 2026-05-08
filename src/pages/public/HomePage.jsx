@@ -33,22 +33,12 @@ export default function HomePage() {
           Se connecter
         </button>
         <button
-          onClick={() => navigate('/register/club')}
+          onClick={() => navigate('/register')}
           className="px-8 py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 border border-brand-500"
         >
-          Inscrire mon club
+          Créer un compte
         </button>
       </div>
-
-      <p className="text-brand-400 text-sm">
-        Membre d'un club ?{' '}
-        <button
-          onClick={() => navigate('/register/member')}
-          className="text-brand-200 underline hover:text-white"
-        >
-          Rejoindre un club
-        </button>
-      </p>
     </div>
   )
 }

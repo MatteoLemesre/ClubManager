@@ -15,10 +15,6 @@ import TeamHistoryPage   from './pages/app/TeamHistoryPage'
 import HomePage           from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterPage       from './pages/auth/RegisterPage'
-import JoinClubPage       from './pages/auth/JoinClubPage'
-import RegisterClubPage   from './pages/auth/RegisterClubPage'
-import RegisterMemberPage from './pages/auth/RegisterMemberPage'
-import PendingPage        from './pages/auth/PendingPage'
 
 function ProtectedRoute({ children }) {
   const { currentUser } = useAuth()
@@ -32,10 +28,6 @@ function AppRoutes() {
       <Route path="/"                  element={<HomePage />} />
       <Route path="/login"             element={<LoginPage />} />
       <Route path="/register"          element={<RegisterPage />} />
-      <Route path="/join-club"         element={<JoinClubPage />} />
-      <Route path="/register/club"     element={<RegisterClubPage />} />
-      <Route path="/register/member"   element={<RegisterMemberPage />} />
-      <Route path="/register/pending"  element={<PendingPage />} />
       <Route path="/app" element={
         <ProtectedRoute>
           <AppLayout />
