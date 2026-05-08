@@ -801,6 +801,15 @@ export const getMatchesByTeamAndSeason = async (teamId, season) => {
 
 // ── TEAM PAGE — SEARCH & FOLLOW ──────────────────────────
 
+// Résoudre un code postal français → { departement, code_dep, region }
+export const resolvePostalCode = async (postalCode) => {
+  const { data, error } = await supabase.rpc('resolve_postal_code', {
+    p_postal: postalCode,
+  })
+  if (error) throw error
+  return data?.[0] ?? null
+}
+
 // Rechercher des clubs avec leurs équipes actives
 export const searchClubs = async (query, mode = 'name') => {
   let qb = supabase
@@ -809,10 +818,10 @@ export const searchClubs = async (query, mode = 'name') => {
     .eq('status', 'active')
     .eq('teams.status', 'active')
 
-  if (mode === 'name')       qb = qb.ilike('name',        `%${query}%`)
-  if (mode === 'city')       qb = qb.ilike('city',        `%${query}%`)
-  if (mode === 'department') qb = qb.ilike('postal_code', `${query}%`)
-  if (mode === 'region')     qb = qb.ilike('region',      `%${query}%`)
+  if (mode === 'name')       qb = qb.ilike('name',     `%${query}%`)
+  if (mode === 'city')       qb = qb.ilike('city',     `%${query}%`)
+  if (mode === 'department') qb = qb.ilike('code_dep',  `${query}%`)
+  if (mode === 'region')     qb = qb.ilike('region',   `%${query}%`)
 
   const { data, error } = await qb.limit(20)
   if (error) throw error

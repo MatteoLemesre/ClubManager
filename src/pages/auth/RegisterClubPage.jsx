@@ -16,6 +16,8 @@ export default function RegisterClubPage() {
   const [postalCode,  setPostalCode]  = useState('')
   const [city,        setCity]        = useState('')
   const [country,     setCountry]     = useState('France')
+  const [postalResolved,  setPostalResolved]  = useState(null)
+  const [postalResolving, setPostalResolving] = useState(false)
   const [clubEmail,   setClubEmail]   = useState('')
   const [clubPhone,   setClubPhone]   = useState('')
 
@@ -31,6 +33,17 @@ export default function RegisterClubPage() {
   const [error,       setError]       = useState(null)
   const [loading,     setLoading]     = useState(false)
   const [sportsError, setSportsError] = useState('')
+
+  useEffect(() => {
+    setPostalResolved(null)
+    const code = postalCode.trim()
+    if (country !== 'France' || code.length < 5) return
+    setPostalResolving(true)
+    db.resolvePostalCode(code)
+      .then(r => setPostalResolved(r))
+      .catch(() => {})
+      .finally(() => setPostalResolving(false))
+  }, [postalCode, country])
 
   useEffect(() => {
     db.getSports()
@@ -66,6 +79,9 @@ export default function RegisterClubPage() {
       const club = await db.createClub({
         name: clubName, sport_id: sportId,
         address, postal_code: postalCode, city, country,
+        department: postalResolved?.departement ?? null,
+        code_dep:   postalResolved?.code_dep    ?? null,
+        region:     postalResolved?.region      ?? null,
         email: clubEmail, phone: clubPhone,
       })
       if (!club?.id) throw new Error('Erreur création club')
@@ -182,8 +198,17 @@ export default function RegisterClubPage() {
                   value={postalCode}
                   onChange={e => setPostalCode(e.target.value)}
                   placeholder="93200"
+                  maxLength={10}
                   className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2 text-sm"
                 />
+                {postalResolving && (
+                  <p className="text-xs text-gray-400 mt-1">Résolution en cours…</p>
+                )}
+                {!postalResolving && postalResolved && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    📍 {postalResolved.departement} — {postalResolved.region}
+                  </p>
+                )}
               </div>
 
               <div>

@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
 import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react'
-import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave, createClub, updateUser, createUserRole, getSports } from '../../services/db'
+import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave, createClub, updateUser, createUserRole, getSports, resolvePostalCode } from '../../services/db'
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -88,8 +88,10 @@ export default function ProfilePage() {
   const [clubName,         setClubName]         = useState('')
   const [clubSport,        setClubSport]        = useState('')
   const [clubCity,         setClubCity]         = useState('')
-  const [clubDept,         setClubDept]         = useState('')
-  const [clubRegion,       setClubRegion]       = useState('')
+  const [clubCountry,      setClubCountry]      = useState('France')
+  const [clubPostalCode,   setClubPostalCode]   = useState('')
+  const [postalResolved,   setPostalResolved]   = useState(null)  // { departement, code_dep, region }
+  const [postalResolving,  setPostalResolving]  = useState(false)
   const [clubEmail,        setClubEmail]        = useState('')
   const [clubPhone,        setClubPhone]        = useState('')
   const [createLoading,    setCreateLoading]    = useState(false)
@@ -122,19 +124,33 @@ export default function ProfilePage() {
     getSports().then(list => setSports(list ?? [])).catch(() => {})
   }, [showCreateClub])
 
+  useEffect(() => {
+    setPostalResolved(null)
+    const code = clubPostalCode.trim()
+    if (clubCountry !== 'France' || code.length < 5) return
+    setPostalResolving(true)
+    resolvePostalCode(code)
+      .then(r => setPostalResolved(r))
+      .catch(() => {})
+      .finally(() => setPostalResolving(false))
+  }, [clubPostalCode, clubCountry])
+
   const handleCreateClub = async (e) => {
     e.preventDefault()
     setCreateError('')
     setCreateLoading(true)
     try {
       const club = await createClub({
-        name:       clubName.trim(),
-        sport_id:   clubSport || null,
-        city:       clubCity.trim()   || null,
-        department: clubDept.trim()   || null,
-        region:     clubRegion.trim() || null,
-        email:      clubEmail.trim()  || null,
-        phone:      clubPhone.trim()  || null,
+        name:        clubName.trim(),
+        sport_id:    clubSport || null,
+        city:        clubCity.trim()        || null,
+        country:     clubCountry.trim()     || null,
+        postal_code: clubPostalCode.trim()  || null,
+        department:  postalResolved?.departement ?? null,
+        code_dep:    postalResolved?.code_dep    ?? null,
+        region:      postalResolved?.region      ?? null,
+        email:       clubEmail.trim()  || null,
+        phone:       clubPhone.trim()  || null,
       })
       await updateUser(currentUser.id, { current_club_id: club.id })
       await createUserRole({
@@ -312,24 +328,33 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-brand-800 mb-1">Département</label>
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Pays</label>
                     <input
-                      value={clubDept}
-                      onChange={e => setClubDept(e.target.value)}
-                      placeholder="93"
+                      value={clubCountry}
+                      onChange={e => setClubCountry(e.target.value)}
+                      placeholder="France"
                       className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
                                  text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-brand-800 mb-1">Région</label>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-brand-800 mb-1">Code postal</label>
                     <input
-                      value={clubRegion}
-                      onChange={e => setClubRegion(e.target.value)}
-                      placeholder="Île-de-France"
+                      value={clubPostalCode}
+                      onChange={e => setClubPostalCode(e.target.value)}
+                      placeholder="93200"
+                      maxLength={10}
                       className="w-full px-3 py-2 bg-white border border-brand-200 rounded-xl
                                  text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                     />
+                    {postalResolving && (
+                      <p className="text-xs text-brand-400 mt-1">Résolution en cours…</p>
+                    )}
+                    {!postalResolving && postalResolved && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        📍 {postalResolved.departement} — {postalResolved.region}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-brand-800 mb-1">Email</label>
