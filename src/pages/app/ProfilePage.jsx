@@ -5,8 +5,13 @@ import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react'
+import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown, Pencil } from 'lucide-react'
 import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave, createClub, updateUser, createUserRole, getSports, resolvePostalCode } from '../../services/db'
+
+const INPUT_CLS = `w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm
+                  text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2
+                  focus:ring-brand-300 focus:border-brand-400 transition-all`
+const LABEL_CLS = `block text-sm font-medium text-gray-700 mb-1`
 
 // ─── Composants locaux ──────────────────────────────────────────────────────
 
@@ -82,6 +87,24 @@ export default function ProfilePage() {
   const [leaveError,       setLeaveError]       = useState('')
   const [isLastPresident,  setIsLastPresident]  = useState(false)
 
+  // Edition profil
+  const [editing,        setEditing]        = useState(false)
+  const [saving,         setSaving]         = useState(false)
+  const [editError,      setEditError]      = useState('')
+  const [editFirstName,  setEditFirstName]  = useState('')
+  const [editLastName,   setEditLastName]   = useState('')
+  const [editBirthDate,  setEditBirthDate]  = useState('')
+  const [editBirthPlace, setEditBirthPlace] = useState('')
+  const [editPhone,      setEditPhone]      = useState('')
+  const [editAddress,    setEditAddress]    = useState('')
+  const [editPostalCode, setEditPostalCode] = useState('')
+  const [editCity,       setEditCity]       = useState('')
+  const [editCountry,    setEditCountry]    = useState('France')
+  const [editPostalInfo, setEditPostalInfo] = useState('')
+  const [editDep,        setEditDep]        = useState(null)
+  const [editCodeDep,    setEditCodeDep]    = useState(null)
+  const [editRegion,     setEditRegion]     = useState(null)
+
   // Création de club
   const [showCreateClub,   setShowCreateClub]   = useState(false)
   const [sports,           setSports]           = useState([])
@@ -134,6 +157,94 @@ export default function ProfilePage() {
       .catch(() => {})
       .finally(() => setPostalResolving(false))
   }, [clubPostalCode, clubCountry])
+
+  const startEditing = () => {
+    setEditFirstName(currentUser.firstName ?? '')
+    setEditLastName(currentUser.lastName ?? '')
+    setEditBirthDate(currentUser.birthDate ? currentUser.birthDate.slice(0, 10) : '')
+    setEditBirthPlace(currentUser.birthPlace ?? '')
+    setEditPhone(currentUser.phone ?? '')
+    setEditAddress(currentUser.address ?? '')
+    setEditPostalCode(currentUser.postalCode ?? '')
+    setEditCity(currentUser.city ?? '')
+    setEditCountry(currentUser.country ?? 'France')
+    setEditPostalInfo('')
+    setEditDep(currentUser.department ?? null)
+    setEditCodeDep(currentUser.codeDep ?? null)
+    setEditRegion(currentUser.region ?? null)
+    setEditError('')
+    setEditing(true)
+  }
+
+  const handleEditPostalChange = async (value) => {
+    setEditPostalCode(value)
+    if (editCountry.toLowerCase() === 'france' && value.length >= 2) {
+      try {
+        const result = await resolvePostalCode(value)
+        if (result) {
+          setEditDep(result.departement)
+          setEditCodeDep(result.code_dep)
+          setEditRegion(result.region)
+          setEditPostalInfo(`📍 ${result.departement} — ${result.region}`)
+        } else {
+          setEditPostalInfo('')
+          setEditDep(null); setEditCodeDep(null); setEditRegion(null)
+        }
+      } catch {
+        setEditPostalInfo('')
+      }
+    } else {
+      setEditPostalInfo('')
+      setEditDep(null); setEditCodeDep(null); setEditRegion(null)
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    setSaving(true)
+    setEditError('')
+    try {
+      let resolvedDep = editDep, resolvedCodeDep = editCodeDep, resolvedRegion = editRegion
+      if (editCountry.toLowerCase() === 'france' && editPostalCode?.length >= 2 && !editDep) {
+        try {
+          const result = await resolvePostalCode(editPostalCode)
+          if (result) {
+            resolvedDep     = result.departement
+            resolvedCodeDep = result.code_dep
+            resolvedRegion  = result.region
+          }
+        } catch {}
+      }
+
+      const { error } = await (async () => {
+        const { supabase } = await import('../../lib/supabase')
+        return supabase
+          .from('users')
+          .update({
+            first_name:  editFirstName.trim(),
+            last_name:   editLastName.trim(),
+            birth_date:  editBirthDate  || null,
+            birth_place: editBirthPlace || null,
+            phone:       editPhone      || null,
+            address:     editAddress    || null,
+            postal_code: editPostalCode || null,
+            city:        editCity       || null,
+            country:     editCountry    || 'France',
+            department:  resolvedDep      || null,
+            code_dep:    resolvedCodeDep  || null,
+            region:      resolvedRegion   || null,
+          })
+          .eq('id', currentUser.id)
+      })()
+
+      if (error) throw error
+      await refreshUser()
+      setEditing(false)
+    } catch (err) {
+      setEditError(err.message ?? 'Une erreur est survenue')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleCreateClub = async (e) => {
     e.preventDefault()
@@ -448,30 +559,151 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
+          {isOwnProfile && !editing && (
+            <button
+              onClick={startEditing}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm
+                         text-gray-600 hover:bg-surface-100 rounded-xl border border-surface-200
+                         transition-colors"
+            >
+              <Pencil size={14} /> Modifier
+            </button>
+          )}
         </div>
       </Card>
 
-      {/* Informations personnelles */}
-      <Card className="p-5 mb-5">
-        <SectionHeader title="Informations personnelles" className="mb-0" />
-        <div className="mt-3">
-          {birthDateFormatted && (
-            <Field label="Date de naissance" value={birthDateFormatted} />
-          )}
-          {age !== null && (
-            <Field label="Âge" value={`${age} ans`} />
-          )}
-          <Field label="Lieu de naissance" value={targetUser.birthPlace} />
-          <Field label="Email"             value={targetUser.email} />
-          <Field label="Téléphone"         value={targetUser.phone} />
-          <Field
-            label="Membre depuis"
-            value={targetUser.joinedAt
-              ? format(new Date(targetUser.joinedAt), 'd MMMM yyyy', { locale: fr })
-              : null}
-          />
-        </div>
-      </Card>
+      {/* Informations personnelles — mode édition */}
+      {isOwnProfile && editing ? (
+        <Card className="p-5 mb-5">
+          <SectionHeader title="Modifier mon profil" className="mb-0" />
+          <div className="mt-4 space-y-4">
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLS}>Prénom <span className="text-red-500">*</span></label>
+                <input value={editFirstName} onChange={e => setEditFirstName(e.target.value)}
+                  placeholder="Prénom" className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Nom <span className="text-red-500">*</span></label>
+                <input value={editLastName} onChange={e => setEditLastName(e.target.value)}
+                  placeholder="Nom" className={INPUT_CLS} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLS}>Date de naissance</label>
+                <input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)}
+                  className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Lieu de naissance</label>
+                <input value={editBirthPlace} onChange={e => setEditBirthPlace(e.target.value)}
+                  placeholder="Paris (75)" className={INPUT_CLS} />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL_CLS}>Téléphone</label>
+              <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)}
+                placeholder="06 xx xx xx xx" className={INPUT_CLS} />
+            </div>
+
+            <div>
+              <label className={LABEL_CLS}>Adresse</label>
+              <input value={editAddress} onChange={e => setEditAddress(e.target.value)}
+                placeholder="12 rue du Stade" className={INPUT_CLS} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLS}>Code postal</label>
+                <input value={editPostalCode} onChange={e => handleEditPostalChange(e.target.value)}
+                  placeholder="75001" maxLength={10} className={INPUT_CLS} />
+                {editPostalInfo && editCountry.toLowerCase() === 'france' && (
+                  <div className="text-xs text-brand-600 mt-1">{editPostalInfo}</div>
+                )}
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Ville</label>
+                <input value={editCity} onChange={e => setEditCity(e.target.value)}
+                  placeholder="Paris" className={INPUT_CLS} />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL_CLS}>Pays</label>
+              <input value={editCountry} onChange={e => { setEditCountry(e.target.value); setEditPostalInfo('') }}
+                placeholder="France" className={INPUT_CLS} />
+            </div>
+
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                {editError}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setEditing(false)}
+                className="flex-1 py-2 px-4 bg-surface-100 hover:bg-surface-200 text-gray-700
+                           text-sm font-medium rounded-xl transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="flex-1 py-2 px-4 bg-brand-600 hover:bg-brand-700 disabled:opacity-60
+                           text-white text-sm font-medium rounded-xl transition-colors
+                           flex items-center justify-center gap-2"
+              >
+                {saving
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : 'Enregistrer'
+                }
+              </button>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        /* Informations personnelles — mode lecture */
+        <Card className="p-5 mb-5">
+          <SectionHeader title="Informations personnelles" className="mb-0" />
+          <div className="mt-3">
+            {birthDateFormatted && (
+              <Field label="Date de naissance"
+                value={`${birthDateFormatted}${age !== null ? ` (${age} ans)` : ''}`} />
+            )}
+            <Field label="Lieu de naissance" value={targetUser.birthPlace} />
+            <Field label="Email"             value={targetUser.email} />
+            <Field label="Téléphone"         value={targetUser.phone} />
+            {(targetUser.address || targetUser.postalCode || targetUser.city) && (
+              <Field
+                label="Adresse"
+                value={
+                  <span>
+                    {[targetUser.address, [targetUser.postalCode, targetUser.city].filter(Boolean).join(' '), targetUser.country]
+                      .filter(Boolean).join(', ')}
+                    {targetUser.country?.toLowerCase() === 'france' && targetUser.department && (
+                      <span className="block text-xs text-gray-400 mt-0.5">
+                        {targetUser.department}{targetUser.region ? ` — ${targetUser.region}` : ''}
+                      </span>
+                    )}
+                  </span>
+                }
+              />
+            )}
+            <Field
+              label="Membre depuis"
+              value={targetUser.joinedAt
+                ? format(new Date(targetUser.joinedAt), 'd MMMM yyyy', { locale: fr })
+                : null}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Licence — président et coach uniquement */}
       {isPrivileged && targetUser.license && (

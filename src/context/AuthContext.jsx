@@ -21,6 +21,13 @@ function normalizeUser(user) {
     birthDate:  user.birth_date  ?? user.birthDate  ?? null,
     birthPlace: user.birth_place ?? user.birthPlace ?? null,
     phone:      user.phone ?? null,
+    address:    user.address    ?? null,
+    postalCode: user.postal_code ?? user.postalCode ?? null,
+    city:       user.city       ?? null,
+    country:    user.country    ?? 'France',
+    department: user.department ?? null,
+    codeDep:    user.code_dep   ?? user.codeDep   ?? null,
+    region:     user.region     ?? null,
   }
 }
 

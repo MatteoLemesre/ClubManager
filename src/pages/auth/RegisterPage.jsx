@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import * as db from '../../services/db'
+import { resolvePostalCode } from '../../services/db'
+// resolvePostalCode imported separately for direct use in handlers
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 const INPUT = `w-full px-3 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm
@@ -19,6 +21,14 @@ export default function RegisterPage() {
   const [birthDate,   setBirthDate]   = useState('')
   const [birthPlace,  setBirthPlace]  = useState('')
   const [phone,       setPhone]       = useState('')
+  const [address,     setAddress]     = useState('')
+  const [postalCode,  setPostalCode]  = useState('')
+  const [city,        setCity]        = useState('')
+  const [country,     setCountry]     = useState('France')
+  const [department,  setDepartment]  = useState(null)
+  const [codeDep,     setCodeDep]     = useState(null)
+  const [region,      setRegion]      = useState(null)
+  const [postalInfo,  setPostalInfo]  = useState('')
   const [email,       setEmail]       = useState('')
   const [password,    setPassword]    = useState('')
   const [confirmPwd,  setConfirmPwd]  = useState('')
@@ -26,6 +36,33 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [error,       setError]       = useState(null)
   const [loading,     setLoading]     = useState(false)
+
+  const handlePostalChange = async (value) => {
+    setPostalCode(value)
+    if (country.toLowerCase() === 'france' && value.length >= 2) {
+      try {
+        const result = await resolvePostalCode(value)
+        if (result) {
+          setDepartment(result.departement)
+          setCodeDep(result.code_dep)
+          setRegion(result.region)
+          setPostalInfo(`📍 ${result.departement} — ${result.region}`)
+        } else {
+          setPostalInfo('')
+          setDepartment(null)
+          setCodeDep(null)
+          setRegion(null)
+        }
+      } catch {
+        setPostalInfo('')
+      }
+    } else {
+      setPostalInfo('')
+      setDepartment(null)
+      setCodeDep(null)
+      setRegion(null)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -45,10 +82,17 @@ export default function RegisterPage() {
         first_name:      firstName.trim(),
         last_name:       lastName.trim(),
         birth_date:      birthDate || null,
-        phone:           phone.trim()      || null,
-        birth_place:     birthPlace.trim() || null,
+        phone:           phone.trim()       || null,
+        birth_place:     birthPlace.trim()  || null,
         account_status:  'active',
         current_club_id: null,
+        address:         address.trim()     || null,
+        postal_code:     postalCode.trim()  || null,
+        city:            city.trim()        || null,
+        country:         country.trim()     || 'France',
+        department:      department         || null,
+        code_dep:        codeDep            || null,
+        region:          region             || null,
       })
 
       await login(email, password)
@@ -151,6 +195,54 @@ export default function RegisterPage() {
                   className={INPUT}
                 />
               </div>
+            </div>
+
+            {/* Adresse */}
+            <div>
+              <label className={LABEL}>Adresse</label>
+              <input
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                placeholder="12 rue du Stade"
+                className={INPUT}
+              />
+            </div>
+
+            {/* Code postal + Ville */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Code postal</label>
+                <input
+                  value={postalCode}
+                  onChange={e => handlePostalChange(e.target.value)}
+                  placeholder="75001"
+                  maxLength={10}
+                  className={INPUT}
+                />
+                {postalInfo && country.toLowerCase() === 'france' && (
+                  <div className="text-xs text-brand-600 mt-1">{postalInfo}</div>
+                )}
+              </div>
+              <div>
+                <label className={LABEL}>Ville</label>
+                <input
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  placeholder="Paris"
+                  className={INPUT}
+                />
+              </div>
+            </div>
+
+            {/* Pays */}
+            <div>
+              <label className={LABEL}>Pays</label>
+              <input
+                value={country}
+                onChange={e => { setCountry(e.target.value); setPostalInfo('') }}
+                placeholder="France"
+                className={INPUT}
+              />
             </div>
 
             {/* Email */}

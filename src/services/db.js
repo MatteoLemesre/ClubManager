@@ -78,6 +78,13 @@ export const createUser = async (user) => {
       birth_place:     user.birth_place ?? null,
       account_status:  user.account_status ?? 'active',
       current_club_id: user.current_club_id ?? null,
+      address:         user.address     ?? null,
+      postal_code:     user.postal_code ?? null,
+      city:            user.city        ?? null,
+      country:         user.country     ?? 'France',
+      department:      user.department  ?? null,
+      code_dep:        user.code_dep    ?? null,
+      region:          user.region      ?? null,
       // person_id intentionnellement omis — nullable
     })
     .select()
