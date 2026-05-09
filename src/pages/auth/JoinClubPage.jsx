@@ -280,8 +280,9 @@ export default function JoinClubPage() {
                       </div>
                       <div className="text-right text-xs text-gray-400 flex-shrink-0 ml-3">
                         {c.city && <div>{c.city}</div>}
-                        {c.postal_code && <div>{c.postal_code}</div>}
-                        {c.region && <div>{c.region}</div>}
+                        {(c.department || c.region) && (
+                          <div>{c.department && `${c.department} — `}{c.region}</div>
+                        )}
                       </div>
                     </button>
                   ))}

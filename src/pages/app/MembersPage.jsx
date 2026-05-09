@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge, Card, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
@@ -120,6 +122,9 @@ export default function MembersPage() {
                 <th className="text-left text-xs font-semibold text-surface-400 uppercase tracking-wider px-4 py-3">
                   Licence
                 </th>
+                <th className="text-left text-xs font-semibold text-surface-400 uppercase tracking-wider px-4 py-3">
+                  Membre depuis
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-100">
@@ -161,6 +166,17 @@ export default function MembersPage() {
                     <td className="px-4 py-3">
                       {member.license ? (
                         <span className="text-sm text-surface-600 font-mono">{member.license.number}</span>
+                      ) : (
+                        <span className="text-sm text-surface-300">—</span>
+                      )}
+                    </td>
+
+                    {/* Membre depuis */}
+                    <td className="px-4 py-3">
+                      {member.created_at ? (
+                        <span className="text-sm text-surface-500">
+                          {format(new Date(member.created_at), 'd MMM yyyy', { locale: fr })}
+                        </span>
                       ) : (
                         <span className="text-sm text-surface-300">—</span>
                       )}

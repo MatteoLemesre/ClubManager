@@ -102,13 +102,13 @@ export default function ExploreClubsPage() {
                     <div className="font-semibold text-gray-900 truncate">{club.name}</div>
                     <div className="text-sm text-gray-500 mt-0.5">
                       {club.sports?.name}
-                      {club.city && (
-                        <>
-                          {' · '}{club.city}
-                          {club.postal_code && ` (${club.postal_code.slice(0, 2)})`}
-                        </>
-                      )}
+                      {club.city && <>{' · '}{club.city}</>}
                     </div>
+                    {(club.department || club.region) && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {club.department && `${club.department} — `}{club.region}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => handleToggleFollow(club.id)}

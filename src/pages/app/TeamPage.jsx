@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { Card, RoleBadge } from '../../components/ui'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Search, MapPin, X } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import {
-  getMyTeams, searchClubs,
+  getMyTeams,
   followTeam, unfollowTeam, getFollowedTeams,
   followClub, unfollowClub, getFollowedClubs,
   leaveTeam, getNextMatch, getNextTraining,
@@ -18,13 +19,6 @@ function getCurrentSeasonName() {
   const now  = new Date()
   const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
   return `${year}-${year + 1}`
-}
-
-const SEARCH_PLACEHOLDERS = {
-  name:       'Nom du club…',
-  city:       'Ville…',
-  department: 'Code département (ex: 93)…',
-  region:     'Région…',
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
@@ -46,17 +40,22 @@ export default function TeamPage() {
   const [followedClubIds, setFollowedClubIds] = useState(new Set())
 
   // ── Explorer ───────────────────────────────────────────────────────────────
-  const [search,        setSearch]        = useState('')
-  const [searchMode,    setSearchMode]    = useState('name')
-  const [searchResults, setSearchResults] = useState([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [allKnownTeams, setAllKnownTeams] = useState([]) // pour lookup des favoris
+  const [search,          setSearch]          = useState('')
+  const [allClubs,        setAllClubs]        = useState([])
+  const [allClubsLoading, setAllClubsLoading] = useState(false)
+  const [allKnownTeams,   setAllKnownTeams]   = useState([]) // pour lookup des favoris
+  // Filtres géographiques
+  const [departments,   setDepartments]   = useState([])
+  const [regions,       setRegions]       = useState([])
+  const [depFilter,     setDepFilter]     = useState('')
+  const [regionFilter,  setRegionFilter]  = useState('')
 
   // ── Modale rejoindre équipe ────────────────────────────────────────────────
-  const [showJoinModal, setShowJoinModal] = useState(false)
-  const [joinTeam,      setJoinTeam]      = useState(null)
-  const [joinClub,      setJoinClub]      = useState(null)
-  const [joinRole,      setJoinRole]      = useState('player')
+  const [showJoinModal,   setShowJoinModal]   = useState(false)
+  const [joinTeam,        setJoinTeam]        = useState(null)
+  const [joinClub,        setJoinClub]        = useState(null)
+  const [joinRole,        setJoinRole]        = useState('player')
+  const [selectedTeamId,  setSelectedTeamId]  = useState('')
   const [joinMessage,   setJoinMessage]   = useState('')
   const [joinLoading,   setJoinLoading]   = useState(false)
   const [joinError,     setJoinError]     = useState('')
@@ -91,15 +90,19 @@ export default function TeamPage() {
       .finally(() => setMyTeamsLoading(false))
   }, [currentUser?.id])
 
-  // ── Recherche clubs ────────────────────────────────────────────────────────
+  // ── Charger tous les clubs à l'ouverture de l'onglet Explorer ────────────
   useEffect(() => {
-    if (search.length < 2) { setSearchResults([]); return }
-    setSearchLoading(true)
-    searchClubs(search, searchMode)
-      .then(results => {
-        setSearchResults(results)
-        // Accumuler les objets team pour lookup des favoris
-        const teams = results.flatMap(c =>
+    if (activeTab !== 'explore') return
+    setAllClubsLoading(true)
+    supabase
+      .from('clubs')
+      .select('*, sports(name), teams(id, name, category, status)')
+      .eq('status', 'active')
+      .order('name')
+      .then(({ data }) => {
+        const clubs = data ?? []
+        setAllClubs(clubs)
+        const teams = clubs.flatMap(c =>
           (c.teams ?? []).map(t => ({ ...t, club_id: c.id }))
         )
         setAllKnownTeams(prev => {
@@ -108,12 +111,41 @@ export default function TeamPage() {
         })
       })
       .catch(() => {})
-      .finally(() => setSearchLoading(false))
-  }, [search, searchMode])
+      .finally(() => setAllClubsLoading(false))
+  }, [activeTab])
+
+  // ── Charger départements et régions depuis fr_postal_codes ────────────────
+  useEffect(() => {
+    if (activeTab !== 'explore') return
+    Promise.all([
+      supabase.from('fr_postal_codes').select('departement, code_dep, region').order('departement'),
+      supabase.from('fr_postal_codes').select('region').order('region'),
+    ]).then(([{ data: deps }, { data: regs }]) => {
+      const uniqueDeps = [...new Map(
+        deps?.map(d => [d.code_dep, d]) ?? []
+      ).values()]
+      const uniqueRegs = [...new Set(regs?.map(r => r.region) ?? [])]
+      setDepartments(uniqueDeps)
+      setRegions(uniqueRegs)
+    }).catch(() => {})
+  }, [activeTab])
+
+  // ── Filtrage client-side des clubs ─────────────────────────────────────────
+  const filteredClubs = useMemo(() => allClubs.filter(club => {
+    const matchDep    = !depFilter    || club.department === depFilter
+    const matchRegion = !regionFilter || club.region     === regionFilter
+    const matchText   = !search       ||
+      club.name.toLowerCase().includes(search.toLowerCase()) ||
+      club.city?.toLowerCase().includes(search.toLowerCase())
+    return matchDep && matchRegion && matchText
+  }), [allClubs, depFilter, regionFilter, search])
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function isAlreadyInTeam(teamId) {
     return myTeams.some(t => t.id === teamId)
+  }
+  function isAlreadyInClub(clubId) {
+    return currentUser.current_club_id === clubId
   }
 
   // ── Follow / unfollow club ─────────────────────────────────────────────────
@@ -142,10 +174,23 @@ export default function TeamPage() {
     } catch {}
   }
 
-  // ── Ouvrir modale rejoindre ────────────────────────────────────────────────
+  // ── Ouvrir modale rejoindre (depuis bouton par équipe) ────────────────────
   function handleJoinTeam(team, club) {
-    setJoinTeam(team)
     setJoinClub(club)
+    setJoinTeam(team)
+    setSelectedTeamId(team.id)
+    setJoinRole('player')
+    setJoinMessage('')
+    setJoinError('')
+    setJoinSuccess(false)
+    setShowJoinModal(true)
+  }
+
+  // ── Ouvrir modale rejoindre (depuis bouton au niveau du club) ─────────────
+  function handleJoinClub(club) {
+    setJoinClub(club)
+    setJoinTeam(null)
+    setSelectedTeamId('')
     setJoinRole('player')
     setJoinMessage('')
     setJoinError('')
@@ -161,13 +206,13 @@ export default function TeamPage() {
       await createJoinRequest({
         user_id:   currentUser.id,
         club_id:   joinClub.id,
-        team_id:   joinTeam.id,
+        team_id:   selectedTeamId || null,
         role_type: joinRole,
         status:    'pending',
         season:    getCurrentSeasonName(),
         message:   joinMessage || null,
       })
-      await notifyForJoinRequest(joinRole, joinClub, joinTeam.id, {
+      await notifyForJoinRequest(joinRole, joinClub, selectedTeamId || null, {
         first_name: currentUser.firstName ?? currentUser.first_name ?? '',
         last_name:  currentUser.lastName  ?? currentUser.last_name  ?? '',
       })
@@ -376,35 +421,44 @@ export default function TeamPage() {
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Rechercher un club</h3>
 
-            {/* Filtres de mode */}
+            {/* Filtres géographiques */}
             <div className="flex gap-2 mb-3 flex-wrap">
-              {[
-                { id: 'name',       label: 'Nom du club'  },
-                { id: 'city',       label: 'Ville'        },
-                { id: 'department', label: 'Département'  },
-                { id: 'region',     label: 'Région'       },
-              ].map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSearchMode(m.id); setSearch('') }}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
-                    searchMode === m.id
-                      ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
+              <select
+                value={regionFilter}
+                onChange={e => { setRegionFilter(e.target.value); setDepFilter('') }}
+                className="flex-1 min-w-36 px-3 py-2 bg-surface-50 border border-surface-200
+                           rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2
+                           focus:ring-brand-300 focus:border-brand-400"
+              >
+                <option value="">Toutes les régions</option>
+                {regions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              <select
+                value={depFilter}
+                onChange={e => setDepFilter(e.target.value)}
+                className="flex-1 min-w-36 px-3 py-2 bg-surface-50 border border-surface-200
+                           rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2
+                           focus:ring-brand-300 focus:border-brand-400"
+              >
+                <option value="">Tous les départements</option>
+                {departments
+                  .filter(d => !regionFilter || d.region === regionFilter)
+                  .map(d => (
+                    <option key={d.code_dep} value={d.departement}>{d.departement}</option>
+                  ))}
+              </select>
             </div>
 
-            {/* Input recherche */}
+            {/* Input recherche nom/ville */}
             <div className="relative mb-4">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder={SEARCH_PLACEHOLDERS[searchMode]}
+                placeholder="Nom du club ou ville…"
                 className="w-full pl-9 pr-9 py-2.5 bg-surface-50 border border-surface-200
                            rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300
                            focus:border-brand-400 transition-all"
@@ -420,15 +474,8 @@ export default function TeamPage() {
               )}
             </div>
 
-            {/* Hint min 2 chars */}
-            {search.length > 0 && search.length < 2 && (
-              <p className="text-sm text-gray-400 text-center mb-4">
-                Entrez au moins 2 caractères pour rechercher.
-              </p>
-            )}
-
             {/* Spinner */}
-            {searchLoading && (
+            {allClubsLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600
                                 rounded-full animate-spin" />
@@ -436,7 +483,7 @@ export default function TeamPage() {
             )}
 
             {/* Résultats */}
-            {!searchLoading && searchResults.map(club => (
+            {!allClubsLoading && filteredClubs.map(club => (
               <Card key={club.id} className="p-4 mb-3">
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -444,10 +491,11 @@ export default function TeamPage() {
                     <div className="text-sm text-gray-500">
                       {club.sports?.name}
                       {club.city && ` · ${club.city}`}
-                      {club.postal_code && ` (${club.postal_code.slice(0, 2)})`}
                     </div>
-                    {club.region && (
-                      <div className="text-xs text-gray-400">{club.region}</div>
+                    {(club.department || club.region) && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {club.department && `${club.department} — `}{club.region}
+                      </div>
                     )}
                   </div>
                   <button
@@ -464,13 +512,13 @@ export default function TeamPage() {
                 </div>
 
                 {/* Équipes du club */}
-                {(club.teams ?? []).length > 0 && (
+                {(club.teams ?? []).filter(t => t.status === 'active').length > 0 && (
                   <div>
                     <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">
                       Équipes
                     </div>
                     <div className="space-y-2">
-                      {club.teams.map(team => (
+                      {club.teams.filter(t => t.status === 'active').map(team => (
                         <div
                           key={team.id}
                           className="flex items-center justify-between p-2
@@ -485,7 +533,6 @@ export default function TeamPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {/* Suivre l'équipe */}
                             <button
                               onClick={() => handleFollowTeam(team.id)}
                               className={`text-xs px-2 py-1 rounded-lg border transition-all ${
@@ -496,11 +543,8 @@ export default function TeamPage() {
                             >
                               {followedTeams.has(team.id) ? '★ Favori' : '☆ Suivre'}
                             </button>
-                            {/* Intégrer / Membre */}
                             {isAlreadyInTeam(team.id) ? (
-                              <span className="text-xs text-emerald-600 font-medium">
-                                ✓ Membre
-                              </span>
+                              <span className="text-xs text-emerald-600 font-medium">✓ Membre</span>
                             ) : (
                               <button
                                 onClick={() => handleJoinTeam(team, club)}
@@ -516,16 +560,28 @@ export default function TeamPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Bouton Intégrer une équipe (niveau club) */}
+                {!isAlreadyInClub(club.id) && (
+                  <button
+                    onClick={() => handleJoinClub(club)}
+                    className="mt-3 w-full py-2 border-2 border-dashed border-surface-300
+                               rounded-xl text-sm text-gray-500 hover:border-brand-400
+                               hover:text-brand-600 transition-all"
+                  >
+                    + Intégrer une équipe
+                  </button>
+                )}
               </Card>
             ))}
 
             {/* Aucun résultat */}
-            {search.length >= 2 && !searchLoading && searchResults.length === 0 && (
+            {!allClubsLoading && filteredClubs.length === 0 && allClubs.length > 0 && (
               <div className="text-center py-10">
                 <div className="text-3xl mb-2">🔍</div>
                 <div className="font-semibold text-surface-700 mb-1">Aucun club trouvé</div>
                 <p className="text-sm text-surface-400">
-                  Essayez avec un autre terme de recherche.
+                  Essayez d'autres filtres.
                 </p>
               </div>
             )}
@@ -563,7 +619,7 @@ export default function TeamPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ── Modale Intégrer une équipe ───────────────────────────────────── */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      {showJoinModal && joinTeam && (
+      {showJoinModal && joinClub && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md p-6">
             {joinSuccess ? (
@@ -586,11 +642,42 @@ export default function TeamPage() {
             ) : (
               <>
                 <h2 className="font-display text-xl font-bold mb-1">
-                  Rejoindre {joinTeam.name}
+                  Rejoindre {joinClub.name}
                 </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  {joinClub?.name} · {joinTeam.category}
-                </p>
+                {joinClub.sports?.name && (
+                  <p className="text-sm text-gray-500 mb-4">{joinClub.sports.name}</p>
+                )}
+
+                {/* Sélection équipe */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Équipe
+                  </label>
+                  {(joinClub.teams ?? []).filter(t => t.status === 'active').length > 0 ? (
+                    <select
+                      value={selectedTeamId}
+                      onChange={e => setSelectedTeamId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200
+                                 rounded-xl text-sm focus:outline-none focus:ring-2
+                                 focus:ring-brand-300 focus:border-brand-400"
+                    >
+                      <option value="">Choisir une équipe…</option>
+                      {joinClub.teams
+                        .filter(t => t.status === 'active')
+                        .map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} — {t.category}
+                          </option>
+                        ))}
+                    </select>
+                  ) : (
+                    <div className="text-sm text-gray-400 p-3 bg-surface-50 rounded-xl">
+                      Ce club n'a pas encore d'équipe active.
+                      {joinRole === 'coach' &&
+                        ' En tant que coach, vous pourrez en créer une une fois validé.'}
+                    </div>
+                  )}
+                </div>
 
                 {/* Choix du rôle */}
                 <div className="space-y-2 mb-4">
@@ -616,7 +703,7 @@ export default function TeamPage() {
 
                 {/* Message optionnel */}
                 <textarea
-                  placeholder="Message optionnel pour le coach…"
+                  placeholder="Message optionnel…"
                   value={joinMessage}
                   onChange={e => setJoinMessage(e.target.value)}
                   rows={2}
@@ -642,7 +729,7 @@ export default function TeamPage() {
                   </button>
                   <button
                     onClick={handleSubmitJoin}
-                    disabled={!joinRole || joinLoading}
+                    disabled={joinLoading}
                     className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white
                                rounded-xl text-sm font-medium transition-colors
                                disabled:opacity-40 disabled:cursor-not-allowed"
