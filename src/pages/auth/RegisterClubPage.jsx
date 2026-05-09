@@ -37,7 +37,7 @@ export default function RegisterClubPage() {
   useEffect(() => {
     setPostalResolved(null)
     const code = postalCode.trim()
-    if (country !== 'France' || code.length < 5) return
+    if (country !== 'France' || code.length < 2) return
     setPostalResolving(true)
     db.resolvePostalCode(code)
       .then(r => setPostalResolved(r))

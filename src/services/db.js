@@ -809,12 +809,18 @@ export const getMatchesByTeamAndSeason = async (teamId, season) => {
 // ── TEAM PAGE — SEARCH & FOLLOW ──────────────────────────
 
 // Résoudre un code postal français → { departement, code_dep, region }
+// Requête directe sur fr_postal_codes avec les 2 (ou 3 pour DOM-TOM) premiers chiffres
 export const resolvePostalCode = async (postalCode) => {
-  const { data, error } = await supabase.rpc('resolve_postal_code', {
-    p_postal: postalCode,
-  })
-  if (error) throw error
-  return data?.[0] ?? null
+  if (!postalCode) return null
+  const prefix = postalCode.slice(0, 2)
+  const searchPrefix = prefix === '97' ? postalCode.slice(0, 3) : prefix
+  const { data, error } = await supabase
+    .from('fr_postal_codes')
+    .select('departement, code_dep, region')
+    .eq('code_postal', searchPrefix)
+    .single()
+  if (error || !data) return null
+  return data
 }
 
 // Rechercher des clubs avec leurs équipes actives

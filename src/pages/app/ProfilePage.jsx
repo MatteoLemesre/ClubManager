@@ -150,7 +150,7 @@ export default function ProfilePage() {
   useEffect(() => {
     setPostalResolved(null)
     const code = clubPostalCode.trim()
-    if (clubCountry !== 'France' || code.length < 5) return
+    if (clubCountry !== 'France' || code.length < 2) return
     setPostalResolving(true)
     resolvePostalCode(code)
       .then(r => setPostalResolved(r))
@@ -234,6 +234,7 @@ export default function ProfilePage() {
             region:      resolvedRegion   || null,
           })
           .eq('id', currentUser.id)
+          .select()
       })()
 
       if (error) throw error
