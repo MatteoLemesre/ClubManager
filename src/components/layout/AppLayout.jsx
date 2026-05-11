@@ -5,11 +5,12 @@ import { Avatar, RoleBadge, Card } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
 import {
-  CalendarDays, Shield, Calendar, MessageCircle,
+  CalendarDays, Shield, Calendar, MessageCircle, Newspaper,
   ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, User,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
+  { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
   { to: '/app/events',   icon: CalendarDays,  label: 'Événements' },
   { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier' },

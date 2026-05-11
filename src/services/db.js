@@ -951,3 +951,104 @@ const SESSION_KEY = 'cm_session'
 export const getSession   = ()       => localStorage.getItem(SESSION_KEY)
 export const setSession   = (userId) => localStorage.setItem(SESSION_KEY, userId)
 export const clearSession = ()       => localStorage.removeItem(SESSION_KEY)
+
+// ── FEED / POSTS ──────────────────────────────────────────
+
+export const getFeedPosts = async (userId, currentClubId) => {
+  const { data: follows } = await supabase
+    .from('club_follows')
+    .select('club_id')
+    .eq('user_id', userId)
+
+  const followedIds = follows?.map(f => f.club_id) ?? []
+  if (currentClubId) followedIds.push(currentClubId)
+  const clubIds = [...new Set(followedIds)]
+
+  if (!clubIds.length) return []
+
+  const { data, error } = await supabase
+    .from('club_posts')
+    .select(`
+      *,
+      clubs(id, name, city),
+      users!author_id(id, first_name, last_name),
+      post_comments(count),
+      post_likes(count)
+    `)
+    .in('club_id', clubIds)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const getClubPosts = async (clubId) => {
+  const { data, error } = await supabase
+    .from('club_posts')
+    .select(`
+      *,
+      users!author_id(id, first_name, last_name),
+      post_comments(id, content, created_at, users!author_id(id, first_name, last_name)),
+      post_likes(user_id)
+    `)
+    .eq('club_id', clubId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const createPost = async (clubId, authorId, content, mediaUrl, mediaType) => {
+  const { data, error } = await supabase
+    .from('club_posts')
+    .insert({
+      club_id:    clubId,
+      author_id:  authorId,
+      content:    content.trim(),
+      media_url:  mediaUrl  || null,
+      media_type: mediaType || null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export const addComment = async (postId, authorId, content) => {
+  const { data, error } = await supabase
+    .from('post_comments')
+    .insert({ post_id: postId, author_id: authorId, content: content.trim() })
+    .select('*, users!author_id(id, first_name, last_name)')
+    .single()
+  if (error) throw error
+  return data
+}
+
+export const toggleLike = async (postId, userId) => {
+  const { data: existing } = await supabase
+    .from('post_likes')
+    .select('post_id')
+    .eq('post_id', postId)
+    .eq('user_id', userId)
+    .single()
+
+  if (existing) {
+    await supabase.from('post_likes').delete()
+      .eq('post_id', postId).eq('user_id', userId)
+    return false  // unliked
+  } else {
+    await supabase.from('post_likes').insert({ post_id: postId, user_id: userId })
+    return true   // liked
+  }
+}
+
+export const canPostForClub = (user, clubId) => {
+  if (!user || !clubId) return false
+  if (user.current_club_id !== clubId) return false
+  const roles = user.user_roles ?? []
+  return roles.some(r =>
+    (r.role_type === 'president' || r.role_type === 'coach') &&
+    (r.scope_id === clubId || r.scope_type === 'team')
+  )
+}
