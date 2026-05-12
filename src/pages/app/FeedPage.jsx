@@ -205,19 +205,25 @@ export default function FeedPage() {
   const [posts,      setPosts]      = useState([])
   const [loading,    setLoading]    = useState(true)
   const [likedPosts, setLikedPosts] = useState(new Set())
+  const [error,      setError]      = useState(null)
 
   useEffect(() => {
     const load = async () => {
-      const data = await getFeedPosts(currentUser.id, currentUser.current_club_id)
-      setPosts(data)
+      try {
+        const data = await getFeedPosts(currentUser.id, currentUser.current_club_id)
+        setPosts(data)
 
-      const { data: myLikes } = await supabase
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', currentUser.id)
-      setLikedPosts(new Set(myLikes?.map(l => l.post_id) ?? []))
-
-      setLoading(false)
+        const { data: myLikes } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', currentUser.id)
+        setLikedPosts(new Set(myLikes?.map(l => l.post_id) ?? []))
+      } catch (err) {
+        console.error('FeedPage error:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [currentUser.id, currentUser.current_club_id])
@@ -230,6 +236,16 @@ export default function FeedPage() {
       return s
     })
   }
+
+  if (error) return (
+    <div className="max-w-2xl mx-auto px-4 py-6">
+      <h1 className="font-display text-2xl font-bold text-gray-900 mb-6">Feed</h1>
+      <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600">
+        <div className="font-semibold mb-1">Erreur feed :</div>
+        <div className="text-sm font-mono">{error}</div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
