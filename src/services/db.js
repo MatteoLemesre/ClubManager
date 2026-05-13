@@ -592,6 +592,26 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
 
   if (!req) throw new Error('Demande introuvable')
 
+  // Si le coach veut créer une nouvelle équipe → créer l'équipe d'abord
+  let teamId = req.team_id
+  if (!teamId && req.new_team_name && req.role_type === 'coach') {
+    const { data: clubData } = await supabase
+      .from('clubs').select('sport_id').eq('id', req.club_id).single()
+    const { data: newTeam } = await supabase
+      .from('teams')
+      .insert({
+        club_id:  req.club_id,
+        sport_id: clubData?.sport_id ?? null,
+        name:     req.new_team_name,
+        category: req.new_team_cat ?? 'Séniors',
+        season:   req.season,
+        status:   'active',
+        gender:   'mixed',
+      })
+      .select().single()
+    teamId = newTeam?.id ?? null
+  }
+
   // Mettre à jour current_club_id du user
   await supabase
     .from('users')
@@ -602,14 +622,14 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
   await supabase.from('user_roles').insert({
     user_id:    req.user_id,
     role_type:  req.role_type,
-    scope_type: req.team_id ? 'team' : 'club',
-    scope_id:   req.team_id ?? req.club_id,
+    scope_type: teamId ? 'team' : 'club',
+    scope_id:   teamId ?? req.club_id,
   })
 
   // Si joueur → ajouter à team_players
-  if (req.role_type === 'player' && req.team_id) {
+  if (req.role_type === 'player' && teamId) {
     await supabase.from('team_players').insert({
-      team_id:   req.team_id,
+      team_id:   teamId,
       user_id:   req.user_id,
       season:    req.season,
       is_active: true,
@@ -617,9 +637,9 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
   }
 
   // Si coach → ajouter à team_coaches
-  if (req.role_type === 'coach' && req.team_id) {
+  if (req.role_type === 'coach' && teamId) {
     await supabase.from('team_coaches').insert({
-      team_id:   req.team_id,
+      team_id:   teamId,
       user_id:   req.user_id,
       season:    req.season,
       is_active: true,
@@ -631,7 +651,7 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
     user_id:   req.user_id,
     club_id:   req.club_id,
     role_type: req.role_type,
-    team_id:   req.team_id ?? null,
+    team_id:   teamId ?? null,
     season:    req.season,
     joined_at: new Date().toISOString(),
   })
@@ -651,7 +671,9 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
     to_user_id: req.user_id,
     type:       'request_approved',
     title:      'Demande approuvée !',
-    body:       'Vous pouvez maintenant accéder au club.',
+    body:       teamId
+      ? 'Vous avez été ajouté au club et à votre équipe.'
+      : "Votre demande d'adhésion a été acceptée.",
     request_id: requestId,
   })
 }
@@ -718,7 +740,7 @@ export const getPlayerHistory = async (userId) => {
 }
 
 // ── NOTIFY FOR JOIN REQUEST ───────────────────────────────
-export const notifyForJoinRequest = async (role, club, teamId, user) => {
+export const notifyForJoinRequest = async (role, club, teamId, user, newTeam = null) => {
   const clubUsers = await getUsersByClub(club.id)
 
   if (role === 'coach' || role === 'president') {
@@ -729,8 +751,12 @@ export const notifyForJoinRequest = async (role, club, teamId, user) => {
       await createNotification({
         to_user_id: p.id,
         type:       'registration_request',
-        title:      `Nouvelle demande — ${role === 'coach' ? 'Coach' : 'Président'}`,
-        body:       `${user.first_name} ${user.last_name} souhaite rejoindre comme ${role}.`,
+        title:      newTeam
+          ? `Demande de création d'équipe — ${newTeam.name}`
+          : `Nouvelle demande — ${role === 'coach' ? 'Coach' : 'Président'}`,
+        body:       newTeam
+          ? `${user.first_name} ${user.last_name} souhaite rejoindre comme coach et créer l'équipe "${newTeam.name}" (${newTeam.category}).`
+          : `${user.first_name} ${user.last_name} souhaite rejoindre comme ${role}.`,
       })
     }
   }
@@ -1048,7 +1074,48 @@ export const canPostForClub = (user, clubId) => {
   if (user.current_club_id !== clubId) return false
   const roles = user.user_roles ?? []
   return roles.some(r =>
-    (r.role_type === 'president' || r.role_type === 'coach') &&
-    (r.scope_id === clubId || r.scope_type === 'team')
+    r.role_type === 'president' || r.role_type === 'coach'
   )
+}
+
+// ── EVENTS & MATCHES — sources unifiées ──────────────────
+export const getMyEvents = async (userId, currentClubId) => {
+  const { data: follows } = await supabase
+    .from('club_follows')
+    .select('club_id')
+    .eq('user_id', userId)
+  const clubIds = [...new Set([
+    ...(follows?.map(f => f.club_id) ?? []),
+    ...(currentClubId ? [currentClubId] : [])
+  ])]
+  if (!clubIds.length) return []
+  const { data } = await supabase
+    .from('events')
+    .select('*, clubs(name)')
+    .in('club_id', clubIds)
+    .gte('starts_at', new Date().toISOString())
+    .order('starts_at')
+  return data ?? []
+}
+
+export const getMyUpcomingMatches = async (userId) => {
+  const [{ data: favs }, { data: playerTeams }, { data: coachTeams }] = await Promise.all([
+    supabase.from('supporter_favorites').select('team_id').eq('user_id', userId),
+    supabase.from('team_players').select('team_id').eq('user_id', userId).eq('is_active', true),
+    supabase.from('team_coaches').select('team_id').eq('user_id', userId).eq('is_active', true),
+  ])
+  const teamIds = [...new Set([
+    ...(favs?.map(f => f.team_id) ?? []),
+    ...(playerTeams?.map(t => t.team_id) ?? []),
+    ...(coachTeams?.map(t => t.team_id) ?? []),
+  ])]
+  if (!teamIds.length) return []
+  const { data } = await supabase
+    .from('matches')
+    .select('*, teams(name, category, clubs(name))')
+    .in('team_id', teamIds)
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at')
+  return data ?? []
 }

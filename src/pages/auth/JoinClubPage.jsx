@@ -71,6 +71,9 @@ export default function JoinClubPage() {
   const [selectedClub, setSelectedClub]   = useState(null)
   const [selectedRole, setSelectedRole]   = useState('')
   const [selectedTeam, setSelectedTeam]   = useState('')
+  const [joinMode,     setJoinMode]       = useState('existing') // 'existing' | 'new'
+  const [newTeamName,  setNewTeamName]    = useState('')
+  const [newTeamCat,   setNewTeamCat]     = useState('')
   const [teams,        setTeams]          = useState([])
   const [message,      setMessage]        = useState('')
   const [search,       setSearch]         = useState('')
@@ -115,6 +118,10 @@ export default function JoinClubPage() {
     if (!selectedRole) return setError('Choisissez un rôle')
     if (selectedRole === 'player' && !selectedTeam)
       return setError('Choisissez une équipe')
+    if (selectedRole === 'coach' && joinMode === 'new' && !newTeamName.trim())
+      return setError("Saisissez le nom de l'équipe")
+    if (selectedRole === 'coach' && joinMode === 'new' && !newTeamCat)
+      return setError("Choisissez la catégorie de l'équipe")
 
     setLoading(true)
     try {
@@ -134,22 +141,27 @@ export default function JoinClubPage() {
         return
       }
 
+      const isCoachNewTeam = selectedRole === 'coach' && joinMode === 'new'
+
       // Coach / joueur / président → demande de validation
       await db.createJoinRequest({
-        user_id:  currentUser.id,
-        club_id:  selectedClub.id,
-        role_type: selectedRole,
-        team_id:  selectedTeam || null,
-        message:  message.trim() || null,
+        user_id:       currentUser.id,
+        club_id:       selectedClub.id,
+        role_type:     selectedRole,
+        team_id:       isCoachNewTeam ? null : (selectedTeam || null),
+        message:       message.trim() || null,
         season,
-        status:   'pending',
+        status:        'pending',
+        new_team_name: isCoachNewTeam ? newTeamName.trim() : null,
+        new_team_cat:  isCoachNewTeam ? newTeamCat : null,
       })
 
       await db.notifyForJoinRequest(
         selectedRole,
         selectedClub,
-        selectedTeam || null,
+        isCoachNewTeam ? null : (selectedTeam || null),
         currentUser,
+        isCoachNewTeam ? { name: newTeamName.trim(), category: newTeamCat } : null,
       )
 
       setDone(true)
@@ -306,7 +318,7 @@ export default function JoinClubPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { setSelectedClub(null); setSelectedRole(''); setError('') }}
+                  onClick={() => { setSelectedClub(null); setSelectedRole(''); setJoinMode('existing'); setNewTeamName(''); setNewTeamCat(''); setError('') }}
                   className="flex items-center gap-1 text-xs text-brand-500
                              hover:text-brand-700 transition-colors"
                 >
@@ -343,36 +355,99 @@ export default function JoinClubPage() {
                 </div>
               </div>
 
-              {/* Équipe — joueur obligatoire, coach optionnel */}
+              {/* Équipe — joueur obligatoire, coach : rejoindre ou créer */}
               {(selectedRole === 'player' || selectedRole === 'coach') && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    {selectedRole === 'player' ? 'Équipe souhaitée *' : 'Équipe (optionnel)'}
-                  </p>
-                  {teams.length === 0 ? (
-                    <div className="text-sm text-gray-400 p-3 bg-surface-50 rounded-xl">
-                      Aucune équipe active dans ce club.
-                      {selectedRole === 'coach' && (
-                        <span className="block mt-0.5 text-xs">
-                          Vous pourrez en proposer une une fois votre demande validée.
-                        </span>
-                      )}
+                  {/* Toggle coach */}
+                  {selectedRole === 'coach' && (
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setJoinMode('existing')}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                          joinMode === 'existing'
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-gray-600 border-surface-200 hover:border-surface-300'
+                        }`}
+                      >
+                        Rejoindre une équipe
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setJoinMode('new')}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                          joinMode === 'new'
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-gray-600 border-surface-200 hover:border-surface-300'
+                        }`}
+                      >
+                        Créer une équipe
+                      </button>
                     </div>
-                  ) : (
-                    <select
-                      value={selectedTeam}
-                      onChange={e => setSelectedTeam(e.target.value)}
-                      className="w-full bg-surface-50 border border-surface-200 rounded-xl
-                                 px-3 py-2.5 text-sm focus:outline-none focus:ring-2
-                                 focus:ring-brand-300 focus:border-brand-400 transition-all"
-                    >
-                      <option value="">Choisir une équipe…</option>
-                      {teams.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}{t.category ? ` — ${t.category}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                  )}
+
+                  {/* Mode existant ou joueur */}
+                  {(selectedRole === 'player' || joinMode === 'existing') && (
+                    <>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        {selectedRole === 'player' ? 'Équipe souhaitée *' : 'Équipe existante (optionnel)'}
+                      </p>
+                      {teams.length === 0 ? (
+                        <div className="text-sm text-gray-400 p-3 bg-surface-50 rounded-xl">
+                          Aucune équipe active dans ce club.
+                          {selectedRole === 'coach' && (
+                            <span className="block mt-0.5 text-xs">
+                              Proposez-en une nouvelle via l'autre option.
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedTeam}
+                          onChange={e => setSelectedTeam(e.target.value)}
+                          className="w-full bg-surface-50 border border-surface-200 rounded-xl
+                                     px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                                     focus:ring-brand-300 focus:border-brand-400 transition-all"
+                        >
+                          <option value="">Choisir une équipe…</option>
+                          {teams.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}{t.category ? ` — ${t.category}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </>
+                  )}
+
+                  {/* Mode nouvelle équipe (coach uniquement) */}
+                  {selectedRole === 'coach' && joinMode === 'new' && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        Nouvelle équipe
+                      </p>
+                      <input
+                        placeholder="Nom de l'équipe (ex: Séniors A, U13…)"
+                        value={newTeamName}
+                        onChange={e => setNewTeamName(e.target.value)}
+                        className="w-full bg-surface-50 border border-surface-200 rounded-xl
+                                   px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                                   focus:ring-brand-300 focus:border-brand-400 transition-all"
+                      />
+                      <select
+                        value={newTeamCat}
+                        onChange={e => setNewTeamCat(e.target.value)}
+                        className="w-full bg-surface-50 border border-surface-200 rounded-xl
+                                   px-3 py-2.5 text-sm focus:outline-none focus:ring-2
+                                   focus:ring-brand-300 focus:border-brand-400 transition-all"
+                      >
+                        <option value="">Catégorie…</option>
+                        {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15',
+                          'U16','U17','U18','U19','U20','Séniors','Vétérans'].map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                 </div>
               )}

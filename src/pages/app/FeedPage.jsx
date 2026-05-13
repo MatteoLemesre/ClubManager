@@ -16,7 +16,7 @@ import {
 
 // ─── CreatePostBox ─────────────────────────────────────────────────────────
 
-function CreatePostBox({ clubId, onPost }) {
+function CreatePostBox({ clubId, club, onPost }) {
   const { currentUser } = useAuth()
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,8 +36,14 @@ function CreatePostBox({ clubId, onPost }) {
   return (
     <Card className="p-4 mb-6">
       <div className="flex gap-3">
-        <Avatar user={currentUser} size="md" />
+        <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
+                        justify-center text-white font-bold text-lg flex-shrink-0">
+          {club?.name?.[0] ?? '?'}
+        </div>
         <div className="flex-1">
+          <div className="text-sm font-semibold text-gray-700 mb-2">
+            Publier en tant que <span className="text-brand-600">{club?.name ?? '…'}</span>
+          </div>
           <textarea
             placeholder="Partagez une actualité de votre club..."
             value={content}
@@ -103,15 +109,14 @@ export function PostCard({ post, liked, onLike, currentUser }) {
         <Avatar user={author} size="md" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-900">
-              {author?.first_name} {author?.last_name}
-            </span>
-            <span className="text-xs text-gray-400">au nom de</span>
             <button
               onClick={() => navigate(`/app/clubs/${post.club_id}`)}
-              className="text-sm font-medium text-brand-600 hover:underline">
+              className="font-semibold text-gray-900 hover:underline">
               {clubName}
             </button>
+            <span className="text-xs text-gray-400">
+              par {author?.first_name} {author?.last_name}
+            </span>
           </div>
           <div className="text-xs text-gray-400 mt-0.5">{timeAgo}</div>
         </div>
@@ -206,6 +211,14 @@ export default function FeedPage() {
   const [loading,    setLoading]    = useState(true)
   const [likedPosts, setLikedPosts] = useState(new Set())
   const [error,      setError]      = useState(null)
+  const [club,       setClub]       = useState(null)
+
+  useEffect(() => {
+    if (!currentUser.current_club_id) return
+    import('../../services/db').then(db =>
+      db.getClubById(currentUser.current_club_id).then(setClub).catch(() => {})
+    )
+  }, [currentUser.current_club_id])
 
   useEffect(() => {
     const load = async () => {
@@ -254,6 +267,7 @@ export default function FeedPage() {
       {canPostForClub(currentUser, currentUser.current_club_id) && (
         <CreatePostBox
           clubId={currentUser.current_club_id}
+          club={club}
           onPost={post => setPosts(prev => [post, ...prev])}
         />
       )}
