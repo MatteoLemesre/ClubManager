@@ -9,6 +9,7 @@ import {
   X, Pencil, UserPlus, Plus, Home, Bus, Search,
 } from 'lucide-react'
 import { getMyEvents, getMyUpcomingMatches } from '../../services/db'
+import { supabase } from '../../lib/supabase'
 
 // ─── Config types événements ───────────────────────────────────────────────
 const EVENT_TYPE_CONFIG = {
@@ -32,6 +33,9 @@ export default function EventsPage() {
 
   // ── Panel détail événement ─────────────────────────────────────────────────
   const [selectedEvent, setSelectedEvent] = useState(null)
+
+  // ── Création événement ────────────────────────────────────────────────────
+  const [showCreateEvent, setShowCreateEvent] = useState(false)
 
   useEffect(() => {
     setEventsLoading(true)
@@ -70,8 +74,11 @@ export default function EventsPage() {
           </p>
         </div>
         {activeTab === 'events' && isOneOf('president', 'coach') && (
-          <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
-                             text-white rounded-xl text-sm font-medium transition-colors">
+          <button
+            onClick={() => setShowCreateEvent(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
+                       text-white rounded-xl text-sm font-medium transition-colors"
+          >
             <Plus size={15} /> Créer
           </button>
         )}
@@ -206,6 +213,19 @@ export default function EventsPage() {
         )
       )}
 
+      {/* ── Modal création événement ────────────────────────────────────── */}
+      {showCreateEvent && (
+        <CreateEventModal
+          clubId={currentUser.current_club_id}
+          authorId={currentUser.id}
+          onClose={() => setShowCreateEvent(false)}
+          onCreated={(ev) => {
+            setEvents(prev => [ev, ...prev])
+            setShowCreateEvent(false)
+          }}
+        />
+      )}
+
       {/* ── Panel détail événement ──────────────────────────────────────── */}
       {selectedEvent && (
         <div className="fixed inset-0 z-50 flex">
@@ -280,6 +300,179 @@ export default function EventsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Modal création événement ─────────────────────────────────────────────
+function CreateEventModal({ clubId, authorId, onClose, onCreated }) {
+  const [title,       setTitle]       = useState('')
+  const [description, setDescription] = useState('')
+  const [type,        setType]        = useState('meeting')
+  const [location,    setLocation]    = useState('')
+  const [startsAt,    setStartsAt]    = useState('')
+  const [endsAt,      setEndsAt]      = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState(null)
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !startsAt) return
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error: err } = await supabase
+        .from('events')
+        .insert({
+          club_id:     clubId,
+          created_by:  authorId,
+          title:       title.trim(),
+          description: description.trim() || null,
+          type,
+          location:    location.trim() || null,
+          starts_at:   startsAt,
+          ends_at:     endsAt || null,
+        })
+        .select('*, clubs(name)')
+        .single()
+      if (err) throw err
+      onCreated(data)
+    } catch (e) {
+      setError('Impossible de créer l\'événement. Réessayez.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
+          <h2 className="font-display font-bold text-lg text-surface-900">Nouvel événement</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl hover:bg-surface-100 flex items-center justify-center
+                       text-surface-400 hover:text-surface-700 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Corps */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Titre */}
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Titre *
+            </label>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Nom de l'événement"
+              className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+            />
+          </div>
+
+          {/* Type */}
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Type
+            </label>
+            <select
+              value={type}
+              onChange={e => setType(e.target.value)}
+              className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+            >
+              <option value="meeting">Réunion</option>
+              <option value="social">Social</option>
+              <option value="tournament">Tournoi</option>
+              <option value="carpool">Covoiturage</option>
+            </select>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Description
+            </label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Détails de l'événement…"
+              className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 resize-none"
+            />
+          </div>
+
+          {/* Lieu */}
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Lieu
+            </label>
+            <input
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              placeholder="Adresse ou nom du lieu"
+              className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+            />
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                Début *
+              </label>
+              <input
+                type="datetime-local"
+                value={startsAt}
+                onChange={e => setStartsAt(e.target.value)}
+                className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                           text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                Fin
+              </label>
+              <input
+                type="datetime-local"
+                value={endsAt}
+                onChange={e => setEndsAt(e.target.value)}
+                className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5
+                           text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-surface-100">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-surface-600
+                       hover:bg-surface-100 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!title.trim() || !startsAt || loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-600 hover:bg-brand-700
+                       text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Création…' : 'Créer l\'événement'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

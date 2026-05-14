@@ -78,6 +78,23 @@ export default function TeamPage() {
   const [joinMode,       setJoinMode]       = useState('existing') // 'existing' | 'new'
   const [newJoinTeamName,setNewJoinTeamName]= useState('')
 
+  // ── Rechargement équipes du club (pour président) ─────────────────────────
+  const refreshTeams = async () => {
+    const { data } = await supabase
+      .from('teams')
+      .select('*, clubs(name, sport_id)')
+      .eq('club_id', currentUser.current_club_id)
+      .eq('status', 'active')
+      .order('name')
+    setMyTeams(data ?? [])
+  }
+
+  // Pour le président : charger les équipes du club au montage
+  useEffect(() => {
+    if (!currentUser.current_club_id || !is('president')) return
+    refreshTeams()
+  }, [currentUser.current_club_id])
+
   // ── Chargement initial ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.id) return
@@ -287,8 +304,7 @@ export default function TeamPage() {
       setShowCreateTeam(false)
       setPresTeamName('')
       setPresTeamGender('mixed')
-      const teams = await getMyTeams(currentUser.id)
-      setMyTeams(teams)
+      await refreshTeams()
     } catch (err) {
       console.error('Erreur création équipe', err)
     } finally {
