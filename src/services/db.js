@@ -603,7 +603,7 @@ export const approveJoinRequest = async (requestId, reviewerId) => {
         club_id:  req.club_id,
         sport_id: clubData?.sport_id ?? null,
         name:     req.new_team_name,
-        category: req.new_team_cat ?? 'Séniors',
+        category: null,
         season:   req.season,
         status:   'active',
         gender:   'mixed',

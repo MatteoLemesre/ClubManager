@@ -71,13 +71,12 @@ export default function TeamPage() {
   // ── Créer équipe (président) ───────────────────────────────────────────────
   const [showCreateTeam,    setShowCreateTeam]    = useState(false)
   const [presTeamName,      setPresTeamName]      = useState('')
-  const [presTeamCategory,  setPresTeamCategory]  = useState('')
+  const [presTeamGender,    setPresTeamGender]    = useState('mixed')
   const [createTeamLoading, setCreateTeamLoading] = useState(false)
 
   // ── Mode coach dans modal rejoindre ────────────────────────────────────────
   const [joinMode,       setJoinMode]       = useState('existing') // 'existing' | 'new'
   const [newJoinTeamName,setNewJoinTeamName]= useState('')
-  const [newJoinTeamCat, setNewJoinTeamCat] = useState('')
 
   // ── Chargement initial ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -200,7 +199,6 @@ export default function TeamPage() {
     setJoinRole('player')
     setJoinMode('existing')
     setNewJoinTeamName('')
-    setNewJoinTeamCat('')
     setJoinMessage('')
     setJoinError('')
     setJoinSuccess(false)
@@ -215,7 +213,6 @@ export default function TeamPage() {
     setJoinRole('player')
     setJoinMode('existing')
     setNewJoinTeamName('')
-    setNewJoinTeamCat('')
     setJoinMessage('')
     setJoinError('')
     setJoinSuccess(false)
@@ -227,9 +224,6 @@ export default function TeamPage() {
     setJoinError('')
     if (joinRole === 'coach' && joinMode === 'new' && !newJoinTeamName.trim()) {
       return setJoinError("Saisissez le nom de l'équipe")
-    }
-    if (joinRole === 'coach' && joinMode === 'new' && !newJoinTeamCat) {
-      return setJoinError("Choisissez la catégorie de l'équipe")
     }
     setJoinLoading(true)
     const isCoachNewTeam = joinRole === 'coach' && joinMode === 'new'
@@ -243,7 +237,7 @@ export default function TeamPage() {
         season:        getCurrentSeasonName(),
         message:       joinMessage || null,
         new_team_name: isCoachNewTeam ? newJoinTeamName.trim() : null,
-        new_team_cat:  isCoachNewTeam ? newJoinTeamCat : null,
+        new_team_cat:  null,
       })
       await notifyForJoinRequest(
         joinRole,
@@ -253,7 +247,7 @@ export default function TeamPage() {
           first_name: currentUser.firstName ?? currentUser.first_name ?? '',
           last_name:  currentUser.lastName  ?? currentUser.last_name  ?? '',
         },
-        isCoachNewTeam ? { name: newJoinTeamName.trim(), category: newJoinTeamCat } : null,
+        isCoachNewTeam ? { name: newJoinTeamName.trim() } : null,
       )
       setJoinSuccess(true)
     } catch (err) {
@@ -276,7 +270,7 @@ export default function TeamPage() {
 
   // ── Créer équipe directement (président) ──────────────────────────────────
   async function handlePresidentCreateTeam() {
-    if (!presTeamName.trim() || !presTeamCategory) return
+    if (!presTeamName.trim()) return
     setCreateTeamLoading(true)
     try {
       const { data: clubData } = await supabase
@@ -285,15 +279,14 @@ export default function TeamPage() {
         club_id:  currentUser.current_club_id,
         sport_id: clubData?.sport_id ?? null,
         name:     presTeamName.trim(),
-        category: presTeamCategory,
-        gender:   'mixed',
+        category: null,
+        gender:   presTeamGender,
         season:   getCurrentSeasonName(),
         status:   'active',
       })
       setShowCreateTeam(false)
       setPresTeamName('')
-      setPresTeamCategory('')
-      // Recharger les équipes
+      setPresTeamGender('mixed')
       const teams = await getMyTeams(currentUser.id)
       setMyTeams(teams)
     } catch (err) {
@@ -410,7 +403,7 @@ export default function TeamPage() {
                     <div>
                       <div className="font-bold text-lg text-gray-900">{team.name}</div>
                       <div className="text-sm text-gray-500">
-                        {team.clubs?.name}{team.category ? ` · ${team.category}` : ''}
+                        {team.clubs?.name}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -633,9 +626,6 @@ export default function TeamPage() {
                             <span className="text-sm font-medium text-gray-900">
                               {team.name}
                             </span>
-                            <span className="text-xs text-gray-400 ml-2">
-                              {team.category}
-                            </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -702,7 +692,6 @@ export default function TeamPage() {
                     <Card key={teamId} className="p-3 flex items-center justify-between">
                       <div>
                         <div className="font-medium text-gray-900">{team.name}</div>
-                        <div className="text-xs text-gray-400">{team.category}</div>
                       </div>
                       <button
                         onClick={() => handleFollowTeam(teamId)}
@@ -800,7 +789,7 @@ export default function TeamPage() {
                             .filter(t => t.status === 'active')
                             .map(t => (
                               <option key={t.id} value={t.id}>
-                                {t.name} — {t.category}
+                                {t.name}
                               </option>
                             ))}
                         </select>
@@ -815,29 +804,14 @@ export default function TeamPage() {
 
                   {/* Mode nouvelle équipe (coach uniquement) */}
                   {joinRole === 'coach' && joinMode === 'new' && (
-                    <div className="space-y-3">
-                      <input
-                        placeholder="Nom de l'équipe (ex: Séniors A, U13…)"
-                        value={newJoinTeamName}
-                        onChange={e => setNewJoinTeamName(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200
-                                   rounded-xl text-sm focus:outline-none focus:ring-2
-                                   focus:ring-brand-300 focus:border-brand-400"
-                      />
-                      <select
-                        value={newJoinTeamCat}
-                        onChange={e => setNewJoinTeamCat(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200
-                                   rounded-xl text-sm focus:outline-none focus:ring-2
-                                   focus:ring-brand-300 focus:border-brand-400"
-                      >
-                        <option value="">Catégorie…</option>
-                        {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15',
-                          'U16','U17','U18','U19','U20','Séniors','Vétérans'].map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <input
+                      placeholder="Nom de l'équipe (ex: Séniors A, U13 Groupe B…)"
+                      value={newJoinTeamName}
+                      onChange={e => setNewJoinTeamName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200
+                                 rounded-xl text-sm focus:outline-none focus:ring-2
+                                 focus:ring-brand-300 focus:border-brand-400"
+                    />
                   )}
                 </div>
 
@@ -917,28 +891,26 @@ export default function TeamPage() {
             <h2 className="font-display text-xl font-bold mb-4">Créer une équipe</h2>
             <div className="space-y-3 mb-5">
               <input
-                placeholder="Nom de l'équipe (ex: Séniors A, U13…)"
+                placeholder="Nom de l'équipe (ex: Séniors A, U13 Groupe B…)"
                 value={presTeamName}
                 onChange={e => setPresTeamName(e.target.value)}
                 className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200 rounded-xl
                            text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               />
               <select
-                value={presTeamCategory}
-                onChange={e => setPresTeamCategory(e.target.value)}
+                value={presTeamGender}
+                onChange={e => setPresTeamGender(e.target.value)}
                 className="w-full px-3 py-2.5 bg-surface-50 border border-surface-200 rounded-xl
                            text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               >
-                <option value="">Catégorie…</option>
-                {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15',
-                  'U16','U17','U18','U19','U20','Séniors','Vétérans'].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                <option value="mixed">Mixte</option>
+                <option value="male">Masculin</option>
+                <option value="female">Féminin</option>
               </select>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowCreateTeam(false); setPresTeamName(''); setPresTeamCategory('') }}
+                onClick={() => { setShowCreateTeam(false); setPresTeamName(''); setPresTeamGender('mixed') }}
                 className="flex-1 py-2.5 border border-surface-200 text-surface-600
                            hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors"
               >
@@ -946,7 +918,7 @@ export default function TeamPage() {
               </button>
               <button
                 onClick={handlePresidentCreateTeam}
-                disabled={createTeamLoading || !presTeamName.trim() || !presTeamCategory}
+                disabled={createTeamLoading || !presTeamName.trim()}
                 className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
                            text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -1180,7 +1152,6 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
                             : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
                         }`}>
                         {team.name}
-                        <span className="ml-1 text-xs opacity-70">{team.category}</span>
                       </button>
                     ))}
                   </div>

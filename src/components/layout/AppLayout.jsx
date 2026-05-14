@@ -108,7 +108,7 @@ export default function AppLayout() {
             club_id:  req.club_id,
             sport_id: club.sport_id,
             name:     req.new_team_name,
-            category: req.new_team_cat ?? 'Séniors',
+            category: null,
             gender:   'mixed',
             season:   season,
             status:   'active',

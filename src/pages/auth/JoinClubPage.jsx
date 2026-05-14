@@ -73,7 +73,6 @@ export default function JoinClubPage() {
   const [selectedTeam, setSelectedTeam]   = useState('')
   const [joinMode,     setJoinMode]       = useState('existing') // 'existing' | 'new'
   const [newTeamName,  setNewTeamName]    = useState('')
-  const [newTeamCat,   setNewTeamCat]     = useState('')
   const [teams,        setTeams]          = useState([])
   const [message,      setMessage]        = useState('')
   const [search,       setSearch]         = useState('')
@@ -120,8 +119,6 @@ export default function JoinClubPage() {
       return setError('Choisissez une équipe')
     if (selectedRole === 'coach' && joinMode === 'new' && !newTeamName.trim())
       return setError("Saisissez le nom de l'équipe")
-    if (selectedRole === 'coach' && joinMode === 'new' && !newTeamCat)
-      return setError("Choisissez la catégorie de l'équipe")
 
     setLoading(true)
     try {
@@ -153,7 +150,7 @@ export default function JoinClubPage() {
         season,
         status:        'pending',
         new_team_name: isCoachNewTeam ? newTeamName.trim() : null,
-        new_team_cat:  isCoachNewTeam ? newTeamCat : null,
+        new_team_cat:  null,
       })
 
       await db.notifyForJoinRequest(
@@ -161,7 +158,7 @@ export default function JoinClubPage() {
         selectedClub,
         isCoachNewTeam ? null : (selectedTeam || null),
         currentUser,
-        isCoachNewTeam ? { name: newTeamName.trim(), category: newTeamCat } : null,
+        isCoachNewTeam ? { name: newTeamName.trim() } : null,
       )
 
       setDone(true)
@@ -412,7 +409,7 @@ export default function JoinClubPage() {
                           <option value="">Choisir une équipe…</option>
                           {teams.map(t => (
                             <option key={t.id} value={t.id}>
-                              {t.name}{t.category ? ` — ${t.category}` : ''}
+                              {t.name}
                             </option>
                           ))}
                         </select>
@@ -422,31 +419,18 @@ export default function JoinClubPage() {
 
                   {/* Mode nouvelle équipe (coach uniquement) */}
                   {selectedRole === 'coach' && joinMode === 'new' && (
-                    <div className="space-y-3">
+                    <div>
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                         Nouvelle équipe
                       </p>
                       <input
-                        placeholder="Nom de l'équipe (ex: Séniors A, U13…)"
+                        placeholder="Nom de l'équipe (ex: Séniors A, U13 Groupe B…)"
                         value={newTeamName}
                         onChange={e => setNewTeamName(e.target.value)}
                         className="w-full bg-surface-50 border border-surface-200 rounded-xl
                                    px-3 py-2.5 text-sm focus:outline-none focus:ring-2
                                    focus:ring-brand-300 focus:border-brand-400 transition-all"
                       />
-                      <select
-                        value={newTeamCat}
-                        onChange={e => setNewTeamCat(e.target.value)}
-                        className="w-full bg-surface-50 border border-surface-200 rounded-xl
-                                   px-3 py-2.5 text-sm focus:outline-none focus:ring-2
-                                   focus:ring-brand-300 focus:border-brand-400 transition-all"
-                      >
-                        <option value="">Catégorie…</option>
-                        {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15',
-                          'U16','U17','U18','U19','U20','Séniors','Vétérans'].map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
                     </div>
                   )}
                 </div>
