@@ -1069,12 +1069,33 @@ export const toggleLike = async (postId, userId) => {
   }
 }
 
-export const canPostForClub = (user, clubId) => {
-  if (!user || !clubId) return false
-  if (user.current_club_id !== clubId) return false
-  const roles = user.user_roles ?? []
+export const canPostForClub = async (userId, clubId) => {
+  if (!userId || !clubId) return false
+
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('role_type, scope_type, scope_id')
+    .eq('user_id', userId)
+
+  if (!roles?.length) return false
+
+  if (roles.some(r =>
+    r.role_type === 'president' &&
+    r.scope_type === 'club' &&
+    r.scope_id === clubId
+  )) return true
+
+  const { data: clubTeams } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  const teamIds = clubTeams?.map(t => t.id) ?? []
   return roles.some(r =>
-    r.role_type === 'president' || r.role_type === 'coach'
+    r.role_type === 'coach' &&
+    r.scope_type === 'team' &&
+    teamIds.includes(r.scope_id)
   )
 }
 

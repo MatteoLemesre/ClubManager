@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Card, RoleBadge } from '../../components/ui'
-import { format } from 'date-fns'
+import { format, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Search, MapPin, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -45,10 +46,12 @@ export default function TeamPage() {
   const [allClubsLoading, setAllClubsLoading] = useState(false)
   const [allKnownTeams,   setAllKnownTeams]   = useState([]) // pour lookup des favoris
   // Filtres géographiques
-  const [departments,   setDepartments]   = useState([])
-  const [regions,       setRegions]       = useState([])
-  const [depFilter,     setDepFilter]     = useState('')
-  const [regionFilter,  setRegionFilter]  = useState('')
+  const [allDeps,      setAllDeps]      = useState([])
+  const [allRegs,      setAllRegs]      = useState([])
+  const [depFilter,    setDepFilter]    = useState('')
+  const [regionFilter, setRegionFilter] = useState('')
+  // Profil club en drawer
+  const [selectedClubProfile, setSelectedClubProfile] = useState(null)
 
   // ── Modale rejoindre équipe ────────────────────────────────────────────────
   const [showJoinModal,   setShowJoinModal]   = useState(false)
@@ -101,47 +104,51 @@ export default function TeamPage() {
       .finally(() => setMyTeamsLoading(false))
   }, [currentUser?.id])
 
-  // ── Charger tous les clubs à l'ouverture de l'onglet Explorer ────────────
+  // ── Charger régions, départements et clubs au montage ────────────────────
   useEffect(() => {
-    if (activeTab !== 'explore') return
     setAllClubsLoading(true)
-    supabase
-      .from('clubs')
-      .select('*, sports(name), teams(id, name, category, status)')
-      .eq('status', 'active')
-      .order('name')
-      .then(({ data }) => {
-        const clubs = data ?? []
-        setAllClubs(clubs)
-        const teams = clubs.flatMap(c =>
-          (c.teams ?? []).map(t => ({ ...t, club_id: c.id }))
-        )
-        setAllKnownTeams(prev => {
-          const ids = new Set(prev.map(t => t.id))
-          return [...prev, ...teams.filter(t => !ids.has(t.id))]
-        })
-      })
-      .catch(() => {})
-      .finally(() => setAllClubsLoading(false))
-  }, [activeTab])
+    const load = async () => {
+      const { data: postal } = await supabase
+        .from('fr_postal_codes')
+        .select('departement, code_dep, region')
+        .order('region')
 
-  // ── Charger départements et régions depuis fr_postal_codes ────────────────
-  useEffect(() => {
-    if (activeTab !== 'explore') return
-    Promise.all([
-      supabase.from('fr_postal_codes').select('departement, code_dep, region').order('departement'),
-      supabase.from('fr_postal_codes').select('region').order('region'),
-    ]).then(([{ data: deps }, { data: regs }]) => {
-      const uniqueDeps = [...new Map(
-        deps?.map(d => [d.code_dep, d]) ?? []
-      ).values()]
-      const uniqueRegs = [...new Set(regs?.map(r => r.region) ?? [])]
-      setDepartments(uniqueDeps)
-      setRegions(uniqueRegs)
-    }).catch(() => {})
-  }, [activeTab])
+      if (postal) {
+        const regs = [...new Set(postal.map(d => d.region))].sort()
+        setAllRegs(regs)
+
+        const deps = [...new Map(
+          postal.map(d => [d.code_dep, { departement: d.departement, code_dep: d.code_dep, region: d.region }])
+        ).values()].sort((a, b) => a.departement.localeCompare(b.departement))
+        setAllDeps(deps)
+      }
+
+      const { data: clubs } = await supabase
+        .from('clubs')
+        .select('*, sports(name), teams(id, name, category, status)')
+        .eq('status', 'active')
+        .order('name')
+
+      const clubList = clubs ?? []
+      setAllClubs(clubList)
+      const teams = clubList.flatMap(c =>
+        (c.teams ?? []).map(t => ({ ...t, club_id: c.id }))
+      )
+      setAllKnownTeams(prev => {
+        const ids = new Set(prev.map(t => t.id))
+        return [...prev, ...teams.filter(t => !ids.has(t.id))]
+      })
+
+      setAllClubsLoading(false)
+    }
+    load().catch(() => setAllClubsLoading(false))
+  }, [])
 
   // ── Filtrage client-side des clubs ─────────────────────────────────────────
+  const filteredDeps = useMemo(() =>
+    regionFilter ? allDeps.filter(d => d.region === regionFilter) : allDeps
+  , [allDeps, regionFilter])
+
   const filteredClubs = useMemo(() => allClubs.filter(club => {
     const matchDep    = !depFilter    || club.department === depFilter
     const matchRegion = !regionFilter || club.region     === regionFilter
@@ -505,56 +512,63 @@ export default function TeamPage() {
             <h3 className="font-semibold text-gray-900 mb-4">Rechercher un club</h3>
 
             {/* Filtres géographiques */}
-            <div className="flex gap-2 mb-3 flex-wrap">
-              <select
-                value={regionFilter}
-                onChange={e => { setRegionFilter(e.target.value); setDepFilter('') }}
-                className="flex-1 min-w-36 px-3 py-2 bg-surface-50 border border-surface-200
-                           rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2
-                           focus:ring-brand-300 focus:border-brand-400"
-              >
-                <option value="">Toutes les régions</option>
-                {regions.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+            <div className="space-y-3 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400
+                                  uppercase tracking-wider mb-1">Région</label>
+                <select
+                  value={regionFilter}
+                  onChange={e => { setRegionFilter(e.target.value); setDepFilter('') }}
+                  className="w-full bg-surface-50 border border-surface-200
+                             rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2
+                             focus:ring-brand-300 focus:border-brand-400"
+                >
+                  <option value="">Toutes les régions</option>
+                  {allRegs.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
 
-              <select
-                value={depFilter}
-                onChange={e => setDepFilter(e.target.value)}
-                className="flex-1 min-w-36 px-3 py-2 bg-surface-50 border border-surface-200
-                           rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2
-                           focus:ring-brand-300 focus:border-brand-400"
-              >
-                <option value="">Tous les départements</option>
-                {departments
-                  .filter(d => !regionFilter || d.region === regionFilter)
-                  .map(d => (
+              <div>
+                <label className="block text-xs font-semibold text-gray-400
+                                  uppercase tracking-wider mb-1">Département</label>
+                <select
+                  value={depFilter}
+                  onChange={e => setDepFilter(e.target.value)}
+                  className="w-full bg-surface-50 border border-surface-200
+                             rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2
+                             focus:ring-brand-300 focus:border-brand-400"
+                >
+                  <option value="">Tous les départements</option>
+                  {filteredDeps.map(d => (
                     <option key={d.code_dep} value={d.departement}>{d.departement}</option>
                   ))}
-              </select>
-            </div>
+                </select>
+              </div>
 
-            {/* Input recherche nom/ville */}
-            <div className="relative mb-4">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Nom du club ou ville…"
-                className="w-full pl-9 pr-9 py-2.5 bg-surface-50 border border-surface-200
-                           rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300
-                           focus:border-brand-400 transition-all"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
-                             hover:text-gray-600 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400
+                                  uppercase tracking-wider mb-1">Nom ou ville</label>
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Rechercher un club..."
+                    className="w-full pl-9 pr-9 py-2 bg-surface-50 border border-surface-200
+                               rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300
+                               focus:border-brand-400 transition-all"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                                 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Spinner */}
@@ -581,17 +595,25 @@ export default function TeamPage() {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleFollowClub(club.id)}
-                    className={`flex-shrink-0 text-sm px-3 py-1.5 rounded-full border
-                                transition-all ${
-                      followedClubIds.has(club.id)
-                        ? 'bg-brand-50 text-brand-700 border-brand-200'
-                        : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
-                    }`}
-                  >
-                    {followedClubIds.has(club.id) ? '♥ Suivi' : '+ Suivre'}
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setSelectedClubProfile(club)}
+                      className="text-sm px-3 py-1.5 rounded-full border border-surface-200
+                                 bg-white text-gray-600 hover:border-brand-300 transition-all"
+                    >
+                      Voir
+                    </button>
+                    <button
+                      onClick={() => handleFollowClub(club.id)}
+                      className={`text-sm px-3 py-1.5 rounded-full border transition-all ${
+                        followedClubIds.has(club.id)
+                          ? 'bg-brand-50 text-brand-700 border-brand-200'
+                          : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                      }`}
+                    >
+                      {followedClubIds.has(club.id) ? '♥ Suivi' : '+ Suivre'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Équipes du club */}
@@ -659,13 +681,11 @@ export default function TeamPage() {
             ))}
 
             {/* Aucun résultat */}
-            {!allClubsLoading && filteredClubs.length === 0 && allClubs.length > 0 && (
-              <div className="text-center py-10">
-                <div className="text-3xl mb-2">🔍</div>
-                <div className="font-semibold text-surface-700 mb-1">Aucun club trouvé</div>
-                <p className="text-sm text-surface-400">
-                  Essayez d'autres filtres.
-                </p>
+            {!allClubsLoading && filteredClubs.length === 0 && (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                {regionFilter || depFilter || search
+                  ? 'Aucun club trouvé pour ces critères'
+                  : 'Sélectionnez une région ou tapez un nom'}
               </div>
             )}
           </div>
@@ -975,6 +995,241 @@ export default function TeamPage() {
           </Card>
         </div>
       )}
+
+      {/* ── Profil club en drawer ────────────────────────────────────────── */}
+      {selectedClubProfile && (
+        <ClubProfileDrawer
+          club={selectedClubProfile}
+          currentUser={currentUser}
+          onClose={() => setSelectedClubProfile(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── ClubProfileDrawer ─────────────────────────────────────────────────────
+
+function ClubProfileDrawer({ club, currentUser, onClose }) {
+  const navigate = useNavigate()
+  const [teams,       setTeams]       = useState([])
+  const [posts,       setPosts]       = useState([])
+  const [activeTab,   setActiveTab]   = useState('info')
+  const [selectedTeam, setSelectedTeam] = useState(null)
+  const [teamPlayers,  setTeamPlayers]  = useState([])
+  const [loading,     setLoading]     = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: t }, { data: p }] = await Promise.all([
+        supabase.from('teams').select('*').eq('club_id', club.id).eq('status', 'active'),
+        supabase.from('club_posts')
+          .select('*, users!author_id(id, first_name, last_name)')
+          .eq('club_id', club.id)
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ])
+      setTeams(t ?? [])
+      setPosts(p ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [club.id])
+
+  useEffect(() => {
+    if (!selectedTeam) return
+    supabase
+      .from('team_players')
+      .select('*, users(id, first_name, last_name, birth_date)')
+      .eq('team_id', selectedTeam.id)
+      .eq('is_active', true)
+      .then(({ data }) => setTeamPlayers(data ?? []))
+  }, [selectedTeam])
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/40" onClick={onClose} />
+
+      <div className="w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-surface-200
+                        flex items-center justify-between px-5 py-4 z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
+                            justify-center text-white font-bold text-lg">
+              {club.name[0]}
+            </div>
+            <div>
+              <div className="font-bold text-gray-900">{club.name}</div>
+              <div className="text-xs text-gray-400">
+                {club.sports?.name} · {club.city}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+            ✕
+          </button>
+        </div>
+
+        {/* Stats club */}
+        <div className="px-5 py-4 border-b border-surface-100">
+          <div className="flex gap-6 text-center">
+            <div>
+              <div className="text-xl font-bold text-gray-900">{teams.length}</div>
+              <div className="text-xs text-gray-400">Équipes</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-gray-900">{posts.length}</div>
+              <div className="text-xs text-gray-400">Posts</div>
+            </div>
+          </div>
+          {(club.department || club.region) && (
+            <div className="text-sm text-gray-500 mt-3">
+              📍 {[club.department, club.region].filter(Boolean).join(' — ')}
+            </div>
+          )}
+        </div>
+
+        {/* Onglets */}
+        <div className="flex border-b border-surface-200 px-5">
+          {[
+            { id: 'info',  label: '📋 Infos' },
+            { id: 'feed',  label: '📰 Posts' },
+            { id: 'teams', label: '⚽ Équipes' },
+          ].map(tab => (
+            <button key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                activeTab === tab.id
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Contenu */}
+        <div className="flex-1 p-5">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600
+                              rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'info' && (
+                <div className="space-y-3">
+                  {club.email && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="text-gray-400">✉️</span> {club.email}
+                    </div>
+                  )}
+                  {club.phone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="text-gray-400">📞</span> {club.phone}
+                    </div>
+                  )}
+                  {club.address && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="text-gray-400">🏠</span>
+                      {club.address}, {club.postal_code} {club.city}
+                    </div>
+                  )}
+                  <div className="pt-3">
+                    <button
+                      onClick={() => navigate(`/app/clubs/${club.id}`)}
+                      className="w-full py-2 border border-surface-200 text-surface-600
+                                 hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors text-center">
+                      Voir la page complète →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'feed' && (
+                <div className="space-y-4">
+                  {posts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 text-sm">Aucun post publié</div>
+                  ) : (
+                    posts.map(post => (
+                      <div key={post.id}
+                        className="p-4 bg-surface-50 rounded-2xl border border-surface-200">
+                        <div className="text-xs text-gray-400 mb-2">
+                          {post.users?.first_name} {post.users?.last_name}
+                          {' · '}
+                          {format(new Date(post.created_at), "d MMM", { locale: fr })}
+                        </div>
+                        <p className="text-sm text-gray-800">{post.content}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'teams' && (
+                <div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {teams.map(team => (
+                      <button key={team.id}
+                        onClick={() => setSelectedTeam(selectedTeam?.id === team.id ? null : team)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                          selectedTeam?.id === team.id
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                        }`}>
+                        {team.name}
+                        <span className="ml-1 text-xs opacity-70">{team.category}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedTeam ? (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                        {selectedTeam.name}
+                      </div>
+                      {teamPlayers.length === 0 ? (
+                        <div className="text-sm text-gray-400">Aucun joueur dans cette équipe</div>
+                      ) : (
+                        teamPlayers.map(tp => {
+                          const u   = tp.users
+                          const age = u?.birth_date
+                            ? differenceInYears(new Date(), new Date(u.birth_date))
+                            : null
+                          return (
+                            <div key={tp.user_id}
+                              className="flex items-center gap-3 p-3 bg-surface-50
+                                         rounded-xl border border-surface-100">
+                              <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center
+                                              justify-center text-brand-700 font-bold text-xs">
+                                {tp.jersey_number ?? '?'}
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm text-gray-900">
+                                  {u?.first_name} {u?.last_name}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {tp.position ?? '—'}{age ? ` · ${age} ans` : ''}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center text-sm text-gray-400 py-4">
+                      Sélectionnez une équipe pour voir ses joueurs
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

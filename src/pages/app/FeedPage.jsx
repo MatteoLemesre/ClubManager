@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Avatar, EmptyState } from '../../components/ui'
-import { MessageCircle, Image } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 import {
   getFeedPosts,
-  createPost,
   addComment,
   toggleLike,
   canPostForClub,
@@ -16,47 +15,64 @@ import {
 
 // ─── CreatePostBox ─────────────────────────────────────────────────────────
 
-function CreatePostBox({ clubId, club, onPost }) {
-  const { currentUser } = useAuth()
+function CreatePostBox({ club, authorId, onPost }) {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
 
   const handleSubmit = async () => {
     if (!content.trim()) return
     setLoading(true)
+    setError('')
     try {
-      const post = await createPost(clubId, currentUser.id, content)
+      const { data: post, error: err } = await supabase
+        .from('club_posts')
+        .insert({
+          club_id:   club.id,
+          author_id: authorId,
+          content:   content.trim(),
+        })
+        .select(`
+          *,
+          clubs(id, name, city),
+          users!author_id(id, first_name, last_name)
+        `)
+        .single()
+
+      if (err) throw err
       setContent('')
       onPost(post)
+    } catch (e) {
+      setError(e.message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card className="p-4 mb-6">
+    <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 mb-6">
       <div className="flex gap-3">
         <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
                         justify-center text-white font-bold text-lg flex-shrink-0">
-          {club?.name?.[0] ?? '?'}
+          {club.name[0]}
         </div>
         <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-700 mb-2">
-            Publier en tant que <span className="text-brand-600">{club?.name ?? '…'}</span>
+          <div className="text-xs text-gray-400 mb-2">
+            Publier au nom de <span className="font-semibold text-brand-600">{club.name}</span>
           </div>
           <textarea
-            placeholder="Partagez une actualité de votre club..."
+            placeholder="Partagez une actualité, un résultat, une annonce..."
             value={content}
             onChange={e => setContent(e.target.value)}
             rows={3}
-            className="w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2
-                       text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-200"
+            className="w-full resize-none bg-surface-50 border border-surface-200
+                       rounded-xl px-3 py-2 text-sm focus:outline-none
+                       focus:border-brand-400 transition-all"
           />
-          <div className="flex items-center justify-between mt-3">
-            <button className="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg
-                               hover:bg-brand-50 transition-all">
-              <Image size={18} />
-            </button>
+          {error && (
+            <div className="text-xs text-red-500 mt-1">{error}</div>
+          )}
+          <div className="flex justify-end mt-2">
             <button
               onClick={handleSubmit}
               disabled={!content.trim() || loading}
@@ -67,14 +83,13 @@ function CreatePostBox({ clubId, club, onPost }) {
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
 
 // ─── PostCard ──────────────────────────────────────────────────────────────
 
 export function PostCard({ post, liked, onLike, currentUser }) {
-  const navigate = useNavigate()
   const [showComments, setShowComments] = useState(false)
   const [comments,     setComments]     = useState(post.post_comments ?? [])
   const [newComment,   setNewComment]   = useState('')
@@ -82,12 +97,7 @@ export function PostCard({ post, liked, onLike, currentUser }) {
     Array.isArray(post.post_likes) ? post.post_likes.length : 0
   )
 
-  const author   = post.users
-  const clubName = post.clubs?.name
-  const timeAgo  = formatDistanceToNow(new Date(post.created_at), {
-    addSuffix: true,
-    locale: fr,
-  })
+  const author = post.users
 
   const handleComment = async () => {
     if (!newComment.trim()) return
@@ -97,7 +107,6 @@ export function PostCard({ post, liked, onLike, currentUser }) {
   }
 
   const handleLike = () => {
-    // Optimistic update du count
     setLikeCount(prev => liked ? prev - 1 : prev + 1)
     onLike()
   }
@@ -106,19 +115,16 @@ export function PostCard({ post, liked, onLike, currentUser }) {
     <Card className="p-4">
       {/* Header */}
       <div className="flex items-start gap-3 mb-3">
-        <Avatar user={author} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => navigate(`/app/clubs/${post.club_id}`)}
-              className="font-semibold text-gray-900 hover:underline">
-              {clubName}
-            </button>
-            <span className="text-xs text-gray-400">
-              par {author?.first_name} {author?.last_name}
-            </span>
+        <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
+                        justify-center text-white font-bold text-lg flex-shrink-0">
+          {post.clubs?.name?.[0] ?? '?'}
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-gray-900">{post.clubs?.name}</div>
+          <div className="text-xs text-gray-400">
+            par {post.users?.first_name} {post.users?.last_name}
+            {' · '}{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">{timeAgo}</div>
         </div>
       </div>
 
@@ -211,14 +217,8 @@ export default function FeedPage() {
   const [loading,    setLoading]    = useState(true)
   const [likedPosts, setLikedPosts] = useState(new Set())
   const [error,      setError]      = useState(null)
+  const [canPost,    setCanPost]    = useState(false)
   const [club,       setClub]       = useState(null)
-
-  useEffect(() => {
-    if (!currentUser.current_club_id) return
-    import('../../services/db').then(db =>
-      db.getClubById(currentUser.current_club_id).then(setClub).catch(() => {})
-    )
-  }, [currentUser.current_club_id])
 
   useEffect(() => {
     const load = async () => {
@@ -234,9 +234,23 @@ export default function FeedPage() {
       } catch (err) {
         console.error('FeedPage error:', err)
         setError(err.message)
-      } finally {
-        setLoading(false)
       }
+
+      if (currentUser.current_club_id) {
+        const ok = await canPostForClub(currentUser.id, currentUser.current_club_id)
+        setCanPost(ok)
+
+        if (ok) {
+          const { data: c } = await supabase
+            .from('clubs')
+            .select('id, name')
+            .eq('id', currentUser.current_club_id)
+            .single()
+          setClub(c)
+        }
+      }
+
+      setLoading(false)
     }
     load()
   }, [currentUser.id, currentUser.current_club_id])
@@ -264,10 +278,10 @@ export default function FeedPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <h1 className="font-display text-2xl font-bold text-gray-900 mb-6">Feed</h1>
 
-      {canPostForClub(currentUser, currentUser.current_club_id) && (
+      {canPost && club && (
         <CreatePostBox
-          clubId={currentUser.current_club_id}
           club={club}
+          authorId={currentUser.id}
           onPost={post => setPosts(prev => [post, ...prev])}
         />
       )}

@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge, Card } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import {
   CalendarDays, Shield, Calendar, MessageCircle, Newspaper,
   ChevronLeft, ChevronRight, ChevronUp, Bell, LogOut, X, User,
@@ -77,91 +79,134 @@ export default function AppLayout() {
     }
   }
 
-  // ── Validation demande de membre (nouveau système : club_join_requests) ──
-  async function handleApprove(notif) {
+  // ── Validation demande de membre ──────────────────────────────────────────
+  const handleApproveRequest = async (notif) => {
     try {
-      // Essayer d'abord club_join_requests (nouveau flux)
-      const { data: joinReq } = await supabase
+      const { data: req, error: reqErr } = await supabase
         .from('club_join_requests')
-        .select('id')
-        .eq('id', notif.request_id)
-        .maybeSingle()
-
-      if (joinReq) {
-        await db.approveJoinRequest(notif.request_id, currentUser.id)
-        await db.markNotificationRead(notif.id)
-        setNotifs(prev => prev.filter(n => n.id !== notif.id))
-        setUnreadCount(c => Math.max(0, c - 1))
-        return
-      }
-
-      // Fallback : ancien système (registration_requests)
-      const { data: request } = await supabase
-        .from('registration_requests')
         .select('*')
         .eq('id', notif.request_id)
         .single()
-      if (!request) return
 
-      const person = await db.createPerson({
-        club_id:    request.club_id,
-        first_name: request.first_name,
-        last_name:  request.last_name,
-        birth_date: request.birth_date,
-        phone:      request.phone,
+      if (reqErr || !req) {
+        console.error('Demande introuvable', reqErr)
+        return
+      }
+
+      let teamId = req.team_id
+      if (req.role_type === 'coach' && !teamId && req.new_team_name) {
+        const { data: club } = await supabase
+          .from('clubs').select('sport_id').eq('id', req.club_id).single()
+
+        const now  = new Date()
+        const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+        const season = `${year}-${year + 1}`
+
+        const { data: newTeam } = await supabase
+          .from('teams')
+          .insert({
+            club_id:  req.club_id,
+            sport_id: club.sport_id,
+            name:     req.new_team_name,
+            category: req.new_team_cat ?? 'Séniors',
+            gender:   'mixed',
+            season:   season,
+            status:   'active',
+          })
+          .select().single()
+
+        teamId = newTeam?.id
+      }
+
+      await supabase
+        .from('users')
+        .update({ current_club_id: req.club_id })
+        .eq('id', req.user_id)
+
+      await supabase.from('user_roles').insert({
+        user_id:    req.user_id,
+        role_type:  req.role_type,
+        scope_type: teamId ? 'team' : 'club',
+        scope_id:   teamId ?? req.club_id,
       })
-      const user = await db.createUser({
-        person_id:      person.id,
-        email:          request.email,
-        password_hash:  request.password_hash,
-        account_status: 'active',
-      })
-      await db.createUserRole({
-        user_id:    user.id,
-        role_type:  request.role_type,
-        scope_type: 'team',
-        scope_id:   request.team_id ?? request.club_id,
-      })
-      if (request.role_type === 'coach'  && request.team_id) await db.addCoachToTeam(request.team_id, user.id)
-      if (request.role_type === 'player' && request.team_id) await db.addPlayerToTeam(request.team_id, user.id, null, null)
-      await db.updateRequest(request.id, {
-        status: 'approved', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString(),
-      })
-      await db.createNotification({
-        to_user_id: user.id,
+
+      if (teamId && req.role_type === 'coach') {
+        const now  = new Date()
+        const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+        await supabase.from('team_coaches').insert({
+          team_id: teamId, user_id: req.user_id,
+          season: `${year}-${year + 1}`, is_active: true,
+        })
+      }
+      if (teamId && req.role_type === 'player') {
+        const now  = new Date()
+        const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+        await supabase.from('team_players').insert({
+          team_id: teamId, user_id: req.user_id,
+          season: `${year}-${year + 1}`, is_active: true,
+        })
+      }
+
+      await supabase.from('club_join_requests')
+        .update({
+          status:       'approved',
+          reviewed_by:  currentUser.id,
+          reviewed_at:  new Date().toISOString(),
+        })
+        .eq('id', req.id)
+
+      await supabase.from('notifications').insert({
+        to_user_id: req.user_id,
         type:       'request_approved',
-        title:      'Demande approuvée !',
-        body:       'Votre inscription a été validée. Vous pouvez maintenant vous connecter.',
-        request_id: request.id,
+        title:      'Demande acceptée !',
+        body:       teamId
+          ? `Vous avez rejoint le club et votre équipe. Connectez-vous pour accéder à votre espace.`
+          : `Votre demande a été acceptée.`,
+        request_id: req.id,
       })
-      await db.markNotificationRead(notif.id)
+
+      await supabase.from('notifications').update({ read: true }).eq('id', notif.id)
       setNotifs(prev => prev.filter(n => n.id !== notif.id))
       setUnreadCount(c => Math.max(0, c - 1))
+
     } catch (err) {
-      console.error('Erreur validation', err)
+      console.error('Erreur approbation:', err)
+      alert('Erreur : ' + err.message)
     }
   }
 
-  async function handleReject(notif) {
+  const handleRejectRequest = async (notif) => {
     try {
-      const { data: joinReq } = await supabase
+      const { data: req } = await supabase
         .from('club_join_requests')
-        .select('id')
+        .select('user_id')
         .eq('id', notif.request_id)
-        .maybeSingle()
+        .single()
 
-      if (joinReq) {
-        await db.rejectJoinRequest(notif.request_id, currentUser.id)
-      } else {
-        await db.updateRequest(notif.request_id, {
-          status: 'rejected', reviewed_by: currentUser.id, reviewed_at: new Date().toISOString(),
+      await supabase.from('club_join_requests')
+        .update({
+          status:      'rejected',
+          reviewed_by: currentUser.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', notif.request_id)
+
+      if (req?.user_id) {
+        await supabase.from('notifications').insert({
+          to_user_id: req.user_id,
+          type:       'request_rejected',
+          title:      'Demande refusée',
+          body:       'Votre demande d\'adhésion n\'a pas été acceptée.',
+          request_id: notif.request_id,
         })
       }
-      await db.markNotificationRead(notif.id)
+
+      await supabase.from('notifications').update({ read: true }).eq('id', notif.id)
       setNotifs(prev => prev.filter(n => n.id !== notif.id))
       setUnreadCount(c => Math.max(0, c - 1))
+
     } catch (err) {
-      console.error('Erreur refus', err)
+      console.error('Erreur refus:', err)
     }
   }
 
@@ -447,23 +492,26 @@ export default function AppLayout() {
                     <div className="max-h-96 overflow-y-auto divide-y divide-surface-100">
                       {notifs.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-8">Aucune notification</p>
-                      ) : notifs.map(n => (
-                        <div key={n.id} className={`p-4 ${!n.read ? 'bg-brand-50' : ''}`}>
-                          <div className="font-semibold text-sm text-gray-900 mb-0.5">{n.title}</div>
-                          <div className="text-xs text-gray-500">{n.body}</div>
+                      ) : notifs.map(notif => (
+                        <div key={notif.id}
+                          className={`p-4 border-b border-surface-100 ${!notif.read ? 'bg-brand-50' : ''}`}>
+                          <div className="font-semibold text-sm text-gray-900 mb-0.5">{notif.title}</div>
+                          <div className="text-xs text-gray-500 mb-2">{notif.body}</div>
 
-                          {/* Demande de membre (ancien + nouveau système) */}
-                          {n.type === 'registration_request' && n.request_id && (
-                            <div className="flex gap-2 mt-3">
+                          {/* Demande de membre */}
+                          {notif.type === 'registration_request' && notif.request_id && (
+                            <div className="flex gap-2 mt-2">
                               <button
-                                onClick={() => handleApprove(n)}
-                                className="flex-1 text-xs py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-medium"
+                                onClick={() => handleApproveRequest(notif)}
+                                className="flex-1 text-xs py-2 rounded-xl bg-emerald-100
+                                           text-emerald-700 font-medium hover:bg-emerald-200 transition-all"
                               >
-                                ✓ Valider
+                                ✓ Accepter
                               </button>
                               <button
-                                onClick={() => handleReject(n)}
-                                className="flex-1 text-xs py-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 font-medium"
+                                onClick={() => handleRejectRequest(notif)}
+                                className="flex-1 text-xs py-2 rounded-xl bg-red-100
+                                           text-red-600 font-medium hover:bg-red-200 transition-all"
                               >
                                 ✗ Refuser
                               </button>
@@ -471,22 +519,26 @@ export default function AppLayout() {
                           )}
 
                           {/* Demande de création d'équipe (coach → président) */}
-                          {n.type === 'team_request' && n.team_request_id && (
-                            <div className="flex gap-2 mt-3">
+                          {notif.type === 'team_request' && notif.team_request_id && (
+                            <div className="flex gap-2 mt-2">
                               <button
-                                onClick={() => handleApproveTeam(n)}
+                                onClick={() => handleApproveTeam(notif)}
                                 className="flex-1 text-xs py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-medium"
                               >
                                 ✓ Créer l'équipe
                               </button>
                               <button
-                                onClick={() => handleRejectTeam(n)}
+                                onClick={() => handleRejectTeam(notif)}
                                 className="flex-1 text-xs py-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 font-medium"
                               >
                                 ✗ Refuser
                               </button>
                             </div>
                           )}
+
+                          <div className="text-[10px] text-gray-300 mt-1">
+                            {notif.created_at && format(new Date(notif.created_at), "d MMM · HH'h'mm", { locale: fr })}
+                          </div>
                         </div>
                       ))}
                     </div>
