@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { MOCK_FEED_POSTS } from '../../context/AuthContext'
 import { Card, Avatar, EmptyState } from '../../components/ui'
 import { MessageCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -220,7 +221,19 @@ export default function FeedPage() {
   const [canPost,    setCanPost]    = useState(false)
   const [club,       setClub]       = useState(null)
 
+  // Supporter sans club → charger les posts des clubs suivis depuis le mock
+  const isFollowerMode = !currentUser.current_club_id && currentUser.role === 'supporter'
+
   useEffect(() => {
+    if (isFollowerMode) {
+      const followedClubs = currentUser.followed_clubs ?? []
+      const mockPosts = followedClubs.flatMap(clubId => MOCK_FEED_POSTS[clubId] ?? [])
+      mockPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      setPosts(mockPosts)
+      setLoading(false)
+      return
+    }
+
     const load = async () => {
       try {
         const data = await getFeedPosts(currentUser.id, currentUser.current_club_id)
@@ -253,9 +266,17 @@ export default function FeedPage() {
       setLoading(false)
     }
     load()
-  }, [currentUser.id, currentUser.current_club_id])
+  }, [currentUser.id, currentUser.current_club_id, isFollowerMode])
 
   const handleLike = async (postId) => {
+    if (isFollowerMode) {
+      setLikedPosts(prev => {
+        const s = new Set(prev)
+        s.has(postId) ? s.delete(postId) : s.add(postId)
+        return s
+      })
+      return
+    }
     const liked = await toggleLike(postId, currentUser.id)
     setLikedPosts(prev => {
       const s = new Set(prev)
@@ -274,6 +295,9 @@ export default function FeedPage() {
     </div>
   )
 
+  // Supporter sans aucun club suivi
+  const noFollowedClubs = isFollowerMode && (currentUser.followed_clubs ?? []).length === 0
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <h1 className="font-display text-2xl font-bold text-gray-900 mb-6">Feed</h1>
@@ -286,21 +310,54 @@ export default function FeedPage() {
         />
       )}
 
+      {/* Bandeau clubs suivis (mode supporter) */}
+      {isFollowerMode && (currentUser.followed_clubs ?? []).length > 0 && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <span className="text-xs text-gray-400">Clubs suivis :</span>
+          {(currentUser.followed_clubs ?? []).map(clubId => {
+            const club = (MOCK_FEED_POSTS[clubId]?.[0]?.clubs) ?? { name: clubId }
+            return (
+              <span key={clubId}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-50
+                           text-brand-700 rounded-full text-xs font-medium">
+                <span className="w-5 h-5 rounded-full bg-brand-600 text-white flex items-center
+                                 justify-center text-[10px] font-bold">
+                  {club.name[0]}
+                </span>
+                {club.name}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-2 border-brand-200 border-t-brand-600
                           rounded-full animate-spin" />
         </div>
+      ) : noFollowedClubs ? (
+        <EmptyState
+          icon="📰"
+          title="Suivez des clubs pour voir leurs actualités"
+          description="Explorez des clubs et cliquez sur Suivre pour voir leurs posts ici."
+          action={
+            <button
+              onClick={() => navigate('/app/team')}
+              className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl px-4 py-2 text-sm font-medium">
+              Explorer les clubs
+            </button>
+          }
+        />
       ) : posts.length === 0 ? (
         <EmptyState
           icon="📰"
           title="Aucun post pour l'instant"
-          description="Suivez des clubs pour voir leurs actualités ici."
+          description="Les clubs que vous suivez n'ont pas encore publié."
           action={
             <button
               onClick={() => navigate('/app/team')}
-              className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl
-                         px-4 py-2 text-sm font-medium">
+              className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl px-4 py-2 text-sm font-medium">
               Explorer les clubs
             </button>
           }

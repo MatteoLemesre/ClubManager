@@ -43,11 +43,67 @@ const PERSONAS = {
     role: 'supporter', teamIds: [], team_ids: [], account_status: 'active',
     birth_date: '1992-08-20', birthDate: '1992-08-20',
     phone: '06 55 44 33 22', address: '3 place de la Mairie',
-    postal_code: '62300', postalCode: '62300',
-    city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
+    postal_code: '93200', postalCode: '93200',
+    city: 'Saint-Denis', country: 'France', department: 'Seine-Saint-Denis', region: 'Île-de-France',
     current_club_id: null,
     user_roles: [],
+    followed_clubs: ['mock-club-sd'],
+    followed_teams: ['mock-team-sd-1', 'mock-team-sd-2'],
   },
+}
+
+export const MOCK_CLUBS = {
+  'club-1':      { id: 'club-1',      name: 'FC Lens Académie',       city: 'Lens',        sports: { name: 'Football' } },
+  'mock-club-sd':{ id: 'mock-club-sd',name: 'AS Saint-Denis United',  city: 'Saint-Denis', sports: { name: 'Football' } },
+}
+
+export const MOCK_FEED_POSTS = {
+  'mock-club-sd': [
+    {
+      id: 'post-sd-1',
+      club_id: 'mock-club-sd',
+      clubs: { id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis' },
+      users: { id: 'staff-sd', first_name: 'Karim', last_name: 'Oussama' },
+      content: '🏆 Victoire 3-1 face au Red Star FC ce dimanche ! Belle performance collective, mention spéciale à notre gardien Souleymane. Prochain match samedi à domicile.',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4, 5, 6, 7],
+      post_comments: [],
+      created_at: new Date(2026, 4, 14, 18, 30).toISOString(),
+    },
+    {
+      id: 'post-sd-2',
+      club_id: 'mock-club-sd',
+      clubs: { id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis' },
+      users: { id: 'staff-sd', first_name: 'Karim', last_name: 'Oussama' },
+      content: '📋 Convocation pour le match de samedi 17 mai vs FC Aubervilliers (15h00, Stade Marcel-Cerdan). Rendez-vous à 13h30 au stade. Tenue complète obligatoire.',
+      media_url: null, media_type: null,
+      post_likes: [1, 2],
+      post_comments: [],
+      created_at: new Date(2026, 4, 12, 10, 0).toISOString(),
+    },
+    {
+      id: 'post-sd-3',
+      club_id: 'mock-club-sd',
+      clubs: { id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis' },
+      users: { id: 'staff-sd', first_name: 'Karim', last_name: 'Oussama' },
+      content: '🎉 Bienvenue à nos 3 nouvelles recrues pour la fin de saison : Moussa Diarra (milieu), Ahmed Benali (défenseur) et Kevin Traoré (attaquant). Bonne chance à eux !',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      post_comments: [],
+      created_at: new Date(2026, 4, 8, 14, 15).toISOString(),
+    },
+    {
+      id: 'post-sd-4',
+      club_id: 'mock-club-sd',
+      clubs: { id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis' },
+      users: { id: 'staff-sd', first_name: 'Karim', last_name: 'Oussama' },
+      content: '📊 Bilan à 4 journées de la fin : 8 victoires, 3 nuls, 2 défaites. On est 2ème du classement, à 3 points du leader. Tout se jouera lors des dernières journées !',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4],
+      post_comments: [],
+      created_at: new Date(2026, 4, 5, 9, 0).toISOString(),
+    },
+  ],
 }
 
 const MOCK_CLUB = {
