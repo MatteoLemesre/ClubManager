@@ -26,6 +26,26 @@ const MOCK_TEAMS = {
       location: 'Stade Bollaert',
       is_home: true,
       availabilities: { available: 12, unavailable: 3, no_response: 3 },
+      carpools: [
+        {
+          id: 'cp-1',
+          author: { first_name: 'Sophie', last_name: 'Durand' },
+          type: 'offer',
+          seats: 3,
+          departure: 'Lens centre',
+          time: '13h30',
+          description: 'Je pars de la place Jean Jaurès. Retour prévu vers 18h.',
+        },
+        {
+          id: 'cp-2',
+          author: { first_name: 'Jean', last_name: 'Martin' },
+          type: 'request',
+          seats: 1,
+          departure: 'Liévin',
+          time: null,
+          description: '',
+        },
+      ],
     },
     next_training: {
       id: 'nt-1',
@@ -245,6 +265,8 @@ function TabMatches({ team, role, canManage }) {
   const [availability, setAvailability]   = useState(null) // 'available' | 'unavailable'
   const [showLineupModal, setShowLineupModal] = useState(false)
   const [selectedMatch, setSelectedMatch]    = useState(null)
+  const [showCarpoolDetail, setShowCarpoolDetail] = useState(false)
+  const [selectedCarpool,   setSelectedCarpool]   = useState(null)
   const nm = team.next_match
 
   const selectedPlayers = team.players.filter(p => p.position !== 'Gardien').slice(0, 10)
@@ -360,6 +382,52 @@ function TabMatches({ team, role, canManage }) {
               </button>
             </div>
           )}
+
+          {/* Covoiturages */}
+          {(nm.carpools ?? []).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-surface-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold text-gray-700">
+                  🚗 Covoiturages ({nm.carpools.length})
+                </div>
+              </div>
+              <div className="space-y-2">
+                {nm.carpools.map(cp => (
+                  <div key={cp.id} className="flex items-center justify-between p-3
+                                               bg-surface-50 rounded-xl border border-surface-100">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        {cp.author.first_name} {cp.author.last_name}
+                        {' '}
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                          cp.type === 'offer'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {cp.type === 'offer' ? `propose ${cp.seats} place${cp.seats > 1 ? 's' : ''}` : `cherche ${cp.seats} place`}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        Depuis {cp.departure}{cp.time ? ` · ${cp.time}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedCarpool(cp); setShowCarpoolDetail(true) }}
+                      className="text-xs text-brand-600 hover:underline flex-shrink-0 ml-2"
+                    >
+                      Voir →
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                className="mt-2 w-full py-2 border-2 border-dashed border-surface-200 rounded-xl
+                           text-xs text-gray-400 hover:border-brand-300 hover:text-brand-600 transition-colors"
+              >
+                + Proposer un covoiturage
+              </button>
+            </div>
+          )}
         </Card>
       ) : (
         <Card className="p-5 text-center text-gray-400 text-sm">
@@ -418,6 +486,59 @@ function TabMatches({ team, role, canManage }) {
           teamName={team.name}
           onClose={() => setShowLineupModal(false)}
         />
+      )}
+
+      {/* Modal détail covoiturage */}
+      {showCarpoolDetail && selectedCarpool && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCarpoolDetail(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">
+                Covoiturage — {selectedCarpool.author.first_name} {selectedCarpool.author.last_name}
+              </h3>
+              <button onClick={() => setShowCarpoolDetail(false)}
+                className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  selectedCarpool.type === 'offer'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {selectedCarpool.type === 'offer' ? '🚗 Propose des places' : '🙋 Cherche une place'}
+                </span>
+              </div>
+              <div className="text-gray-600">
+                <span className="font-medium">Depuis :</span> {selectedCarpool.departure}
+                {selectedCarpool.time && ` · ${selectedCarpool.time}`}
+              </div>
+              <div className="text-gray-600">
+                <span className="font-medium">Places :</span> {selectedCarpool.seats}
+              </div>
+              {selectedCarpool.description && (
+                <div className="text-gray-600 bg-surface-50 rounded-xl p-3">
+                  {selectedCarpool.description}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowCarpoolDetail(false)}
+              className="mt-5 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                         rounded-xl text-sm font-medium transition-colors"
+            >
+              Contacter
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

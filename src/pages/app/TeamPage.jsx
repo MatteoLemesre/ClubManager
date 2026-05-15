@@ -6,6 +6,22 @@ import { format, differenceInYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Search, MapPin, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+
+// ─── Mock clubs suivis ────────────────────────────────────────────────────────
+const MOCK_CLUBS_DATA = {
+  'mock-club-sd': {
+    id: 'mock-club-sd',
+    name: 'AS Saint-Denis United',
+    city: 'Saint-Denis',
+    sport: 'Football',
+    teams: [
+      { id: 'mock-team-sd-1', name: 'Séniors A', category: 'Séniors' },
+      { id: 'mock-team-sd-2', name: 'U17 A',     category: 'U17'     },
+      { id: 'mock-team-sd-3', name: 'U13 B',     category: 'U13'     },
+    ],
+    posts_count: 4,
+  },
+}
 import {
   getMyTeams,
   followTeam, unfollowTeam, getFollowedTeams,
@@ -510,6 +526,45 @@ export default function TeamPage() {
         )
       )}
 
+      {/* ── Section Clubs suivis (onglet my_teams) ─────────────────────── */}
+      {activeTab === 'my_teams' && (() => {
+        const followedIds = currentUser.followed_clubs ?? []
+        const followedClubs = followedIds.map(id => MOCK_CLUBS_DATA[id]).filter(Boolean)
+        return (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Clubs suivis
+              </div>
+              <button
+                onClick={() => setActiveTab('explore')}
+                className="text-xs text-brand-600 hover:underline"
+              >
+                + Suivre un club
+              </button>
+            </div>
+            {followedClubs.length === 0 ? (
+              <div className="p-4 bg-surface-50 rounded-2xl border border-dashed border-surface-200 text-center text-sm text-gray-400">
+                Vous ne suivez aucun club pour l'instant.
+                <br />
+                <button
+                  onClick={() => setActiveTab('explore')}
+                  className="text-brand-600 hover:underline mt-1 block mx-auto"
+                >
+                  Explorer les clubs →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {followedClubs.map(club => (
+                  <FollowedClubCard key={club.id} club={club} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ── Onglet Explorer ──────────────────────────────────────────────── */}
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -992,6 +1047,111 @@ export default function TeamPage() {
           onClose={() => setSelectedClubProfile(null)}
         />
       )}
+    </div>
+  )
+}
+
+// ─── FollowedClubCard ─────────────────────────────────────────────────────────
+function FollowedClubCard({ club }) {
+  const navigate = useNavigate()
+  const [showTeams, setShowTeams] = useState(false)
+
+  return (
+    <>
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center
+                          text-white font-bold text-lg flex-shrink-0">
+            {club.name[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-900">{club.name}</div>
+            <div className="text-sm text-gray-500">{club.sport} · {club.city}</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {club.teams.length} équipe{club.teams.length > 1 ? 's' : ''}
+              {club.posts_count > 0 && ` · ${club.posts_count} posts`}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => setShowTeams(true)}
+            className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white
+                       rounded-xl text-xs font-medium transition-colors"
+          >
+            Voir les équipes
+          </button>
+          <button
+            className="px-3 py-2 text-xs text-gray-400 hover:text-red-500
+                       border border-surface-200 hover:border-red-200 rounded-xl transition-colors"
+          >
+            Ne plus suivre
+          </button>
+        </div>
+      </Card>
+
+      {showTeams && (
+        <ClubTeamsModal
+          club={club}
+          onClose={() => setShowTeams(false)}
+          onSelectTeam={(teamId) => { setShowTeams(false); navigate(`/app/teams/${teamId}`) }}
+        />
+      )}
+    </>
+  )
+}
+
+// ─── ClubTeamsModal ───────────────────────────────────────────────────────────
+function ClubTeamsModal({ club, onClose, onSelectTeam }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-100">
+          <div>
+            <div className="font-bold text-gray-900">{club.name}</div>
+            <div className="text-xs text-gray-400">{club.teams.length} équipes</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-4 space-y-2">
+          {club.teams.map(team => (
+            <button
+              key={team.id}
+              onClick={() => onSelectTeam(team.id)}
+              className="w-full flex items-center justify-between p-3 bg-surface-50
+                         hover:bg-brand-50 border border-surface-200 hover:border-brand-200
+                         rounded-xl transition-colors text-left group"
+            >
+              <div>
+                <div className="font-semibold text-sm text-gray-900 group-hover:text-brand-700">
+                  {team.name}
+                </div>
+                <div className="text-xs text-gray-400">{team.category}</div>
+              </div>
+              <span className="text-xs text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                Voir →
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
