@@ -21,7 +21,7 @@ const NAV_ITEMS = [
 ]
 
 export default function AppLayout() {
-  const { currentUser, logout, devLogin } = useAuth()
+  const { currentUser, logout, devLogin, switchRole } = useAuth()
   const navigate = useNavigate()
 
   const [expanded,     setExpanded]     = useState(false)
@@ -568,6 +568,34 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* ── Dev role switcher ────────────────────────────────────────────── */}
+      <div className="fixed bottom-4 right-4 bg-white rounded-2xl shadow-lg
+                      border border-surface-200 p-2 flex items-center gap-1.5 z-50">
+        <span className="text-[10px] text-gray-400 font-medium pl-1 pr-0.5">DEV</span>
+        {[
+          { key: 'president', label: 'Président', icon: '👤' },
+          { key: 'coach',     label: 'Coach',     icon: '📋' },
+          { key: 'player',    label: 'Joueur',    icon: '⚽' },
+          { key: 'supporter', label: 'Supporter', icon: '👥' },
+        ].map(({ key, label, icon }) => {
+          const active = currentUser?.role === key
+          return (
+            <button
+              key={key}
+              onClick={() => switchRole(key)}
+              title={label}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                active
+                  ? 'bg-brand-600 text-white'
+                  : 'text-gray-500 hover:bg-surface-100'
+              }`}
+            >
+              {icon} {label}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

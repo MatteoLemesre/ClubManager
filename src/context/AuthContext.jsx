@@ -3,8 +3,8 @@ import { createContext, useContext, useState } from 'react'
 const AuthContext = createContext(null)
 
 // ── Mock personas ─────────────────────────────────────────────────────────────
-const PERSONAS = [
-  {
+const PERSONAS = {
+  president: {
     id: 'u-1', email: 'president@test.fr', password_hash: 'password',
     first_name: 'Jean', last_name: 'Dupont', firstName: 'Jean', lastName: 'Dupont',
     role: 'president', teamIds: [], team_ids: [], account_status: 'active',
@@ -15,7 +15,7 @@ const PERSONAS = [
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'president', scope_type: 'club', scope_id: 'club-1' }],
   },
-  {
+  coach: {
     id: 'u-2', email: 'coach@test.fr', password_hash: 'password',
     first_name: 'Marc', last_name: 'Leroy', firstName: 'Marc', lastName: 'Leroy',
     role: 'coach', teamIds: ['team-1'], team_ids: ['team-1'], account_status: 'active',
@@ -26,7 +26,7 @@ const PERSONAS = [
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'coach', scope_type: 'team', scope_id: 'team-1' }],
   },
-  {
+  player: {
     id: 'u-3', email: 'joueur@test.fr', password_hash: 'password',
     first_name: 'Lucas', last_name: 'Martin', firstName: 'Lucas', lastName: 'Martin',
     role: 'player', teamIds: ['team-1'], team_ids: ['team-1'], account_status: 'active',
@@ -37,18 +37,18 @@ const PERSONAS = [
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'player', scope_type: 'team', scope_id: 'team-1' }],
   },
-  {
+  supporter: {
     id: 'u-4', email: 'supporter@test.fr', password_hash: 'password',
-    first_name: 'Sophie', last_name: 'Petit', firstName: 'Sophie', lastName: 'Petit',
+    first_name: 'Sophie', last_name: 'Durand', firstName: 'Sophie', lastName: 'Durand',
     role: 'supporter', teamIds: [], team_ids: [], account_status: 'active',
-    birth_date: '1990-11-05', birthDate: '1990-11-05',
+    birth_date: '1992-08-20', birthDate: '1992-08-20',
     phone: '06 55 44 33 22', address: '3 place de la Mairie',
     postal_code: '62300', postalCode: '62300',
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
-    current_club_id: 'club-1',
-    user_roles: [{ role_type: 'supporter', scope_type: 'club', scope_id: 'club-1' }],
+    current_club_id: null,
+    user_roles: [],
   },
-]
+}
 
 const MOCK_CLUB = {
   id: 'club-1',
@@ -58,23 +58,29 @@ const MOCK_CLUB = {
   sports: { name: 'Football' },
 }
 
+const PERSONAS_LIST = Object.values(PERSONAS)
+
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(PERSONAS[0])
+  const [currentUser, setCurrentUser] = useState(PERSONAS.president)
 
   const login = async (emailOrId, _password) => {
-    // Connexion par id (dev) ou par email
-    const user = PERSONAS.find(u => u.id === emailOrId || u.email === emailOrId)
+    const user = PERSONAS_LIST.find(u => u.id === emailOrId || u.email === emailOrId)
     if (user) setCurrentUser(user)
-    return user ?? PERSONAS[0]
+    return user ?? PERSONAS.president
   }
 
-  const logout = () => setCurrentUser(PERSONAS[0])
+  const logout = () => setCurrentUser(PERSONAS.president)
 
   const refreshUser = () => Promise.resolve()
 
   const devLogin = (userId) => {
-    const user = PERSONAS.find(u => u.id === userId)
+    const user = PERSONAS_LIST.find(u => u.id === userId)
     if (user) setCurrentUser(user)
+  }
+
+  // Switche directement par rôle clé ('president' | 'coach' | 'player' | 'supporter')
+  const switchRole = (roleKey) => {
+    if (PERSONAS[roleKey]) setCurrentUser(PERSONAS[roleKey])
   }
 
   const is            = (role)     => currentUser?.role === role
@@ -87,7 +93,7 @@ export function AuthProvider({ children }) {
       currentUser,
       club: MOCK_CLUB,
       loading: false,
-      login, logout, refreshUser, devLogin,
+      login, logout, refreshUser, devLogin, switchRole,
       is, isOneOf, canManageTeam,
     }}>
       {children}
