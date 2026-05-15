@@ -1234,7 +1234,7 @@ export default function TeamDetailPage() {
     { id: 'matches',   label: 'Matchs' },
     ...(role !== 'supporter' ? [{ id: 'trainings', label: 'Entraînements' }] : []),
     { id: 'players',   label: 'Joueurs' },
-    ...(role !== 'supporter' ? [{ id: 'stats', label: 'Stats' }] : [{ id: 'stats', label: 'Stats' }]),
+    { id: 'stats',     label: 'Stats' },
   ]
 
   return (

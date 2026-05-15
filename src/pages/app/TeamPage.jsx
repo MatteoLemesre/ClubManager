@@ -984,9 +984,9 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* ── Profil club en drawer ────────────────────────────────────────── */}
+      {/* ── Profil club en modal ─────────────────────────────────────────── */}
       {selectedClubProfile && (
-        <ClubProfileDrawer
+        <ClubProfileModal
           club={selectedClubProfile}
           currentUser={currentUser}
           onClose={() => setSelectedClubProfile(null)}
@@ -996,9 +996,9 @@ export default function TeamPage() {
   )
 }
 
-// ─── ClubProfileDrawer ─────────────────────────────────────────────────────
+// ─── ClubProfileModal ──────────────────────────────────────────────────────
 
-function ClubProfileDrawer({ club, currentUser, onClose }) {
+function ClubProfileModal({ club, currentUser, onClose }) {
   const navigate = useNavigate()
   const [teams,       setTeams]       = useState([])
   const [posts,       setPosts]       = useState([])
@@ -1006,6 +1006,13 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [teamPlayers,  setTeamPlayers]  = useState([])
   const [loading,     setLoading]     = useState(true)
+
+  // Fermeture par Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
 
   useEffect(() => {
     const load = async () => {
@@ -1034,14 +1041,23 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
       .then(({ data }) => setTeamPlayers(data ?? []))
   }, [selectedTeam])
 
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
+  function handleTeamClick(team) {
+    onClose()
+    navigate(`/app/teams/${team.id}`)
+  }
 
-      <div className="w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col
+                   max-h-[90vh] overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-surface-200
-                        flex items-center justify-between px-5 py-4 z-10">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-surface-200 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
                             justify-center text-white font-bold text-lg">
@@ -1054,20 +1070,22 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
               </div>
             </div>
           </div>
-          <button onClick={onClose}
-            className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors"
+          >
             ✕
           </button>
         </div>
 
         {/* Stats club */}
-        <div className="px-5 py-4 border-b border-surface-100">
-          <div className="flex gap-6 text-center">
-            <div>
+        <div className="px-6 py-4 border-b border-surface-100 flex-shrink-0">
+          <div className="flex gap-6">
+            <div className="text-center">
               <div className="text-xl font-bold text-gray-900">{teams.length}</div>
               <div className="text-xs text-gray-400">Équipes</div>
             </div>
-            <div>
+            <div className="text-center">
               <div className="text-xl font-bold text-gray-900">{posts.length}</div>
               <div className="text-xs text-gray-400">Posts</div>
             </div>
@@ -1080,7 +1098,7 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
         </div>
 
         {/* Onglets */}
-        <div className="flex border-b border-surface-200 px-5">
+        <div className="flex border-b border-surface-200 px-6 flex-shrink-0">
           {[
             { id: 'info',  label: '📋 Infos' },
             { id: 'feed',  label: '📰 Posts' },
@@ -1098,8 +1116,8 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
           ))}
         </div>
 
-        {/* Contenu */}
-        <div className="flex-1 p-5">
+        {/* Contenu scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600
@@ -1127,7 +1145,7 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
                   )}
                   <div className="pt-3">
                     <button
-                      onClick={() => navigate(`/app/clubs/${club.id}`)}
+                      onClick={() => { onClose(); navigate(`/app/clubs/${club.id}`) }}
                       className="w-full py-2 border border-surface-200 text-surface-600
                                  hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors text-center">
                       Voir la page complète →
@@ -1158,57 +1176,33 @@ function ClubProfileDrawer({ club, currentUser, onClose }) {
 
               {activeTab === 'teams' && (
                 <div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {teams.map(team => (
-                      <button key={team.id}
-                        onClick={() => setSelectedTeam(selectedTeam?.id === team.id ? null : team)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                          selectedTeam?.id === team.id
-                            ? 'bg-brand-600 text-white border-brand-600'
-                            : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
-                        }`}>
-                        {team.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {selectedTeam ? (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                        {selectedTeam.name}
-                      </div>
-                      {teamPlayers.length === 0 ? (
-                        <div className="text-sm text-gray-400">Aucun joueur dans cette équipe</div>
-                      ) : (
-                        teamPlayers.map(tp => {
-                          const u   = tp.users
-                          const age = u?.birth_date
-                            ? differenceInYears(new Date(), new Date(u.birth_date))
-                            : null
-                          return (
-                            <div key={tp.user_id}
-                              className="flex items-center gap-3 p-3 bg-surface-50
-                                         rounded-xl border border-surface-100">
-                              <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center
-                                              justify-center text-brand-700 font-bold text-xs">
-                                {tp.jersey_number ?? '?'}
-                              </div>
-                              <div>
-                                <div className="font-medium text-sm text-gray-900">
-                                  {u?.first_name} {u?.last_name}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {tp.position ?? '—'}{age ? ` · ${age} ans` : ''}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })
-                      )}
+                  {teams.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 text-sm">
+                      Aucune équipe active dans ce club
                     </div>
                   ) : (
-                    <div className="text-center text-sm text-gray-400 py-4">
-                      Sélectionnez une équipe pour voir ses joueurs
+                    <div className="space-y-2">
+                      {teams.map(team => (
+                        <button
+                          key={team.id}
+                          onClick={() => handleTeamClick(team)}
+                          className="w-full flex items-center justify-between p-4 bg-surface-50
+                                     hover:bg-brand-50 border border-surface-200 hover:border-brand-200
+                                     rounded-xl transition-colors text-left group"
+                        >
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900 group-hover:text-brand-700">
+                              {team.name}
+                            </div>
+                            {team.category && (
+                              <div className="text-xs text-gray-400 mt-0.5">{team.category}</div>
+                            )}
+                          </div>
+                          <span className="text-xs text-brand-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            Voir l'équipe →
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
