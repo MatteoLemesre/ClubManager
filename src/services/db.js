@@ -1,1142 +1,272 @@
+// Mock database service — all data is in-memory, no real DB calls
+
 import { supabase } from '../lib/supabase'
-import bcrypt from 'bcryptjs'
 
-// ── SPORTS ────────────────────────────────────────────────
-export const getSports = async () => {
-  const { data, error } = await supabase
-    .from('sports')
-    .select('id, name')
-    .order('name')
-  if (error) {
-    console.error('getSports error:', error)
-    throw error
-  }
-  return data ?? []
-}
+const SESSION_KEY = 'clubmanager_session'
 
-// ── CLUBS ─────────────────────────────────────────────────
-export const getClubs = async () => {
-  const { data, error } = await supabase
-    .from('clubs')
-    .select('*, sports(name)')
-    .order('name')
-  if (error) throw error
+// ── Session ───────────────────────────────────────────────────────────────────
+export function getSession()        { return localStorage.getItem(SESSION_KEY) }
+export function setSession(userId)  { localStorage.setItem(SESSION_KEY, userId) }
+export function clearSession()      { localStorage.removeItem(SESSION_KEY) }
+
+// ── Password (mock — plain text comparison) ───────────────────────────────────
+export function hashPassword(password) { return password }
+export function checkPassword(password, hash) { return password === hash }
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+export async function getUserById(id) {
+  const { data } = await supabase.from('users').select('*, user_roles(*)').eq('id', id).single()
   return data
 }
 
-export const getClubById = async (id) => {
-  const { data, error } = await supabase
-    .from('clubs')
-    .select('*, sports(name)')
-    .eq('id', id)
-    .single()
-  if (error) throw error
+export async function getUserByEmail(email) {
+  const { data } = await supabase.from('users').select('*, user_roles(*)').eq('email', email).single()
   return data
 }
 
-export const createClub = async (club) => {
-  const { data, error } = await supabase
-    .from('clubs')
-    .insert(club)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+export async function updateUser(_id, _updates) {
+  return { error: null }
 }
 
-// ── PERSONS ───────────────────────────────────────────────
-export const createPerson = async (person) => {
-  const { data, error } = await supabase
-    .from('persons')
-    .insert(person)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getPersonsByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('persons')
-    .select('*')
-    .eq('club_id', clubId)
-  if (error) throw error
-  return data
-}
-
-// ── USERS ─────────────────────────────────────────────────
-export const createUser = async (user) => {
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      email:           user.email,
-      password_hash:   user.password_hash,
-      first_name:      user.first_name,
-      last_name:       user.last_name,
-      birth_date:      user.birth_date ?? null,
-      phone:           user.phone ?? null,
-      birth_place:     user.birth_place ?? null,
-      account_status:  user.account_status ?? 'active',
-      current_club_id: user.current_club_id ?? null,
-      address:         user.address     ?? null,
-      postal_code:     user.postal_code ?? null,
-      city:            user.city        ?? null,
-      country:         user.country     ?? 'France',
-      department:      user.department  ?? null,
-      code_dep:        user.code_dep    ?? null,
-      region:          user.region      ?? null,
-      // person_id intentionnellement omis — nullable
-    })
-    .select()
-    .single()
-  if (error) {
-    console.error('createUser error:', error)
-    throw error
-  }
-  return data
-}
-
-export const getUserById = async (id) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*, user_roles(*)')
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getUserByEmail = async (email) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*, user_roles(*)')
-    .eq('email', email.toLowerCase().trim())
-    .single()
-  if (error && error.code !== 'PGRST116') throw error  // PGRST116 = not found
-  return data ?? null
-}
-
-export const getUsersByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*, user_roles(*)')
-    .eq('current_club_id', clubId)
-  if (error) {
-    console.error('getUsersByClub error:', error)
-    throw error
-  }
-  return data ?? []
-}
-
-export const updateUser = async (id, changes) => {
-  const { data, error } = await supabase
-    .from('users')
-    .update(changes)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-// ── USER_ROLES ────────────────────────────────────────────
-export const createUserRole = async (role) => {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .insert(role)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getUserRoles = async (userId) => {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('*')
-    .eq('user_id', userId)
-  if (error) throw error
-  return data
-}
-
-// ── TEAMS ─────────────────────────────────────────────────
-export const getTeamsByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('teams')
-    .select('*')
-    .eq('club_id', clubId)
-    .order('name')
-  if (error) throw error
-  return data
-}
-
-export const createTeam = async (team) => {
-  const { data, error } = await supabase
-    .from('teams')
-    .insert(team)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const addPlayerToTeam = async (teamId, userId, jerseyNumber, position) => {
-  const { error } = await supabase
-    .from('team_players')
-    .insert({ team_id: teamId, user_id: userId, jersey_number: jerseyNumber, position })
-  if (error) throw error
-}
-
-export const addCoachToTeam = async (teamId, userId) => {
-  const { error } = await supabase
-    .from('team_coaches')
-    .insert({ team_id: teamId, user_id: userId })
-  if (error) throw error
-}
-
-// ── REGISTRATION REQUESTS ─────────────────────────────────
-export const createRequest = async (request) => {
-  const { data, error } = await supabase
-    .from('registration_requests')
-    .insert(request)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getRequestsByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('registration_requests')
-    .select('*')
-    .eq('club_id', clubId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
-}
-
-export const getPendingRequestsForPresident = async (clubId) => {
-  const { data, error } = await supabase
-    .from('registration_requests')
-    .select('*')
-    .eq('club_id', clubId)
-    .eq('status', 'pending')
-    .eq('role_type', 'coach')
-  if (error) throw error
-  return data
-}
-
-export const getPendingRequestsForCoach = async (teamIds) => {
-  if (!teamIds?.length) return []
-  const { data, error } = await supabase
-    .from('registration_requests')
-    .select('*')
-    .in('team_id', teamIds)
-    .eq('status', 'pending')
-    .eq('role_type', 'player')
-  if (error) throw error
-  return data
-}
-
-export const updateRequest = async (id, changes) => {
-  const { data, error } = await supabase
-    .from('registration_requests')
-    .update(changes)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-// ── NOTIFICATIONS ─────────────────────────────────────────
-export const createNotification = async (notif) => {
-  const { error } = await supabase
-    .from('notifications')
-    .insert(notif)
-  if (error) throw error
-}
-
-export const getNotifications = async (userId) => {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('to_user_id', userId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
-}
-
-export const getUnreadCount = async (userId) => {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('to_user_id', userId)
-    .eq('read', false)
-  if (error) throw error
-  return count ?? 0
-}
-
-export const markNotificationRead = async (id) => {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('id', id)
-  if (error) throw error
-}
-
-export const markAllNotificationsRead = async (userId) => {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('to_user_id', userId)
-  if (error) throw error
-}
-
-// ── MATCHES ───────────────────────────────────────────────
-export const getMatchesByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('*, teams!inner(club_id, name, category)')
-    .eq('teams.club_id', clubId)
-    .order('scheduled_at')
-  if (error) throw error
-  return data
-}
-
-export const getMatchesByTeam = async (teamId) => {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('*')
-    .eq('team_id', teamId)
-    .order('scheduled_at')
-  if (error) throw error
-  return data
-}
-
-export const createMatch = async (match) => {
-  const { data, error } = await supabase
-    .from('matches')
-    .insert(match)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const updateMatch = async (id, changes) => {
-  const { data, error } = await supabase
-    .from('matches')
-    .update(changes)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-// ── TRAININGS ─────────────────────────────────────────────
-export const getTrainingsByTeam = async (teamId) => {
-  const { data, error } = await supabase
-    .from('trainings')
-    .select('*, training_attendances(*)')
-    .eq('team_id', teamId)
-    .order('scheduled_at')
-  if (error) throw error
-  return data
-}
-
-export const createTraining = async (training) => {
-  const { data, error } = await supabase
-    .from('trainings')
-    .insert(training)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const upsertAttendance = async (trainingId, userId, status) => {
-  const { error } = await supabase
-    .from('training_attendances')
-    .upsert({ training_id: trainingId, user_id: userId, status, declared_at: new Date().toISOString() })
-  if (error) throw error
-}
-
-// ── EVENTS ────────────────────────────────────────────────
-export const getEventsByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('events')
-    .select('*, event_responses(*)')
-    .eq('club_id', clubId)
-    .order('starts_at')
-  if (error) throw error
-  return data
-}
-
-export const createEvent = async (event) => {
-  const { data, error } = await supabase
-    .from('events')
-    .insert(event)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const upsertEventResponse = async (eventId, userId, attending) => {
-  const { error } = await supabase
-    .from('event_responses')
-    .upsert({ event_id: eventId, user_id: userId, attending })
-  if (error) throw error
-}
-
-// ── MESSAGES ──────────────────────────────────────────────
-export const getConversationsByUser = async (userId) => {
-  const { data, error } = await supabase
-    .from('conversation_members')
-    .select('conversations(*, messages(*))')
-    .eq('user_id', userId)
-  if (error) throw error
-  return data?.map(d => d.conversations) ?? []
-}
-
-export const sendMessage = async (conversationId, senderId, content) => {
-  const { data, error } = await supabase
-    .from('messages')
-    .insert({ conversation_id: conversationId, sender_id: senderId, content })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-// ── CLUB MEMBERSHIPS (historique) ────────────────────────
-export const getMemberships = async (userId) => {
-  const { data, error } = await supabase
-    .from('club_memberships')
-    .select('*')
-    .eq('user_id', userId)
-    .order('joined_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-// ── DELETE CLUB (soft) ────────────────────────────────────
-export const deleteClub = async (clubId) => {
-  const { data: members } = await supabase
-    .from('users')
-    .select('id')
-    .eq('current_club_id', clubId)
-
-  const { data: teams } = await supabase
-    .from('teams')
-    .select('id, name')
-    .eq('club_id', clubId)
-
-  const { data: club } = await supabase
-    .from('clubs')
-    .select('name')
-    .eq('id', clubId)
-    .single()
-
-  const season =
-    new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
-
-  for (const member of members ?? []) {
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role_type, scope_id, scope_type')
-      .eq('user_id', member.id)
-
-    const clubRole = roles?.find(
-      r => r.scope_type === 'club' && r.scope_id === clubId
-    )
-    const teamRole = roles?.find(r => r.scope_type === 'team')
-    const teamInfo = teamRole
-      ? teams?.find(t => t.id === teamRole.scope_id)
-      : null
-
-    await supabase.from('club_memberships').insert({
-      user_id:      member.id,
-      club_id:      clubId,
-      club_name:    club?.name,
-      role_type:    clubRole?.role_type ?? 'player',
-      team_id:      teamInfo?.id ?? null,
-      team_name:    teamInfo?.name ?? null,
-      joined_at:    new Date().toISOString(),
-      left_at:      new Date().toISOString(),
-      leave_reason: 'club_deleted',
-      season,
-    })
-
-    await supabase
-      .from('users')
-      .update({ current_club_id: null })
-      .eq('id', member.id)
-  }
-
-  await supabase
-    .from('user_roles')
-    .delete()
-    .eq('scope_id', clubId)
-
-  await supabase
-    .from('clubs')
-    .update({ status: 'deleted', deleted_at: new Date().toISOString() })
-    .eq('id', clubId)
-}
-
-// ── CLUB FOLLOWS (supporters) ─────────────────────────────
-export const followClub = async (userId, clubId) => {
-  const { error } = await supabase
-    .from('club_follows')
-    .insert({ user_id: userId, club_id: clubId })
-  if (error) throw error
-}
-
-export const unfollowClub = async (userId, clubId) => {
-  const { error } = await supabase
-    .from('club_follows')
-    .delete()
-    .eq('user_id', userId)
-    .eq('club_id', clubId)
-  if (error) throw error
-}
-
-export const getFollowedClubs = async (userId) => {
-  const { data, error } = await supabase
-    .from('club_follows')
-    .select('clubs(*)')
-    .eq('user_id', userId)
-  if (error) throw error
-  return data?.map(d => d.clubs) ?? []
-}
-
-export const isFollowingClub = async (userId, clubId) => {
-  const { data } = await supabase
-    .from('club_follows')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('club_id', clubId)
-    .single()
-  return !!data
-}
-
-export const getEventsFromFollowedClubs = async (userId) => {
-  const followed = await getFollowedClubs(userId)
-  if (!followed.length) return []
-
-  const clubIds = followed.map(c => c.id)
-
-  const { data, error } = await supabase
-    .from('events')
-    .select('*, clubs(name, sport_id)')
-    .in('club_id', clubIds)
-    .eq('visibility', 'club_wide')
-    .order('starts_at')
-  if (error) throw error
-  return data ?? []
-}
-
-export const getAllActiveClubs = async () => {
-  const { data, error } = await supabase
-    .from('clubs')
-    .select('*, sports(name)')
-    .eq('status', 'active')
-    .order('name')
-  if (error) throw error
-  return data ?? []
-}
-
-// ── CLUB JOIN REQUESTS ────────────────────────────────────
-export const createJoinRequest = async (request) => {
-  const { data, error } = await supabase
-    .from('club_join_requests')
-    .insert(request)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getJoinRequestsByClub = async (clubId) => {
-  const { data, error } = await supabase
-    .from('club_join_requests')
-    .select('*, users(first_name, last_name, email, phone)')
-    .eq('club_id', clubId)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-export const getJoinRequestsForCoach = async (teamIds) => {
-  if (!teamIds?.length) return []
-  const { data, error } = await supabase
-    .from('club_join_requests')
-    .select('*, users(first_name, last_name, email, phone)')
-    .in('team_id', teamIds)
-    .eq('status', 'pending')
-    .eq('role_type', 'player')
-  if (error) throw error
-  return data ?? []
-}
-
-export const approveJoinRequest = async (requestId, reviewerId) => {
-  const { data: req } = await supabase
-    .from('club_join_requests')
-    .select('*')
-    .eq('id', requestId)
-    .single()
-
-  if (!req) throw new Error('Demande introuvable')
-
-  // Si le coach veut créer une nouvelle équipe → créer l'équipe d'abord
-  let teamId = req.team_id
-  if (!teamId && req.new_team_name && req.role_type === 'coach') {
-    const { data: clubData } = await supabase
-      .from('clubs').select('sport_id').eq('id', req.club_id).single()
-    const { data: newTeam } = await supabase
-      .from('teams')
-      .insert({
-        club_id:  req.club_id,
-        sport_id: clubData?.sport_id ?? null,
-        name:     req.new_team_name,
-        category: null,
-        season:   req.season,
-        status:   'active',
-        gender:   'mixed',
-      })
-      .select().single()
-    teamId = newTeam?.id ?? null
-  }
-
-  // Mettre à jour current_club_id du user
-  await supabase
-    .from('users')
-    .update({ current_club_id: req.club_id })
-    .eq('id', req.user_id)
-
-  // Créer le rôle
-  await supabase.from('user_roles').insert({
-    user_id:    req.user_id,
-    role_type:  req.role_type,
-    scope_type: teamId ? 'team' : 'club',
-    scope_id:   teamId ?? req.club_id,
-  })
-
-  // Si joueur → ajouter à team_players
-  if (req.role_type === 'player' && teamId) {
-    await supabase.from('team_players').insert({
-      team_id:   teamId,
-      user_id:   req.user_id,
-      season:    req.season,
-      is_active: true,
-    })
-  }
-
-  // Si coach → ajouter à team_coaches
-  if (req.role_type === 'coach' && teamId) {
-    await supabase.from('team_coaches').insert({
-      team_id:   teamId,
-      user_id:   req.user_id,
-      season:    req.season,
-      is_active: true,
-    })
-  }
-
-  // Créer l'entrée d'historique
-  await supabase.from('club_memberships').insert({
-    user_id:   req.user_id,
-    club_id:   req.club_id,
-    role_type: req.role_type,
-    team_id:   teamId ?? null,
-    season:    req.season,
-    joined_at: new Date().toISOString(),
-  })
-
-  // Marquer la demande comme approuvée
-  await supabase
-    .from('club_join_requests')
-    .update({
-      status:      'approved',
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', requestId)
-
-  // Notifier le demandeur
-  await createNotification({
-    to_user_id: req.user_id,
-    type:       'request_approved',
-    title:      'Demande approuvée !',
-    body:       teamId
-      ? 'Vous avez été ajouté au club et à votre équipe.'
-      : "Votre demande d'adhésion a été acceptée.",
-    request_id: requestId,
-  })
-}
-
-export const rejectJoinRequest = async (requestId, reviewerId) => {
-  const { data: req } = await supabase
-    .from('club_join_requests')
-    .select('user_id')
-    .eq('id', requestId)
-    .single()
-
-  await supabase
-    .from('club_join_requests')
-    .update({
-      status:      'rejected',
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', requestId)
-
-  await createNotification({
-    to_user_id: req.user_id,
-    type:       'request_rejected',
-    title:      'Demande refusée',
-    body:       "Votre demande d'adhésion a été refusée.",
-    request_id: requestId,
-  })
-}
-
-// ── SEASONS ───────────────────────────────────────────────
-export const getCurrentSeason = async (clubId) => {
-  const { data } = await supabase
-    .from('seasons')
-    .select('name')
-    .eq('club_id', clubId)
-    .eq('is_current', true)
-    .single()
-  if (!data) {
-    const now  = new Date()
-    const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
-    return `${year}-${year + 1}`
-  }
-  return data.name
-}
-
-export const startNewSeason = async (clubId, seasonName, userId) => {
-  const { error } = await supabase.rpc('start_new_season', {
-    p_club_id: clubId,
-    p_season:  seasonName,
-    p_user_id: userId,
-  })
-  if (error) throw error
-}
-
-// ── PLAYER HISTORY ────────────────────────────────────────
-export const getPlayerHistory = async (userId) => {
-  const { data, error } = await supabase
-    .from('player_history')
-    .select('*, teams(name, category), clubs(name)')
-    .eq('user_id', userId)
-    .order('joined_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-// ── NOTIFY FOR JOIN REQUEST ───────────────────────────────
-export const notifyForJoinRequest = async (role, club, teamId, user, newTeam = null) => {
-  const clubUsers = await getUsersByClub(club.id)
-
-  if (role === 'coach' || role === 'president') {
-    const presidents = clubUsers.filter(u =>
-      u.user_roles?.some(r => r.role_type === 'president')
-    )
-    for (const p of presidents) {
-      await createNotification({
-        to_user_id: p.id,
-        type:       'registration_request',
-        title:      newTeam
-          ? `Demande de création d'équipe — ${newTeam.name}`
-          : `Nouvelle demande — ${role === 'coach' ? 'Coach' : 'Président'}`,
-        body:       newTeam
-          ? `${user.first_name} ${user.last_name} souhaite rejoindre comme coach et créer l'équipe "${newTeam.name}" (${newTeam.category}).`
-          : `${user.first_name} ${user.last_name} souhaite rejoindre comme ${role}.`,
-      })
-    }
-  }
-
-  if (role === 'player' && teamId) {
-    const { data: coaches } = await supabase
-      .from('team_coaches')
-      .select('user_id')
-      .eq('team_id', teamId)
-      .eq('is_active', true)
-
-    for (const { user_id } of coaches ?? []) {
-      await createNotification({
-        to_user_id: user_id,
-        type:       'registration_request',
-        title:      'Nouvelle demande de joueur',
-        body:       `${user.first_name} ${user.last_name} souhaite rejoindre votre équipe.`,
-      })
-    }
+export async function createUser(data) {
+  return {
+    ...data,
+    id: `u-${Date.now()}`,
+    created_at: new Date().toISOString(),
+    user_roles: [],
   }
 }
 
-// ── LEAVE CLUB ────────────────────────────────────────────
-export const leaveClub = async (userId, clubId) => {
-  const { error } = await supabase.rpc('leave_club', {
-    p_user_id: userId,
-    p_club_id: clubId,
-    p_reason:  'left',
-  })
-  if (error) throw error
-}
-
-export const canPresidentLeave = async (userId, clubId) => {
-  const { data, error } = await supabase.rpc('can_president_leave', {
-    p_user_id: userId,
-    p_club_id: clubId,
-  })
-  if (error) throw error
-  return data
-}
-
-// ── RESULTS (inter-clubs) ─────────────────────────────────
-export const getAllPlayedMatches = async () => {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('*, teams(name, category, club_id, clubs(name, sport_id))')
-    .eq('status', 'played')
-    .order('scheduled_at', { ascending: false })
-    .limit(100)
-  if (error) throw error
+export async function getUsersByClub(clubId) {
+  const { data } = await supabase.from('users').select('*, user_roles(*)').eq('current_club_id', clubId)
   return data ?? []
 }
 
-// ── TEAM HISTORY ──────────────────────────────────────────
-export const getTeamById = async (teamId) => {
-  const { data, error } = await supabase
-    .from('teams')
-    .select('*, clubs(name)')
-    .eq('id', teamId)
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const getMatchesByTeamAndSeason = async (teamId, season) => {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('*')
-    .eq('team_id', teamId)
-    .eq('season', season)
-    .order('scheduled_at')
-  if (error) throw error
+// ── Clubs ─────────────────────────────────────────────────────────────────────
+export async function getClubs() {
+  const { data } = await supabase.from('clubs').select('*, sports(name), teams(id, name, status)').eq('status', 'active')
   return data ?? []
 }
 
-// ── TEAM PAGE — SEARCH & FOLLOW ──────────────────────────
-
-// Résoudre un code postal français → { departement, code_dep, region }
-// Requête directe sur fr_postal_codes avec les 2 (ou 3 pour DOM-TOM) premiers chiffres
-export const resolvePostalCode = async (postalCode) => {
-  if (!postalCode) return null
-  const prefix = postalCode.slice(0, 2)
-  const searchPrefix = prefix === '97' ? postalCode.slice(0, 3) : prefix
-  const { data, error } = await supabase
-    .from('fr_postal_codes')
-    .select('departement, code_dep, region')
-    .eq('code_postal', searchPrefix)
-    .single()
-  if (error || !data) return null
+export async function getClubById(clubId) {
+  const { data } = await supabase.from('clubs').select('*, sports(name)').eq('id', clubId).single()
   return data
 }
 
-// Rechercher des clubs avec leurs équipes actives
-export const searchClubs = async (query, mode = 'name') => {
-  let qb = supabase
-    .from('clubs')
-    .select('*, sports(name), teams(id, name, category, status)')
-    .eq('status', 'active')
-    .eq('teams.status', 'active')
-
-  if (mode === 'name')       qb = qb.ilike('name',     `%${query}%`)
-  if (mode === 'city')       qb = qb.ilike('city',     `%${query}%`)
-  if (mode === 'department') qb = qb.ilike('code_dep',  `${query}%`)
-  if (mode === 'region')     qb = qb.ilike('region',   `%${query}%`)
-
-  const { data, error } = await qb.limit(20)
-  if (error) throw error
-  return data ?? []
-}
-
-// Équipes actives d'un utilisateur (joueur ou coach)
-export const getMyTeams = async (userId) => {
-  const [players, coaches] = await Promise.all([
-    supabase
-      .from('team_players')
-      .select('teams(*, clubs(name, sport_id))')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .then(r => r.data?.map(d => ({ ...d.teams, _role: 'player' })) ?? []),
-    supabase
-      .from('team_coaches')
-      .select('teams(*, clubs(name, sport_id))')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .then(r => r.data?.map(d => ({ ...d.teams, _role: 'coach' })) ?? []),
-  ])
-  return [...players, ...coaches]
-}
-
-// Quitter une équipe (sans quitter le club)
-export const leaveTeam = async (userId, teamId) => {
-  await Promise.all([
-    supabase
-      .from('team_players')
-      .update({ is_active: false })
-      .eq('user_id', userId)
-      .eq('team_id', teamId),
-    supabase
-      .from('team_coaches')
-      .update({ is_active: false })
-      .eq('user_id', userId)
-      .eq('team_id', teamId),
-    supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId)
-      .eq('scope_id', teamId)
-      .eq('scope_type', 'team'),
-  ])
-  // Archiver dans player_history
-  await supabase
-    .from('player_history')
-    .update({ left_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('team_id', teamId)
-    .is('left_at', null)
-}
-
-// Suivre / ne plus suivre une équipe (favoris supporter)
-export const followTeam = async (userId, teamId) => {
-  const { error } = await supabase
-    .from('supporter_favorites')
-    .insert({ user_id: userId, team_id: teamId })
-  if (error && error.code !== '23505') throw error // ignorer doublon
-}
-
-export const unfollowTeam = async (userId, teamId) => {
-  const { error } = await supabase
-    .from('supporter_favorites')
-    .delete()
-    .eq('user_id', userId)
-    .eq('team_id', teamId)
-  if (error) throw error
-}
-
-export const getFollowedTeams = async (userId) => {
-  const { data, error } = await supabase
-    .from('supporter_favorites')
-    .select('team_id')
-    .eq('user_id', userId)
-  if (error) throw error
-  return new Set(data?.map(d => d.team_id) ?? [])
-}
-
-// Prochain match programmé d'une équipe
-export const getNextMatch = async (teamId) => {
-  const { data } = await supabase
-    .from('matches')
-    .select('*')
-    .eq('team_id', teamId)
-    .eq('status', 'scheduled')
-    .gte('scheduled_at', new Date().toISOString())
-    .order('scheduled_at')
-    .limit(1)
-    .single()
-  return data ?? null
-}
-
-// Prochain entraînement d'une équipe
-export const getNextTraining = async (teamId) => {
-  const { data } = await supabase
-    .from('trainings')
-    .select('*')
-    .eq('team_id', teamId)
-    .gte('scheduled_at', new Date().toISOString())
-    .order('scheduled_at')
-    .limit(1)
-    .single()
-  return data ?? null
-}
-
-// ── AUTH HELPERS ──────────────────────────────────────────
-export const hashPassword  = (pwd)       => bcrypt.hashSync(pwd, 10)
-export const checkPassword = (pwd, hash) => bcrypt.compareSync(pwd, hash)
-
-// ── SESSION (localStorage) ────────────────────────────────
-const SESSION_KEY = 'cm_session'
-export const getSession   = ()       => localStorage.getItem(SESSION_KEY)
-export const setSession   = (userId) => localStorage.setItem(SESSION_KEY, userId)
-export const clearSession = ()       => localStorage.removeItem(SESSION_KEY)
-
-// ── FEED / POSTS ──────────────────────────────────────────
-
-export const getFeedPosts = async (userId, currentClubId) => {
-  const { data: follows } = await supabase
-    .from('club_follows')
-    .select('club_id')
-    .eq('user_id', userId)
-
-  const followedIds = follows?.map(f => f.club_id) ?? []
-  if (currentClubId) followedIds.push(currentClubId)
-  const clubIds = [...new Set(followedIds)]
-
-  if (!clubIds.length) return []
-
-  const { data, error } = await supabase
-    .from('club_posts')
-    .select(`
-      *,
-      clubs(id, name, city),
-      users!author_id(id, first_name, last_name),
-      post_comments(count),
-      post_likes(count)
-    `)
-    .in('club_id', clubIds)
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  if (error) throw error
-  return data ?? []
-}
-
-export const getClubPosts = async (clubId) => {
-  const { data, error } = await supabase
-    .from('club_posts')
-    .select(`
-      *,
-      users!author_id(id, first_name, last_name),
-      post_comments(id, content, created_at, users!author_id(id, first_name, last_name)),
-      post_likes(user_id)
-    `)
-    .eq('club_id', clubId)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return data ?? []
-}
-
-export const createPost = async (clubId, authorId, content, mediaUrl, mediaType) => {
-  const { data, error } = await supabase
-    .from('club_posts')
-    .insert({
-      club_id:    clubId,
-      author_id:  authorId,
-      content:    content.trim(),
-      media_url:  mediaUrl  || null,
-      media_type: mediaType || null,
-    })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const addComment = async (postId, authorId, content) => {
-  const { data, error } = await supabase
-    .from('post_comments')
-    .insert({ post_id: postId, author_id: authorId, content: content.trim() })
-    .select('*, users!author_id(id, first_name, last_name)')
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const toggleLike = async (postId, userId) => {
-  const { data: existing } = await supabase
-    .from('post_likes')
-    .select('post_id')
-    .eq('post_id', postId)
-    .eq('user_id', userId)
-    .single()
-
-  if (existing) {
-    await supabase.from('post_likes').delete()
-      .eq('post_id', postId).eq('user_id', userId)
-    return false  // unliked
-  } else {
-    await supabase.from('post_likes').insert({ post_id: postId, user_id: userId })
-    return true   // liked
+export async function createClub(clubData) {
+  return {
+    ...clubData,
+    id: `club-${Date.now()}`,
+    status: 'active',
+    created_at: new Date().toISOString(),
   }
 }
 
-export const canPostForClub = async (userId, clubId) => {
-  if (!userId || !clubId) return false
-
-  const { data: roles } = await supabase
-    .from('user_roles')
-    .select('role_type, scope_type, scope_id')
-    .eq('user_id', userId)
-
-  if (!roles?.length) return false
-
-  if (roles.some(r =>
-    r.role_type === 'president' &&
-    r.scope_type === 'club' &&
-    r.scope_id === clubId
-  )) return true
-
-  const { data: clubTeams } = await supabase
-    .from('teams')
-    .select('id')
-    .eq('club_id', clubId)
-    .eq('status', 'active')
-
-  const teamIds = clubTeams?.map(t => t.id) ?? []
-  return roles.some(r =>
-    r.role_type === 'coach' &&
-    r.scope_type === 'team' &&
-    teamIds.includes(r.scope_id)
-  )
-}
-
-// ── EVENTS & MATCHES — sources unifiées ──────────────────
-export const getMyEvents = async (userId, currentClubId) => {
-  const { data: follows } = await supabase
-    .from('club_follows')
-    .select('club_id')
-    .eq('user_id', userId)
-  const clubIds = [...new Set([
-    ...(follows?.map(f => f.club_id) ?? []),
-    ...(currentClubId ? [currentClubId] : [])
-  ])]
-  if (!clubIds.length) return []
-  const { data } = await supabase
-    .from('events')
-    .select('*, clubs(name)')
-    .in('club_id', clubIds)
-    .gte('starts_at', new Date().toISOString())
-    .order('starts_at')
+// ── Teams ─────────────────────────────────────────────────────────────────────
+export async function getTeamsByClub(clubId) {
+  const { data } = await supabase.from('teams').select('*, clubs(name, sport_id)').eq('club_id', clubId).eq('status', 'active')
   return data ?? []
 }
 
-export const getMyUpcomingMatches = async (userId) => {
-  const [{ data: favs }, { data: playerTeams }, { data: coachTeams }] = await Promise.all([
-    supabase.from('supporter_favorites').select('team_id').eq('user_id', userId),
-    supabase.from('team_players').select('team_id').eq('user_id', userId).eq('is_active', true),
-    supabase.from('team_coaches').select('team_id').eq('user_id', userId).eq('is_active', true),
-  ])
-  const teamIds = [...new Set([
-    ...(favs?.map(f => f.team_id) ?? []),
-    ...(playerTeams?.map(t => t.team_id) ?? []),
-    ...(coachTeams?.map(t => t.team_id) ?? []),
-  ])]
-  if (!teamIds.length) return []
-  const { data } = await supabase
-    .from('matches')
-    .select('*, teams(name, category, clubs(name))')
-    .in('team_id', teamIds)
-    .eq('status', 'scheduled')
-    .gte('scheduled_at', new Date().toISOString())
-    .order('scheduled_at')
+export async function getMyTeams(userId) {
+  const { data: user } = await supabase.from('users').select('*, user_roles(*)').eq('id', userId).single()
+  if (!user) return []
+
+  const role    = user.user_roles?.[0]?.role_type
+  const teamIds = (user.user_roles ?? []).filter(r => r.scope_type === 'team').map(r => r.scope_id)
+
+  const { data: allTeams } = await supabase.from('teams').select('*, clubs(name)').eq('club_id', user.current_club_id ?? '').eq('status', 'active')
+  const teams = allTeams ?? []
+
+  if (role === 'president') return teams.map(t => ({ ...t, _role: 'president' }))
+  return teams.filter(t => teamIds.includes(t.id)).map(t => ({ ...t, _role: role }))
+}
+
+export async function getNextMatch(teamId) {
+  const { data } = await supabase.from('matches').select('*').eq('team_id', teamId)
+  return (data ?? []).filter(m => m.status === 'scheduled')[0] ?? null
+}
+
+export async function getNextTraining(teamId) {
+  const { data } = await supabase.from('trainings').select('*').eq('team_id', teamId)
+  return data?.[0] ?? null
+}
+
+export async function leaveTeam(_userId, _teamId) {
+  return { error: null }
+}
+
+// ── Matches ───────────────────────────────────────────────────────────────────
+export async function getMatchesByClub(_clubId) {
+  const { data } = await supabase.from('matches').select('*')
   return data ?? []
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+export async function getMyEvents(_userId, clubId) {
+  const { data } = await supabase.from('events').select('*, clubs(name)').eq('club_id', clubId)
+  return data ?? []
+}
+
+export async function getEventsByClub(clubId) {
+  const { data } = await supabase.from('events').select('*').eq('club_id', clubId)
+  return data ?? []
+}
+
+export async function getMyUpcomingMatches(userId) {
+  const { data: user } = await supabase.from('users').select('*, user_roles(*)').eq('id', userId).single()
+  if (!user) return []
+
+  const { data: allMatches } = await supabase.from('matches').select('*, teams(id, name, category, clubs(name))')
+  const scheduled = (allMatches ?? []).filter(m => m.status === 'scheduled')
+
+  const role = user.user_roles?.[0]?.role_type
+  if (role === 'president') return scheduled
+
+  const teamIds = (user.user_roles ?? []).filter(r => r.scope_type === 'team').map(r => r.scope_id)
+  return scheduled.filter(m => teamIds.includes(m.team_id))
+}
+
+// ── Posts / Feed ──────────────────────────────────────────────────────────────
+export async function getFeedPosts(_userId, _clubId) {
+  const { data } = await supabase.from('club_posts').select('*')
+  return data ?? []
+}
+
+export async function addComment(postId, userId, content) {
+  return {
+    id: `comment-${Date.now()}`,
+    post_id: postId,
+    user_id: userId,
+    content,
+    created_at: new Date().toISOString(),
+    users: { id: userId, first_name: 'Moi', last_name: '' },
+  }
+}
+
+export async function toggleLike(_postId, _userId) {
+  return true
+}
+
+export async function canPostForClub(userId, _clubId) {
+  const { data } = await supabase.from('users').select('user_roles(*)').eq('id', userId).single()
+  const role = data?.user_roles?.[0]?.role_type
+  return role === 'president' || role === 'coach'
+}
+
+export async function getClubPosts(clubId) {
+  const { data } = await supabase.from('club_posts').select('*, users!author_id(id, first_name, last_name)').eq('club_id', clubId)
+  return data ?? []
+}
+
+// ── Follow / Unfollow ─────────────────────────────────────────────────────────
+export async function followTeam(_userId, _teamId)   { return null }
+export async function unfollowTeam(_userId, _teamId) { return null }
+export async function getFollowedTeams(_userId)      { return new Set() }
+
+export async function followClub(_userId, _clubId)   { return null }
+export async function unfollowClub(_userId, _clubId) { return null }
+export async function getFollowedClubs(_userId)      { return [] }
+
+// ── Join Requests ─────────────────────────────────────────────────────────────
+export async function createJoinRequest(data) {
+  return { id: `req-${Date.now()}`, ...data, created_at: new Date().toISOString() }
+}
+
+export async function notifyForJoinRequest(_role, _club, _teamId, _user, _newTeam) {
+  return null
+}
+
+export async function createRequest(data) {
+  return { id: `req-${Date.now()}`, ...data, created_at: new Date().toISOString() }
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export async function getNotifications(userId) {
+  const { data } = await supabase.from('notifications').select('*').eq('to_user_id', userId)
+  return data ?? []
+}
+
+export async function getUnreadCount(userId) {
+  const { data } = await supabase.from('notifications').select('*').eq('to_user_id', userId)
+  return (data ?? []).filter(n => !n.read).length
+}
+
+export async function createNotification(data) {
+  return { id: `notif-${Date.now()}`, ...data, created_at: new Date().toISOString() }
+}
+
+export async function markNotificationRead(_id)        { return { error: null } }
+export async function markAllNotificationsRead(_userId) { return { error: null } }
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+export async function getMemberships(_userId)     { return [] }
+export async function getPlayerHistory(_userId)   { return [] }
+export async function leaveClub(_userId, _clubId) { return { error: null } }
+export async function canPresidentLeave(_userId, _clubId) { return true }
+export async function createUserRole(data) {
+  return { id: `role-${Date.now()}`, ...data }
+}
+
+// ── Clubs (extra) ─────────────────────────────────────────────────────────────
+export async function getAllActiveClubs() {
+  const { data } = await supabase.from('clubs').select('*, sports(name), teams(id, name, status)').eq('status', 'active')
+  return data ?? []
+}
+
+// ── Teams (extra) ─────────────────────────────────────────────────────────────
+export async function getTeamById(teamId) {
+  const { data } = await supabase.from('teams').select('*, clubs(name)').eq('id', teamId).single()
+  return data
+}
+
+export async function getMatchesByTeamAndSeason(teamId, _season) {
+  const { data } = await supabase.from('matches').select('*').eq('team_id', teamId)
+  return data ?? []
+}
+
+// ── Matches (extra) ───────────────────────────────────────────────────────────
+export async function getAllPlayedMatches() {
+  const { data } = await supabase.from('matches').select('*, teams(id, name, category, clubs(name))')
+  return (data ?? []).filter(m => m.status === 'played')
+}
+
+// ── Season ────────────────────────────────────────────────────────────────────
+export async function getCurrentSeason(_clubId) {
+  const now  = new Date()
+  const year = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  return `${year}-${year + 1}`
+}
+
+export async function startNewSeason(_clubId) {
+  return { error: null }
+}
+
+// ── Misc ──────────────────────────────────────────────────────────────────────
+export async function getSports() {
+  const { data } = await supabase.from('sports').select('*')
+  return data ?? []
+}
+
+export async function resolvePostalCode(code) {
+  const POSTAL_MAP = {
+    '75': { departement: 'Paris',               code_dep: '75', region: 'Île-de-France' },
+    '77': { departement: 'Seine-et-Marne',      code_dep: '77', region: 'Île-de-France' },
+    '78': { departement: 'Yvelines',            code_dep: '78', region: 'Île-de-France' },
+    '91': { departement: 'Essonne',             code_dep: '91', region: 'Île-de-France' },
+    '92': { departement: 'Hauts-de-Seine',      code_dep: '92', region: 'Île-de-France' },
+    '93': { departement: 'Seine-Saint-Denis',   code_dep: '93', region: 'Île-de-France' },
+    '94': { departement: 'Val-de-Marne',        code_dep: '94', region: 'Île-de-France' },
+    '95': { departement: "Val-d'Oise",          code_dep: '95', region: 'Île-de-France' },
+    '59': { departement: 'Nord',                code_dep: '59', region: 'Hauts-de-France' },
+    '60': { departement: 'Oise',                code_dep: '60', region: 'Hauts-de-France' },
+    '62': { departement: 'Pas-de-Calais',       code_dep: '62', region: 'Hauts-de-France' },
+    '80': { departement: 'Somme',               code_dep: '80', region: 'Hauts-de-France' },
+    '33': { departement: 'Gironde',             code_dep: '33', region: 'Nouvelle-Aquitaine' },
+    '38': { departement: 'Isère',               code_dep: '38', region: 'Auvergne-Rhône-Alpes' },
+    '69': { departement: 'Rhône',               code_dep: '69', region: 'Auvergne-Rhône-Alpes' },
+    '13': { departement: 'Bouches-du-Rhône',    code_dep: '13', region: "Provence-Alpes-Côte d'Azur" },
+  }
+  const key = String(code).slice(0, 2)
+  return POSTAL_MAP[key] ?? null
 }

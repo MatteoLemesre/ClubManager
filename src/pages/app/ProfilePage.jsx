@@ -215,29 +215,21 @@ export default function ProfilePage() {
         } catch {}
       }
 
-      const { error } = await (async () => {
-        const { supabase } = await import('../../lib/supabase')
-        return supabase
-          .from('users')
-          .update({
-            first_name:  editFirstName.trim(),
-            last_name:   editLastName.trim(),
-            birth_date:  editBirthDate  || null,
-            birth_place: editBirthPlace || null,
-            phone:       editPhone      || null,
-            address:     editAddress    || null,
-            postal_code: editPostalCode || null,
-            city:        editCity       || null,
-            country:     editCountry    || 'France',
-            department:  resolvedDep      || null,
-            code_dep:    resolvedCodeDep  || null,
-            region:      resolvedRegion   || null,
-          })
-          .eq('id', currentUser.id)
-          .select()
-      })()
+      await updateUser(currentUser.id, {
+        first_name:  editFirstName.trim(),
+        last_name:   editLastName.trim(),
+        birth_date:  editBirthDate  || null,
+        birth_place: editBirthPlace || null,
+        phone:       editPhone      || null,
+        address:     editAddress    || null,
+        postal_code: editPostalCode || null,
+        city:        editCity       || null,
+        country:     editCountry    || 'France',
+        department:  resolvedDep      || null,
+        code_dep:    resolvedCodeDep  || null,
+        region:      resolvedRegion   || null,
+      })
 
-      if (error) throw error
       await refreshUser()
       setEditing(false)
     } catch (err) {

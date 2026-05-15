@@ -41,18 +41,11 @@ export function AuthProvider({ children }) {
       const userId = db.getSession()
       if (userId) {
         try {
-          const { supabase } = await import('../lib/supabase')
-          const { data, error } = await supabase
-            .from('users')
-            .select('*, user_roles(*)')
-            .eq('id', userId)
-            .single()
-          if (error || !data) {
+          const user = await db.getUserById(userId)
+          if (!user || user.account_status !== 'active') {
             db.clearSession()
-          } else if (data.account_status === 'active') {
-            setCurrentUser(normalizeUser(data))
           } else {
-            db.clearSession()
+            setCurrentUser(normalizeUser(user))
           }
         } catch (err) {
           console.error('Session restore error:', err)
