@@ -1,113 +1,96 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import * as db from '../services/db'
+import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
-// Dérive role et team_ids depuis user_roles pour compatibilité avec is() / canManageTeam()
-function normalizeUser(user) {
-  if (!user) return null
-  const roles = user.user_roles ?? []
-  const primaryRole = roles[0]?.role_type ?? null
-  const teamIds = roles
-    .filter(r => r.scope_type === 'team')
-    .map(r => r.scope_id)
-  return {
-    ...user,
-    role:      primaryRole,
-    team_ids:  teamIds,
-    teamIds,
-    firstName:  user.first_name  ?? user.firstName  ?? '',
-    lastName:   user.last_name   ?? user.lastName   ?? '',
-    birthDate:  user.birth_date  ?? user.birthDate  ?? null,
-    birthPlace: user.birth_place ?? user.birthPlace ?? null,
-    phone:      user.phone ?? null,
-    address:    user.address    ?? null,
-    postalCode: user.postal_code ?? user.postalCode ?? null,
-    city:       user.city       ?? null,
-    country:    user.country    ?? 'France',
-    department: user.department ?? null,
-    codeDep:    user.code_dep   ?? user.codeDep   ?? null,
-    region:     user.region     ?? null,
-  }
+// ── Mock personas ─────────────────────────────────────────────────────────────
+const PERSONAS = [
+  {
+    id: 'u-1', email: 'president@test.fr', password_hash: 'password',
+    first_name: 'Jean', last_name: 'Dupont', firstName: 'Jean', lastName: 'Dupont',
+    role: 'president', teamIds: [], team_ids: [], account_status: 'active',
+    birth_date: '1985-03-15', birthDate: '1985-03-15',
+    phone: '06 12 34 56 78', address: '12 rue du Stade',
+    postal_code: '62300', postalCode: '62300',
+    city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
+    current_club_id: 'club-1',
+    user_roles: [{ role_type: 'president', scope_type: 'club', scope_id: 'club-1' }],
+  },
+  {
+    id: 'u-2', email: 'coach@test.fr', password_hash: 'password',
+    first_name: 'Marc', last_name: 'Leroy', firstName: 'Marc', lastName: 'Leroy',
+    role: 'coach', teamIds: ['team-1'], team_ids: ['team-1'], account_status: 'active',
+    birth_date: '1980-07-20', birthDate: '1980-07-20',
+    phone: '06 98 76 54 32', address: '5 avenue Foch',
+    postal_code: '62300', postalCode: '62300',
+    city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
+    current_club_id: 'club-1',
+    user_roles: [{ role_type: 'coach', scope_type: 'team', scope_id: 'team-1' }],
+  },
+  {
+    id: 'u-3', email: 'joueur@test.fr', password_hash: 'password',
+    first_name: 'Lucas', last_name: 'Martin', firstName: 'Lucas', lastName: 'Martin',
+    role: 'player', teamIds: ['team-1'], team_ids: ['team-1'], account_status: 'active',
+    birth_date: '2001-03-15', birthDate: '2001-03-15',
+    phone: '07 11 22 33 44', address: '8 rue Victor Hugo',
+    postal_code: '62300', postalCode: '62300',
+    city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
+    current_club_id: 'club-1',
+    user_roles: [{ role_type: 'player', scope_type: 'team', scope_id: 'team-1' }],
+  },
+  {
+    id: 'u-4', email: 'supporter@test.fr', password_hash: 'password',
+    first_name: 'Sophie', last_name: 'Petit', firstName: 'Sophie', lastName: 'Petit',
+    role: 'supporter', teamIds: [], team_ids: [], account_status: 'active',
+    birth_date: '1990-11-05', birthDate: '1990-11-05',
+    phone: '06 55 44 33 22', address: '3 place de la Mairie',
+    postal_code: '62300', postalCode: '62300',
+    city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
+    current_club_id: 'club-1',
+    user_roles: [{ role_type: 'supporter', scope_type: 'club', scope_id: 'club-1' }],
+  },
+]
+
+const MOCK_CLUB = {
+  id: 'club-1',
+  name: 'FC Lens Académie',
+  city: 'Lens',
+  status: 'active',
+  sports: { name: 'Football' },
 }
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null)
-  const [loading, setLoading]         = useState(true)
+  const [currentUser, setCurrentUser] = useState(PERSONAS[0])
 
-  // Restaurer la session au démarrage
-  useEffect(() => {
-    const restore = async () => {
-      const userId = db.getSession()
-      if (userId) {
-        try {
-          const user = await db.getUserById(userId)
-          if (!user || user.account_status !== 'active') {
-            db.clearSession()
-          } else {
-            setCurrentUser(normalizeUser(user))
-          }
-        } catch (err) {
-          console.error('Session restore error:', err)
-          db.clearSession()
-        }
-      }
-      setLoading(false)
-    }
-    restore()
-  }, [])
-
-  const login = async (email, password) => {
-    const user = await db.getUserByEmail(email)
-    if (!user)                               throw new Error('Email introuvable')
-    if (!db.checkPassword(password, user.password_hash))
-                                             throw new Error('Mot de passe incorrect')
-    if (user.account_status === 'pending')   throw new Error('Votre compte est en attente de validation')
-    if (user.account_status === 'disabled')  throw new Error('Votre compte a été désactivé')
-
-    await db.updateUser(user.id, { last_login_at: new Date().toISOString() })
-
-    db.setSession(user.id)
-    const normalized = normalizeUser(user)
-    setCurrentUser(normalized)
-    return normalized
+  const login = async (emailOrId, _password) => {
+    // Connexion par id (dev) ou par email
+    const user = PERSONAS.find(u => u.id === emailOrId || u.email === emailOrId)
+    if (user) setCurrentUser(user)
+    return user ?? PERSONAS[0]
   }
 
-  const logout = () => {
-    db.clearSession()
-    setCurrentUser(null)
+  const logout = () => setCurrentUser(PERSONAS[0])
+
+  const refreshUser = () => Promise.resolve()
+
+  const devLogin = (userId) => {
+    const user = PERSONAS.find(u => u.id === userId)
+    if (user) setCurrentUser(user)
   }
 
-  const refreshUser = async () => {
-    if (currentUser) {
-      const updated = await db.getUserById(currentUser.id)
-      setCurrentUser(normalizeUser(updated))
-    }
-  }
-
-  // Dev : connexion directe sans mot de passe
-  const devLogin = async (userId) => {
-    try {
-      const user = await db.getUserById(userId)
-      if (user) {
-        db.setSession(user.id)
-        setCurrentUser(normalizeUser(user))
-      }
-    } catch {}
-  }
-
-  const is            = (role)    => currentUser?.role === role
+  const is            = (role)     => currentUser?.role === role
   const isOneOf       = (...roles) => roles.includes(currentUser?.role)
-  const canManageTeam = (teamId)  =>
-    is('president') || (is('coach') && currentUser?.team_ids?.includes(teamId))
+  const canManageTeam = (teamId)   =>
+    is('president') || (is('coach') && currentUser?.teamIds?.includes(teamId))
 
   return (
     <AuthContext.Provider value={{
-      currentUser, loading,
+      currentUser,
+      club: MOCK_CLUB,
+      loading: false,
       login, logout, refreshUser, devLogin,
       is, isOneOf, canManageTeam,
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   )
 }

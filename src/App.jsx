@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContext'
 import AppLayout          from './components/layout/AppLayout'
 import EventsPage         from './pages/app/EventsPage'
 import TeamPage           from './pages/app/TeamPage'
@@ -18,24 +18,14 @@ import HomePage           from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterPage       from './pages/auth/RegisterPage'
 
-function ProtectedRoute({ children }) {
-  const { currentUser } = useAuth()
-  if (!currentUser) return <Navigate to="/login" replace />
-  return children
-}
-
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/"                  element={<HomePage />} />
-      <Route path="/login"             element={<LoginPage />} />
-      <Route path="/register"          element={<RegisterPage />} />
-      <Route path="/app" element={
-        <ProtectedRoute>
-          <AppLayout />
-        </ProtectedRoute>
-      }>
-        <Route index              element={<Navigate to="/app/events" replace />} />
+      <Route path="/"        element={<Navigate to="/app/feed" replace />} />
+      <Route path="/login"   element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/app" element={<AppLayout />}>
+        <Route index              element={<Navigate to="/app/feed" replace />} />
         <Route path="events"      element={<EventsPage />} />
         <Route path="team"        element={<TeamPage />} />
         <Route path="members"     element={<MembersPage />} />
@@ -51,7 +41,7 @@ function AppRoutes() {
         <Route path="feed"                      element={<FeedPage />} />
         <Route path="clubs/:clubId"             element={<ClubProfilePage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/app/feed" replace />} />
     </Routes>
   )
 }
