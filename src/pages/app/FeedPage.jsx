@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { MOCK_FEED_POSTS } from '../../context/AuthContext'
+import { EXTERNAL_CLUBS } from '../../data/mock'
+
+// Retourne les club IDs dont il faut charger le feed (followed_clubs + clubs parents des followed_teams)
+function getFeedClubIds(user) {
+  const ids = new Set(user.followed_clubs ?? [])
+  const followedTeams = user.followed_teams ?? []
+  EXTERNAL_CLUBS.forEach(club => {
+    if (club.teams?.some(t => followedTeams.includes(t.id))) {
+      ids.add(club.id)
+    }
+  })
+  // Always include own club if member
+  if (user.current_club_id) ids.add(user.current_club_id)
+  return [...ids]
+}
 import { Card, Avatar, EmptyState } from '../../components/ui'
 import { MessageCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -226,8 +241,8 @@ export default function FeedPage() {
 
   useEffect(() => {
     if (isFollowerMode) {
-      const followedClubs = currentUser.followed_clubs ?? []
-      const mockPosts = followedClubs.flatMap(clubId => MOCK_FEED_POSTS[clubId] ?? [])
+      const clubIds = getFeedClubIds(currentUser)
+      const mockPosts = clubIds.flatMap(clubId => MOCK_FEED_POSTS[clubId] ?? [])
       mockPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       setPosts(mockPosts)
       setLoading(false)
@@ -237,29 +252,47 @@ export default function FeedPage() {
     const load = async () => {
       try {
         const data = await getFeedPosts(currentUser.id, currentUser.current_club_id)
-        setPosts(data)
+        if (data && data.length > 0) {
+          setPosts(data)
 
-        const { data: myLikes } = await supabase
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', currentUser.id)
-        setLikedPosts(new Set(myLikes?.map(l => l.post_id) ?? []))
-      } catch (err) {
-        console.error('FeedPage error:', err)
-        setError(err.message)
+          const { data: myLikes } = await supabase
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', currentUser.id)
+          setLikedPosts(new Set(myLikes?.map(l => l.post_id) ?? []))
+        } else {
+          // Fallback to mock posts for all followed clubs
+          const clubIds = getFeedClubIds(currentUser)
+          const mockPosts = clubIds.flatMap(clubId => MOCK_FEED_POSTS[clubId] ?? [])
+          mockPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          setPosts(mockPosts)
+        }
+      } catch {
+        const clubIds = getFeedClubIds(currentUser)
+        const mockPosts = clubIds.flatMap(clubId => MOCK_FEED_POSTS[clubId] ?? [])
+        mockPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        setPosts(mockPosts)
       }
 
       if (currentUser.current_club_id) {
-        const ok = await canPostForClub(currentUser.id, currentUser.current_club_id)
-        setCanPost(ok)
+        try {
+          const ok = await canPostForClub(currentUser.id, currentUser.current_club_id)
+          setCanPost(ok)
 
-        if (ok) {
-          const { data: c } = await supabase
-            .from('clubs')
-            .select('id, name')
-            .eq('id', currentUser.current_club_id)
-            .single()
-          setClub(c)
+          if (ok) {
+            const { data: c } = await supabase
+              .from('clubs')
+              .select('id, name')
+              .eq('id', currentUser.current_club_id)
+              .single()
+            setClub(c)
+          }
+        } catch {
+          // Mock mode: president/coach can post
+          if (['president', 'coach'].includes(currentUser.role)) {
+            setCanPost(true)
+            setClub({ id: currentUser.current_club_id, name: 'FC Lens Académie' })
+          }
         }
       }
 
@@ -296,7 +329,7 @@ export default function FeedPage() {
   )
 
   // Supporter sans aucun club suivi
-  const noFollowedClubs = isFollowerMode && (currentUser.followed_clubs ?? []).length === 0
+  const noFollowedClubs = isFollowerMode && getFeedClubIds(currentUser).length === 0
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -311,10 +344,10 @@ export default function FeedPage() {
       )}
 
       {/* Bandeau clubs suivis (mode supporter) */}
-      {isFollowerMode && (currentUser.followed_clubs ?? []).length > 0 && (
+      {isFollowerMode && getFeedClubIds(currentUser).length > 0 && (
         <div className="flex items-center gap-2 mb-5 flex-wrap">
           <span className="text-xs text-gray-400">Clubs suivis :</span>
-          {(currentUser.followed_clubs ?? []).map(clubId => {
+          {getFeedClubIds(currentUser).map(clubId => {
             const club = (MOCK_FEED_POSTS[clubId]?.[0]?.clubs) ?? { name: clubId }
             return (
               <span key={clubId}

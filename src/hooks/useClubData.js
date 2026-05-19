@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import * as db from '../services/db'
-import { TRAININGS, CONVERSATIONS } from '../data/mock'
+import { TRAININGS, CONVERSATIONS, TEAMS, USERS, MATCHES, EVENTS } from '../data/mock'
 
 // ── Normalizers ────────────────────────────────────────────────────────────
 
@@ -69,7 +69,15 @@ export function useClubData() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    if (!clubId) { setLoading(false); return }
+    if (!clubId) {
+      // Supporter or no club — use filtered mock data
+      setTeams(TEAMS)
+      setUsers(USERS)
+      setMatches(MATCHES.map(normalizeMatch))
+      setEvents(EVENTS.map(normalizeEvent))
+      setLoading(false)
+      return
+    }
     try {
       const [rawTeams, rawUsers, rawMatches, rawEvents] = await Promise.all([
         db.getTeamsByClub(clubId),
@@ -82,7 +90,11 @@ export function useClubData() {
       setMatches((rawMatches ?? []).map(normalizeMatch))
       setEvents((rawEvents  ?? []).map(normalizeEvent))
     } catch (err) {
-      console.error('useClubData error', err)
+      // Supabase unavailable — fall back to mock data
+      setTeams(TEAMS)
+      setUsers(USERS)
+      setMatches(MATCHES.map(normalizeMatch))
+      setEvents(EVENTS.map(normalizeEvent))
     } finally {
       setLoading(false)
     }

@@ -15,6 +15,8 @@ import { supabase } from '../../lib/supabase'
 const MOCK_EVENTS_SUPPORTER = [
   {
     id: 'mock-ev-1',
+    club_id: 'mock-club-sd',
+    visibility: 'public',
     type: 'club',
     title: 'Repas de fin de saison',
     description: 'Grand repas annuel pour tous les membres, familles et supporters. Inscription obligatoire avant le 20 mai.',
@@ -28,6 +30,8 @@ const MOCK_EVENTS_SUPPORTER = [
   },
   {
     id: 'mock-ev-2',
+    club_id: 'mock-club-sd',
+    visibility: 'public',
     type: 'carpool',
     title: 'Covoiturage vs FC Valenciennes',
     description: 'Je propose 3 places. Départ Lens centre à 13h30. Retour prévu vers 18h.',
@@ -40,6 +44,8 @@ const MOCK_EVENTS_SUPPORTER = [
   },
   {
     id: 'mock-ev-3',
+    club_id: 'mock-club-sd',
+    visibility: 'public',
     type: 'tournament',
     title: 'Tournoi de Pentecôte',
     description: 'Tournoi amical 4 équipes. Journée complète avec arbitrage et récompenses.',
@@ -50,6 +56,79 @@ const MOCK_EVENTS_SUPPORTER = [
     participants: 45,
     clubs: { name: 'AS Saint-Denis United' },
     users: { first_name: 'Karim', last_name: 'Oussama' },
+  },
+]
+
+const MOCK_EVENTS_CLUB1 = [
+  {
+    id: 'ev-1', club_id: 'club-1', visibility: 'public',
+    type: 'carpool',
+    title: 'Covoiturage — Déplacement FC Aubervilliers',
+    description: 'Organisation du covoiturage pour le match de samedi. Départ depuis le parking terrain Nord.',
+    location: 'Parking Terrain Nord',
+    starts_at: '2026-03-15T13:30:00',
+    teamId: 'team-1',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Sophie', last_name: 'Durand' },
+    participants: 4,
+  },
+  {
+    id: 'ev-2', club_id: 'club-1', visibility: 'club',
+    type: 'meeting',
+    title: 'Réunion coachs — Bilan mi-saison',
+    description: 'Point sur les résultats, présences et besoins équipement.',
+    location: 'Local du club',
+    starts_at: '2026-03-25T20:00:00',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Jean', last_name: 'Dupont' },
+    participants: 3,
+  },
+  {
+    id: 'ev-3', club_id: 'club-1', visibility: 'public',
+    type: 'social',
+    title: 'Repas de fin de saison',
+    description: 'Grand repas annuel pour tous les membres, familles et supporters.',
+    location: "Salle des fêtes, Saint-Martin-d'Hères",
+    starts_at: '2026-06-28T18:00:00',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Jean', last_name: 'Dupont' },
+    participants: 6,
+  },
+  {
+    id: 'ev-4', club_id: 'club-1', visibility: 'public',
+    type: 'tournament',
+    title: 'Tournoi de Pâques U9/U11',
+    description: '4 équipes de 8 joueurs. Journée complète avec arbitrage.',
+    location: 'Terrain Nord',
+    starts_at: '2026-04-06T09:00:00',
+    ends_at: '2026-04-06T17:00:00',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Jean', last_name: 'Dupont' },
+    participants: 2,
+  },
+  {
+    id: 'ev-6', club_id: 'club-1', visibility: 'public',
+    type: 'social',
+    title: 'Journée portes ouvertes',
+    description: 'Venez découvrir le club, rencontrer les coachs et essayer le football. Ouvert à tous dès 6 ans.',
+    location: 'Terrain principal — FC Lens Académie',
+    starts_at: '2026-04-20T10:00:00',
+    ends_at: '2026-04-20T16:00:00',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Jean', last_name: 'Dupont' },
+    participants: 3,
+  },
+  {
+    id: 'ev-7', club_id: 'club-1', visibility: 'team',
+    type: 'meeting',
+    title: "Réunion d'équipe — Préparation playoffs",
+    description: 'Point tactique avant les playoffs. Présence obligatoire pour tous les joueurs convoqués.',
+    location: 'Vestiaire Terrain Nord',
+    starts_at: '2026-04-10T19:00:00',
+    teamId: 'team-1',
+    clubs: { name: 'FC Lens Académie' },
+    users: { first_name: 'Marc', last_name: 'Leroy' },
+    participants: 4,
   },
 ]
 
@@ -65,6 +144,22 @@ const EVENT_TYPE_CONFIG = {
   meeting:    { icon: Users,       label: 'Réunion',     variant: 'gray'   },
   social:     { icon: PartyPopper, label: 'Social',      variant: 'purple' },
   tournament: { icon: Trophy,      label: 'Tournoi',     variant: 'orange' },
+}
+
+function canSeeEvent(event, user) {
+  const allFollowed = [...(user.followed_clubs ?? []), ...(user.member_of_clubs ?? [])]
+  if (!allFollowed.includes(event.club_id)) return false
+  if (event.visibility === 'public') return true
+  if (event.visibility === 'team') {
+    const userTeams = [...(user.teams ?? []), ...(user.teamIds ?? [])]
+    return userTeams.includes(event.teamId ?? event.team_id)
+  }
+  if (event.visibility === 'club') {
+    if (!(user.member_of_clubs ?? []).includes(event.club_id)) return false
+    if (event.type === 'meeting') return ['coach', 'president'].includes(user.role)
+    return true
+  }
+  return false
 }
 
 export default function EventsPage() {
@@ -87,15 +182,27 @@ export default function EventsPage() {
 
   useEffect(() => {
     if (!currentUser.current_club_id) {
-      // Supporter: mock events depuis les clubs suivis
-      setEvents(MOCK_EVENTS_SUPPORTER)
+      // Supporter: mock events from followed clubs, filtered by visibility
+      const filtered = MOCK_EVENTS_SUPPORTER.filter(ev => canSeeEvent(ev, currentUser))
+      setEvents(filtered)
       setEventsLoading(false)
       return
     }
     setEventsLoading(true)
     getMyEvents(currentUser.id, currentUser.current_club_id)
-      .then(setEvents)
-      .catch(() => {})
+      .then(data => {
+        if (data && data.length > 0) {
+          setEvents(data.filter(ev => canSeeEvent(ev, currentUser)))
+        } else {
+          // Fallback to mock events for club-1
+          const filtered = MOCK_EVENTS_CLUB1.filter(ev => canSeeEvent(ev, currentUser))
+          setEvents(filtered)
+        }
+      })
+      .catch(() => {
+        const filtered = MOCK_EVENTS_CLUB1.filter(ev => canSeeEvent(ev, currentUser))
+        setEvents(filtered)
+      })
       .finally(() => setEventsLoading(false))
   }, [currentUser.id, currentUser.current_club_id])
 
@@ -307,6 +414,16 @@ function CreateEventModal({ clubId, authorId, onClose, onCreated, currentUser, i
         { value: 'carpool',     label: '🚗 Covoiturage match',     desc: 'Proposer/chercher trajet' },
       ]
 
+  const TEAMS_MOCK = [
+    { id: 'team-1', name: 'Séniors A' },
+    { id: 'team-2', name: 'U13 B' },
+    { id: 'team-3', name: 'U9 A' },
+    { id: 'team-4', name: 'Vétérans' },
+  ]
+  const availableTeams = is('president')
+    ? TEAMS_MOCK
+    : TEAMS_MOCK.filter(t => (currentUser.teamIds ?? []).includes(t.id))
+
   const [type,        setType]        = useState(availableTypes[0].value)
   const [matchId,     setMatchId]     = useState('')
   const [title,       setTitle]       = useState('')
@@ -317,6 +434,8 @@ function CreateEventModal({ clubId, authorId, onClose, onCreated, currentUser, i
   const [link,        setLink]        = useState('')
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
+  const [visibility,  setVisibility]  = useState('public')
+  const [teamScopeId, setTeamScopeId] = useState('')
 
   const isValidUrl = (s) => {
     if (!s.trim()) return true
@@ -325,6 +444,7 @@ function CreateEventModal({ clubId, authorId, onClose, onCreated, currentUser, i
 
   const canSubmit = title.trim() && startsAt &&
     (type !== 'carpool' || matchId) &&
+    (visibility !== 'team' || teamScopeId) &&
     isValidUrl(link)
 
   const handleSubmit = async () => {
@@ -345,6 +465,8 @@ function CreateEventModal({ clubId, authorId, onClose, onCreated, currentUser, i
           ends_at:     endsAt || null,
           link:        link.trim() || null,
           match_id:    matchId || null,
+          visibility:  visibility,
+          team_id:     teamScopeId || null,
         })
         .select('*, clubs(name)')
         .single()
@@ -423,6 +545,59 @@ function CreateEventModal({ clubId, authorId, onClose, onCreated, currentUser, i
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Visibilité (coach/président uniquement) */}
+          {isOneOf('president', 'coach') && type !== 'carpool' && (
+            <div>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">
+                Visibilité *
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: 'public', label: '🌍 Public', desc: 'Visible par tous les followers du club' },
+                  { value: 'team',   label: '⚽ Équipe',  desc: "Visible uniquement par les membres de l'équipe" },
+                  ...(is('president') ? [{ value: 'club', label: '🏛 Club', desc: 'Visible uniquement par les membres du club' }] : []),
+                ].map(v => (
+                  <label key={v.value}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                      visibility === v.value ? 'bg-brand-50 border-brand-300' : 'border-surface-200 hover:border-surface-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="eventVisibility"
+                      value={v.value}
+                      checked={visibility === v.value}
+                      onChange={() => setVisibility(v.value)}
+                      className="accent-brand-600"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{v.label}</div>
+                      <div className="text-xs text-gray-400">{v.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {/* Select équipe si visibility = 'team' */}
+              {visibility === 'team' && (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                    Quelle équipe ? *
+                  </label>
+                  <select
+                    value={teamScopeId}
+                    onChange={e => setTeamScopeId(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Choisir une équipe…</option>
+                    {availableTeams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 

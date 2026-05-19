@@ -4,17 +4,18 @@ import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge } from '../ui'
 import * as db from '../../services/db'
 import { supabase } from '../../lib/supabase'
+import { getClubById as getMockClubById } from '../../data/mock'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
-  CalendarDays, Shield, Calendar, MessageCircle, Newspaper,
-  Bell, LogOut, X, User,
+  Shield, Calendar, MessageCircle, Newspaper,
+  Bell, LogOut, X, User, Trophy,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
-  { to: '/app/events',   icon: CalendarDays,  label: 'Événements' },
   { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
+  { to: '/app/matches',  icon: Trophy,        label: 'Matchs'     },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier' },
   { to: '/app/messages', icon: MessageCircle, label: 'Messagerie' },
   { to: '/app/profile',  icon: User,          label: 'Profil'     },
@@ -31,9 +32,11 @@ export default function AppLayout() {
 
   const clubId = currentUser?.current_club_id
 
-  // Charger le club
+  // Charger le club (mock d'abord, Supabase en fallback)
   useEffect(() => {
     if (!clubId) { setClub(null); return }
+    const mockClub = getMockClubById(clubId)
+    if (mockClub) { setClub(mockClub); return }
     db.getClubById(clubId).then(setClub).catch(() => {})
   }, [clubId])
 

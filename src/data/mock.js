@@ -408,11 +408,12 @@ export const USERS = [
 export const EVENTS = [
   {
     id: 'ev-1',
+    club_id: 'club-1',
     title: 'Covoiturage — Déplacement FC Aubervilliers',
     description: 'Organisation du covoiturage pour le match de samedi. Départ depuis le parking terrain Nord.',
     category: 'team',
     type: 'carpool',
-    visibility: 'team',
+    visibility: 'public',
     teamId: 'team-1',
     startsAt: new Date(2026, 2, 15, 13, 30),
     location: 'Parking Terrain Nord',
@@ -423,12 +424,12 @@ export const EVENTS = [
   },
   {
     id: 'ev-2',
+    club_id: 'club-1',
     title: 'Réunion coachs — Bilan mi-saison',
     description: 'Point sur les résultats, présences et besoins équipement.',
     category: 'club',
     type: 'meeting',
-    visibility: 'role',
-    targetRoles: ['president', 'coach'],
+    visibility: 'club',
     startsAt: new Date(2026, 2, 25, 20, 0),
     location: 'Local du club',
     createdBy: 'user-1',
@@ -436,11 +437,12 @@ export const EVENTS = [
   },
   {
     id: 'ev-3',
+    club_id: 'club-1',
     title: 'Repas de fin de saison',
     description: 'Grand repas annuel pour tous les membres, familles et supporters.',
     category: 'club',
     type: 'social',
-    visibility: 'club',
+    visibility: 'public',
     startsAt: new Date(2026, 5, 28, 18, 0),
     location: 'Salle des fêtes, Saint-Martin-d\'Hères',
     createdBy: 'user-1',
@@ -449,11 +451,12 @@ export const EVENTS = [
   },
   {
     id: 'ev-4',
+    club_id: 'club-1',
     title: 'Tournoi de Pâques U9/U11',
     description: '4 équipes de 8 joueurs. Journée complète avec arbitrage.',
     category: 'club',
     type: 'tournament',
-    visibility: 'club',
+    visibility: 'public',
     startsAt: new Date(2026, 3, 6, 9, 0),
     endsAt: new Date(2026, 3, 6, 17, 0),
     location: 'Terrain Nord',
@@ -463,11 +466,12 @@ export const EVENTS = [
   },
   {
     id: 'ev-5',
+    club_id: 'club-1',
     title: 'BBQ de fin de saison',
     description: 'Grand barbecue pour fêter la fin de saison avec tous les membres, familles et supporters. Boissons et grillades offertes par le club !',
     category: 'club',
     type: 'social',
-    visibility: 'club',
+    visibility: 'public',
     startsAt: new Date(2026, 5, 21, 13, 0),
     endsAt: new Date(2026, 5, 21, 19, 0),
     location: 'Terrain Nord — FC Saint-Martin',
@@ -477,11 +481,12 @@ export const EVENTS = [
   },
   {
     id: 'ev-6',
+    club_id: 'club-1',
     title: 'Journée portes ouvertes',
     description: 'Venez découvrir le club, rencontrer les coachs et essayer le football. Ouvert à tous dès 6 ans.',
     category: 'club',
     type: 'social',
-    visibility: 'club',
+    visibility: 'public',
     startsAt: new Date(2026, 3, 20, 10, 0),
     endsAt: new Date(2026, 3, 20, 16, 0),
     location: 'Terrain principal — FC Saint-Martin',
@@ -491,6 +496,7 @@ export const EVENTS = [
   },
   {
     id: 'ev-7',
+    club_id: 'club-1',
     title: 'Réunion d\'équipe — Préparation playoffs',
     description: 'Point tactique avant les playoffs. Présence obligatoire pour tous les joueurs convoqués.',
     category: 'team',
@@ -763,6 +769,161 @@ export const CONVERSATIONS = [
   },
 ]
 
+// ─── CLUBS EXTERNES (pour le suivi) ────────────────────────────────────────
+export const EXTERNAL_CLUBS = [
+  {
+    id: 'mock-club-sd',
+    name: 'AS Saint-Denis United',
+    city: 'Saint-Denis',
+    sport: 'Football',
+    department: 'Seine-Saint-Denis',
+    region: 'Île-de-France',
+    teams: [
+      { id: 'mock-team-sd-1', name: 'Séniors A', category: 'Séniors' },
+      { id: 'mock-team-sd-2', name: 'U17 A',     category: 'U17'     },
+      { id: 'mock-team-sd-3', name: 'U13 B',     category: 'U13'     },
+    ],
+  },
+  {
+    id: 'mock-club-ol',
+    name: 'Olympique Lyonnais Amateur',
+    city: 'Lyon',
+    sport: 'Football',
+    department: 'Rhône',
+    region: 'Auvergne-Rhône-Alpes',
+    teams: [
+      { id: 'mock-team-ol-1', name: 'Séniors A', category: 'Séniors' },
+      { id: 'mock-team-ol-2', name: 'Séniors B', category: 'Séniors' },
+      { id: 'mock-team-ol-3', name: 'U19',        category: 'U19'     },
+    ],
+  },
+  {
+    id: 'mock-club-bx',
+    name: 'SC Bordeaux Rive Droite',
+    city: 'Bordeaux',
+    sport: 'Football',
+    department: 'Gironde',
+    region: 'Nouvelle-Aquitaine',
+    teams: [
+      { id: 'mock-team-bx-1', name: 'Séniors A', category: 'Séniors' },
+      { id: 'mock-team-bx-2', name: 'Séniors B', category: 'Séniors' },
+    ],
+  },
+  {
+    id: 'mock-club-nt',
+    name: 'FC Nantes Métropole',
+    city: 'Nantes',
+    sport: 'Football',
+    department: 'Loire-Atlantique',
+    region: 'Pays de la Loire',
+    teams: [
+      { id: 'mock-team-nt-1', name: 'Séniors A', category: 'Séniors' },
+      { id: 'mock-team-nt-2', name: 'U17',        category: 'U17'     },
+      { id: 'mock-team-nt-3', name: 'U13',        category: 'U13'     },
+    ],
+  },
+]
+
+// ─── ALL CLUBS (own + external) ────────────────────────────────────────────
+export function getAllClubs() {
+  return [
+    { ...CLUB, sport: 'Football', department: 'Isère', region: 'Auvergne-Rhône-Alpes', teams: TEAMS },
+    ...EXTERNAL_CLUBS,
+  ]
+}
+
+export function getClubById(id) {
+  return getAllClubs().find(c => c.id === id) ?? null
+}
+
+// ─── MATCHS À VENIR (multi-clubs) ──────────────────────────────────────────
+export const UPCOMING_MATCHES = [
+  // Club-1 (FC Saint-Martin)
+  {
+    id: 'match-2',
+    clubId: 'club-1', clubName: 'FC Saint-Martin',
+    teamId: 'team-1', teamName: 'Séniors A', teamCategory: 'Séniors',
+    opponentName: 'AS Grenoble',
+    scheduledAt: new Date(2026, 3, 5, 14, 0),
+    location: 'Stade Municipal de Grenoble',
+    isHome: false, referee: 'Mme. Fontaine',
+    carpoolCount: 1,
+  },
+  {
+    id: 'match-3',
+    clubId: 'club-1', clubName: 'FC Saint-Martin',
+    teamId: 'team-2', teamName: 'U13 B', teamCategory: 'U13',
+    opponentName: 'GJ Vizille',
+    scheduledAt: new Date(2026, 3, 12, 10, 0),
+    location: 'Terrain annexe — FC Saint-Martin',
+    isHome: true, referee: null,
+    carpoolCount: 0,
+  },
+  {
+    id: 'match-4',
+    clubId: 'club-1', clubName: 'FC Saint-Martin',
+    teamId: 'team-4', teamName: 'Vétérans', teamCategory: 'Vétérans',
+    opponentName: 'Vétérans FC Meylan',
+    scheduledAt: new Date(2026, 3, 19, 11, 0),
+    location: 'Terrain principal — FC Saint-Martin',
+    isHome: true, referee: null,
+    carpoolCount: 0,
+  },
+  // AS Saint-Denis United (mock-club-sd)
+  {
+    id: 'um-sd-1',
+    clubId: 'mock-club-sd', clubName: 'AS Saint-Denis United',
+    teamId: 'mock-team-sd-1', teamName: 'Séniors A', teamCategory: 'Séniors',
+    opponentName: 'Red Star FC',
+    scheduledAt: new Date(2026, 4, 22, 15, 0),
+    location: 'Stade Bauer',
+    isHome: false, referee: 'M. Renard',
+    carpoolCount: 2,
+  },
+  {
+    id: 'um-sd-2',
+    clubId: 'mock-club-sd', clubName: 'AS Saint-Denis United',
+    teamId: 'mock-team-sd-2', teamName: 'U17 A', teamCategory: 'U17',
+    opponentName: 'US Bondy',
+    scheduledAt: new Date(2026, 4, 23, 10, 0),
+    location: 'Stade Municipal Saint-Denis',
+    isHome: true, referee: null,
+    carpoolCount: 0,
+  },
+  {
+    id: 'um-sd-3',
+    clubId: 'mock-club-sd', clubName: 'AS Saint-Denis United',
+    teamId: 'mock-team-sd-3', teamName: 'U13 B', teamCategory: 'U13',
+    opponentName: 'ES Villetaneuse',
+    scheduledAt: new Date(2026, 4, 24, 9, 30),
+    location: 'Stade Marcel-Cerdan',
+    isHome: true, referee: null,
+    carpoolCount: 0,
+  },
+  // Olympique Lyonnais Amateur
+  {
+    id: 'um-ol-1',
+    clubId: 'mock-club-ol', clubName: 'Olympique Lyonnais Amateur',
+    teamId: 'mock-team-ol-1', teamName: 'Séniors A', teamCategory: 'Séniors',
+    opponentName: 'FC Villefranche',
+    scheduledAt: new Date(2026, 4, 24, 15, 0),
+    location: 'Stade de Gerland',
+    isHome: true, referee: 'M. Perrin',
+    carpoolCount: 1,
+  },
+  // SC Bordeaux
+  {
+    id: 'um-bx-1',
+    clubId: 'mock-club-bx', clubName: 'SC Bordeaux Rive Droite',
+    teamId: 'mock-team-bx-1', teamName: 'Séniors A', teamCategory: 'Séniors',
+    opponentName: 'FC Mérignac',
+    scheduledAt: new Date(2026, 4, 25, 15, 0),
+    location: 'Stade Chaban-Delmas',
+    isHome: false, referee: null,
+    carpoolCount: 3,
+  },
+]
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 export function getUserById(id) {
   return USERS.find(u => u.id === id) ?? null
@@ -782,4 +943,15 @@ export function getInitials(user) {
   const first = user.firstName ?? user.first_name ?? ''
   const last  = user.lastName  ?? user.last_name  ?? ''
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
+}
+
+// Upcoming matches filtrés selon le suivi utilisateur
+export function getUpcomingMatchesForUser(user) {
+  const followedClubs = new Set(user.followed_clubs ?? [])
+  const followedTeams = new Set(user.followed_teams ?? [])
+  return UPCOMING_MATCHES.filter(m => {
+    if (followedClubs.has(m.clubId)) return true
+    if (followedTeams.has(m.teamId)) return true
+    return false
+  })
 }

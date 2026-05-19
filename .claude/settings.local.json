@@ -9,7 +9,12 @@
       "Bash(echo \"EXIT_CODE:$?\")",
       "Bash(echo \"EXIT:$?\")",
       "Bash(node:*)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(/Users/matteolemesre/Documents/GitHub/clubmanager/node_modules/.bin/vite build:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node -e \"require\\(''''./node_modules/.bin/vite''''\\)\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

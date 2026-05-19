@@ -14,6 +14,10 @@ const PERSONAS = {
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'president', scope_type: 'club', scope_id: 'club-1' }],
+    member_of_clubs: ['club-1'],
+    teams: ['team-1', 'team-2', 'team-3', 'team-4'],
+    followed_clubs: ['club-1'],
+    followed_teams: [],
   },
   coach: {
     id: 'u-2', email: 'coach@test.fr', password_hash: 'password',
@@ -25,6 +29,10 @@ const PERSONAS = {
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'coach', scope_type: 'team', scope_id: 'team-1' }],
+    member_of_clubs: ['club-1'],
+    teams: ['team-1'],
+    followed_clubs: ['club-1'],
+    followed_teams: [],
   },
   player: {
     id: 'u-3', email: 'joueur@test.fr', password_hash: 'password',
@@ -36,6 +44,10 @@ const PERSONAS = {
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
     current_club_id: 'club-1',
     user_roles: [{ role_type: 'player', scope_type: 'team', scope_id: 'team-1' }],
+    member_of_clubs: ['club-1'],
+    teams: ['team-1'],
+    followed_clubs: ['club-1'],
+    followed_teams: [],
   },
   supporter: {
     id: 'u-4', email: 'supporter@test.fr', password_hash: 'password',
@@ -49,6 +61,8 @@ const PERSONAS = {
     user_roles: [],
     followed_clubs: ['mock-club-sd'],
     followed_teams: ['mock-team-sd-1', 'mock-team-sd-2'],
+    member_of_clubs: [],
+    teams: [],
   },
 }
 
@@ -58,6 +72,41 @@ export const MOCK_CLUBS = {
 }
 
 export const MOCK_FEED_POSTS = {
+  'club-1': [
+    {
+      id: 'post-cl1-1',
+      club_id: 'club-1',
+      clubs: { id: 'club-1', name: 'FC Lens Académie', city: 'Lens' },
+      users: { id: 'u-1', first_name: 'Jean', last_name: 'Dupont' },
+      content: '🏆 Victoire 2-0 face au FC Échirolles ce dimanche ! Super performance des Séniors A, bien joués les gars !',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3],
+      post_comments: [],
+      created_at: new Date(2026, 4, 14, 18, 0).toISOString(),
+    },
+    {
+      id: 'post-cl1-2',
+      club_id: 'club-1',
+      clubs: { id: 'club-1', name: 'FC Lens Académie', city: 'Lens' },
+      users: { id: 'u-1', first_name: 'Jean', last_name: 'Dupont' },
+      content: '📣 Rappel : Journée portes ouvertes le 20 avril au terrain principal. Venez nombreux pour découvrir notre club !',
+      media_url: null, media_type: null,
+      post_likes: [1, 2],
+      post_comments: [],
+      created_at: new Date(2026, 4, 10, 10, 0).toISOString(),
+    },
+    {
+      id: 'post-cl1-3',
+      club_id: 'club-1',
+      clubs: { id: 'club-1', name: 'FC Lens Académie', city: 'Lens' },
+      users: { id: 'u-1', first_name: 'Jean', last_name: 'Dupont' },
+      content: '⚽ Les U13 B s\'imposent 4-2 contre Vizille ! Super match, mention spéciale à Théo Moreau (doublé).',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4, 5],
+      post_comments: [],
+      created_at: new Date(2026, 4, 7, 16, 30).toISOString(),
+    },
+  ],
   'mock-club-sd': [
     {
       id: 'post-sd-1',
