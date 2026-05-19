@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -8,81 +8,59 @@ import {
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
-import { getUpcomingMatchesForUser } from '../../data/mock'
+import { getUpcomingMatchesForUser, TEAMS } from '../../data/mock'
 import { Card, Badge } from '../../components/ui'
-import {
-  ChevronLeft, ChevronRight, Calendar,
-  Clock, MapPin, Home, Bus, Car,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Car } from 'lucide-react'
 
-// ─── Couleurs par type ──────────────────────────────────────────────────────
-const TYPE_COLOR = {
-  match:    { dot: 'bg-brand-500',   label: 'Match',        badgeVariant: 'brand'  },
-  training: { dot: 'bg-emerald-400', label: 'Entraînement', badgeVariant: 'green'  },
-  social:   { dot: 'bg-violet-400',  label: 'Événement',    badgeVariant: 'purple' },
-  meeting:  { dot: 'bg-amber-400',   label: 'Réunion',      badgeVariant: 'orange' },
-  carpool:  { dot: 'bg-sky-400',     label: 'Covoiturage',  badgeVariant: 'blue'   },
-  tournament:{ dot: 'bg-pink-400',   label: 'Tournoi',      badgeVariant: 'red'    },
-}
-
-function dotFor(item) {
-  if (item._kind === 'match')    return TYPE_COLOR.match.dot
-  if (item._kind === 'training') return TYPE_COLOR.training.dot
-  return TYPE_COLOR[item.type]?.dot ?? TYPE_COLOR.social.dot
-}
-
-function labelFor(item) {
-  if (item._kind === 'match')    return `vs ${item.opponentName ?? item.opponentName}`
-  if (item._kind === 'training') return 'Entraînement'
-  return item.title ?? 'Événement'
+// ─── Couleurs pastilles ─────────────────────────────────────────────────────
+function getItemColor(item) {
+  if (item._kind === 'match')    return 'bg-brand-500'
+  if (item._kind === 'training') return 'bg-emerald-400'
+  if (item.type === 'meeting')   return 'bg-amber-400'
+  if (item.type === 'social' || item.type === 'tournament') return 'bg-violet-400'
+  return 'bg-violet-400'
 }
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
-  const { currentUser } = useAuth()
+  const { currentUser, is, isOneOf } = useAuth()
   const navigate = useNavigate()
-  const { events, trainings, matches, teams, getTeamById, loading } = useClubData()
+  const { events, trainings, matches, getTeamById, loading } = useClubData()
 
-  const isPresident  = currentUser.role === 'president'
-  const isSupporter  = currentUser.role === 'supporter'
-  const isParent     = currentUser.role === 'parent'
-  const isPrivileged = isPresident || currentUser.role === 'coach'
+  const isPresident  = is('president')
+  const isSupporter  = is('supporter')
+  const isParent     = is('parent')
+  const isPrivileged = isOneOf('president', 'coach')
 
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [selectedDay,  setSelectedDay]  = useState(new Date())
+  const [selectedDate,     setSelectedDate]     = useState(new Date())
+  const [selectedEvent,    setSelectedEvent]     = useState(null)
+  const [showCreateEvent,  setShowCreateEvent]  = useState(false)
+  const [localEvents,      setLocalEvents]      = useState([])
 
-  // Grille du mois
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 })
-    const end   = endOfWeek(endOfMonth(currentMonth),     { weekStartsOn: 1 })
-    return eachDayOfInterval({ start, end })
-  }, [currentMonth])
-
-  // Matchs à venir depuis la logique de suivi
+  // Matchs filtrés selon suivi
   const followedMatches = useMemo(
     () => getUpcomingMatchesForUser(currentUser),
     [currentUser]
   )
 
-  // Tous les items : matchs (club + suivis) + entraînements + événements
+  // Fusion de tous les items
   const allItems = useMemo(() => {
     const items = []
 
-    // Matchs club (via useClubData)
+    // Matchs club (useClubData)
     matches
       .filter(m => isPresident || isSupporter || isParent || currentUser.teamIds?.includes(m.teamId))
       .forEach(m => {
-        const date = m.scheduledAt instanceof Date ? m.scheduledAt : new Date(m.scheduledAt)
-        items.push({ ...m, _kind: 'match', _dateObj: date, _source: 'club' })
+        const d = m.scheduledAt instanceof Date ? m.scheduledAt : new Date(m.scheduledAt)
+        items.push({ ...m, _kind: 'match', _date: d })
       })
 
-    // Matchs suivis (multi-clubs, depuis mock UPCOMING_MATCHES)
+    // Matchs suivis (multi-clubs) — sans doublons
     followedMatches.forEach(m => {
-      // éviter les doublons avec les matchs du club
       if (items.some(i => i.id === m.id)) return
-      items.push({ ...m, _kind: 'match', _dateObj: m.scheduledAt, _source: 'followed' })
+      items.push({ ...m, _kind: 'match', _date: m.scheduledAt })
     })
 
     // Entraînements (pas pour supporter/parent)
@@ -90,15 +68,16 @@ export default function CalendarPage() {
       trainings
         .filter(t => isPresident || currentUser.teamIds?.includes(t.teamId))
         .forEach(t => {
-          const date = t.date ? parseISO(t.date) : null
-          if (date) items.push({ ...t, _kind: 'training', _dateObj: date })
+          const d = t.date ? parseISO(t.date) : null
+          if (d) items.push({ ...t, _kind: 'training', _date: d })
         })
     }
 
     // Événements
-    events
+    const allEvents = [...events, ...localEvents]
+    allEvents
       .filter(ev => {
-        if (ev.category === 'club') {
+        if (ev.category === 'club' || !ev.category) {
           if (ev.visibility === 'public' || ev.visibility === 'club') return true
           if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
           return false
@@ -109,33 +88,33 @@ export default function CalendarPage() {
         return false
       })
       .forEach(ev => {
-        const date = ev.startsAt instanceof Date ? ev.startsAt : ev.startsAt ? new Date(ev.startsAt) : null
-        if (date) items.push({ ...ev, _kind: 'event', _dateObj: date })
+        const d = ev.startsAt instanceof Date
+          ? ev.startsAt
+          : ev.startsAt
+          ? new Date(ev.startsAt)
+          : ev.starts_at
+          ? new Date(ev.starts_at)
+          : null
+        if (d) items.push({ ...ev, _kind: 'event', _date: d })
       })
 
     return items
-  }, [matches, followedMatches, trainings, events, currentUser, isPresident, isSupporter, isParent, isPrivileged])
+  }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, isPrivileged])
 
-  function itemsForDay(day) {
-    const str = format(day, 'yyyy-MM-dd')
-    return allItems.filter(i => i._dateObj && format(i._dateObj, 'yyyy-MM-dd') === str)
-  }
-
-  // 10 prochains items (pour colonne droite)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const upcoming = useMemo(() =>
+  // 10 prochains items
+  const now = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
+  const upcomingItems = useMemo(() =>
     allItems
-      .filter(i => i._dateObj >= today)
-      .sort((a, b) => a._dateObj - b._dateObj)
+      .filter(i => i._date >= now)
+      .sort((a, b) => a._date - b._date)
       .slice(0, 10)
-  , [allItems])
-
-  const selectedDayItems = itemsForDay(selectedDay)
+  , [allItems, now])
 
   function handleItemClick(item) {
     if (item._kind === 'match') {
       navigate(`/app/matches/${item.id}`)
+    } else {
+      setSelectedEvent(item)
     }
   }
 
@@ -148,254 +127,588 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 112px)' }}>
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-2xl text-gray-900">Calendrier</h1>
-        <p className="text-surface-500 text-sm mt-0.5">Matchs, entraînements et événements</p>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 flex-shrink-0">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-gray-900">Calendrier</h1>
+          <div className="flex items-center gap-3 mt-1">
+            {[
+              { dot: 'bg-brand-500',   label: 'Match'        },
+              { dot: 'bg-emerald-400', label: 'Entraînement' },
+              { dot: 'bg-violet-400',  label: 'Événement'    },
+              { dot: 'bg-amber-400',   label: 'Réunion'      },
+            ].map(f => (
+              <div key={f.label} className="flex items-center gap-1 text-xs text-surface-400">
+                <span className={`w-2 h-2 rounded-full ${f.dot}`} />
+                {f.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {isOneOf('president', 'coach') && (
+          <button
+            onClick={() => setShowCreateEvent(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
+                       text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            <Plus size={15} /> Créer un événement
+          </button>
+        )}
       </div>
 
-      {/* Légende */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        {[
-          { dot: 'bg-brand-500',   label: 'Match'        },
-          { dot: 'bg-emerald-400', label: 'Entraînement' },
-          { dot: 'bg-violet-400',  label: 'Événement'    },
-          { dot: 'bg-amber-400',   label: 'Réunion'      },
-        ].map(f => (
-          <div key={f.label} className="flex items-center gap-1.5 text-xs text-surface-500">
-            <span className={`w-2 h-2 rounded-full ${f.dot}`} />
-            {f.label}
+      {/* Layout 70/30 */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Colonne gauche 70% - Calendrier mensuel */}
+        <div className="flex-[7] p-6 overflow-auto">
+          <CalendarMonthView
+            items={allItems}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onClickItem={handleItemClick}
+          />
+        </div>
+
+        {/* Colonne droite 30% - Prochains événements */}
+        <div className="flex-[3] border-l border-surface-200 p-5 overflow-auto">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <span>📌</span> Prochains
+          </h3>
+
+          {upcomingItems.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-3xl mb-2">📅</div>
+              <div className="text-sm">Aucun événement à venir</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {upcomingItems.map((item, idx) => (
+                <UpcomingItemCard
+                  key={`${item.id}-${idx}`}
+                  item={item}
+                  onClick={() => handleItemClick(item)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal création événement */}
+      {showCreateEvent && (
+        <CreateEventModal
+          currentUser={currentUser}
+          onClose={() => setShowCreateEvent(false)}
+          onCreated={ev => {
+            setLocalEvents(prev => [...prev, ev])
+            setShowCreateEvent(false)
+          }}
+        />
+      )}
+
+      {/* Pop-up détail événement/entraînement */}
+      {selectedEvent && (
+        <EventDetailPopup
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── CalendarMonthView ──────────────────────────────────────────────────────
+
+function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const days = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 })
+    const end   = endOfWeek(endOfMonth(currentMonth),     { weekStartsOn: 1 })
+    return eachDayOfInterval({ start, end })
+  }, [currentMonth])
+
+  const itemsByDay = useMemo(() => {
+    const grouped = {}
+    items.forEach(item => {
+      if (!item._date) return
+      const key = format(item._date, 'yyyy-MM-dd')
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(item)
+    })
+    return grouped
+  }, [items])
+
+  return (
+    <div>
+      {/* Navigation mois */}
+      <div className="flex items-center justify-between mb-5">
+        <button
+          onClick={() => setCurrentMonth(m => subMonths(m, 1))}
+          className="p-2 hover:bg-surface-100 rounded-xl transition-colors"
+        >
+          <ChevronLeft size={18} className="text-surface-600" />
+        </button>
+        <h2 className="font-display font-semibold text-lg text-gray-900 capitalize">
+          {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+        </h2>
+        <button
+          onClick={() => setCurrentMonth(m => addMonths(m, 1))}
+          className="p-2 hover:bg-surface-100 rounded-xl transition-colors"
+        >
+          <ChevronRight size={18} className="text-surface-600" />
+        </button>
+      </div>
+
+      {/* En-têtes jours */}
+      <div className="grid grid-cols-7 mb-1">
+        {WEEK_DAYS.map(d => (
+          <div key={d} className="text-center text-xs font-semibold text-surface-400 py-2">
+            {d}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      {/* Grille */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day, idx) => {
+          const key        = format(day, 'yyyy-MM-dd')
+          const dayItems   = itemsByDay[key] ?? []
+          const inMonth    = isSameMonth(day, currentMonth)
+          const isSelected = isSameDay(day, selectedDate)
+          const isTodayDay = isToday(day)
 
-        {/* ── Calendrier (70%) ── */}
-        <div className="col-span-2">
-          <Card className="overflow-hidden">
+          return (
+            <div
+              key={idx}
+              onClick={() => onSelectDate(day)}
+              className={`min-h-[88px] p-2 border rounded-xl cursor-pointer transition-all
+                ${isTodayDay  ? 'border-brand-400 bg-brand-50' : 'border-surface-200'}
+                ${isSelected  ? 'ring-2 ring-brand-600 ring-offset-1' : ''}
+                ${!inMonth    ? 'opacity-30' : 'hover:bg-surface-50'}
+              `}
+            >
+              <div className={`text-xs font-semibold mb-1.5 ${isTodayDay ? 'text-brand-700' : 'text-surface-700'}`}>
+                {format(day, 'd')}
+              </div>
 
-            {/* Navigation mois */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
-              <button
-                onClick={() => setCurrentMonth(m => subMonths(m, 1))}
-                className="p-1.5 rounded-lg hover:bg-surface-100 transition-colors"
-              >
-                <ChevronLeft size={18} className="text-surface-600" />
-              </button>
-              <h2 className="font-display font-semibold text-surface-900 capitalize">
-                {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-              </h2>
-              <button
-                onClick={() => setCurrentMonth(m => addMonths(m, 1))}
-                className="p-1.5 rounded-lg hover:bg-surface-100 transition-colors"
-              >
-                <ChevronRight size={18} className="text-surface-600" />
-              </button>
+              <div className="flex flex-wrap gap-1">
+                {dayItems.slice(0, 4).map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={e => { e.stopPropagation(); onClickItem(item) }}
+                    title={item._kind === 'match' ? `vs ${item.opponentName}` : (item.title ?? 'Entraînement')}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 hover:scale-125 transition-transform ${getItemColor(item)}`}
+                  />
+                ))}
+                {dayItems.length > 4 && (
+                  <span className="text-[9px] text-surface-400 leading-none self-end">
+                    +{dayItems.length - 4}
+                  </span>
+                )}
+              </div>
             </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
-            {/* Jours semaine */}
-            <div className="grid grid-cols-7 border-b border-surface-100">
-              {WEEK_DAYS.map(d => (
-                <div key={d} className="py-2 text-center text-xs font-semibold text-surface-400">
-                  {d}
-                </div>
+// ─── UpcomingItemCard ───────────────────────────────────────────────────────
+
+function UpcomingItemCard({ item, onClick }) {
+  const dateStr = format(item._date, "EEE d MMM · HH'h'mm", { locale: fr })
+
+  if (item._kind === 'match') {
+    const hasCarpools = (item.carpoolCount ?? item.carpool?.length ?? 0) > 0
+    return (
+      <button
+        onClick={onClick}
+        className="w-full text-left p-3 bg-white rounded-xl border border-surface-200
+                   hover:border-brand-300 cursor-pointer transition-all"
+      >
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
+          <span className="text-[10px] text-gray-400">{dateStr}</span>
+          {hasCarpools && (
+            <span className="ml-auto text-[10px] text-emerald-600 flex items-center gap-0.5">
+              <Car size={9} /> {item.carpoolCount ?? item.carpool?.length}
+            </span>
+          )}
+        </div>
+        <div className="text-xs font-semibold text-gray-900">
+          ⚽ {item.teamName ?? item.teams?.name} vs {item.opponentName ?? item.opponent}
+        </div>
+        {item.location && (
+          <div className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+            <MapPin size={9} /> {item.location}
+          </div>
+        )}
+        <div className="text-[10px] text-brand-600 font-medium mt-1">Voir la fiche →</div>
+      </button>
+    )
+  }
+
+  if (item._kind === 'training') {
+    return (
+      <div className="p-3 bg-white rounded-xl border border-surface-200">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+          <span className="text-[10px] text-gray-400">{dateStr}</span>
+        </div>
+        <div className="text-xs font-semibold text-gray-900">🏃 Entraînement</div>
+        {item.location && (
+          <div className="text-[10px] text-gray-500 mt-0.5">{item.location}</div>
+        )}
+      </div>
+    )
+  }
+
+  // event
+  const dot = item.type === 'meeting' ? 'bg-amber-400' : 'bg-violet-400'
+  const icon = item.type === 'meeting' ? '📋' : item.type === 'social' ? '🎉' : item.type === 'tournament' ? '🏆' : '📌'
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left p-3 bg-white rounded-xl border border-surface-200
+                 hover:border-violet-300 cursor-pointer transition-all"
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0`} />
+        <span className="text-[10px] text-gray-400">{dateStr}</span>
+      </div>
+      <div className="text-xs font-semibold text-gray-900 truncate">
+        {icon} {item.title}
+      </div>
+      {item.location && (
+        <div className="text-[10px] text-gray-500 mt-0.5 truncate">{item.location}</div>
+      )}
+    </button>
+  )
+}
+
+// ─── CreateEventModal ───────────────────────────────────────────────────────
+
+function CreateEventModal({ currentUser, onClose, onCreated }) {
+  const [title,       setTitle]       = useState('')
+  const [description, setDescription] = useState('')
+  const [location,    setLocation]    = useState('')
+  const [startsAt,    setStartsAt]    = useState('')
+  const [endsAt,      setEndsAt]      = useState('')
+  const [link,        setLink]        = useState('')
+  const [visibility,  setVisibility]  = useState('public')
+  const [teamId,      setTeamId]      = useState('')
+  const [error,       setError]       = useState('')
+
+  const isPresident = currentUser.role === 'president'
+  const isCoach     = currentUser.role === 'coach'
+
+  const availableTeams = isPresident
+    ? TEAMS
+    : TEAMS.filter(t => (currentUser.teamIds ?? []).includes(t.id))
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  function handleSubmit() {
+    if (!title.trim())               { setError('Titre requis'); return }
+    if (!startsAt)                   { setError('Date de début requise'); return }
+    if (visibility === 'team' && !teamId) { setError('Équipe requise'); return }
+
+    const newEvent = {
+      id:          `local-${Date.now()}`,
+      category:    'club',
+      type:        'social',
+      visibility,
+      teamId:      visibility === 'team' ? teamId : null,
+      club_id:     currentUser.current_club_id,
+      title:       title.trim(),
+      description: description.trim() || null,
+      location:    location.trim() || null,
+      startsAt:    new Date(startsAt),
+      endsAt:      endsAt ? new Date(endsAt) : null,
+      link:        link.trim() || null,
+      createdBy:   currentUser.id,
+      attendees:   [],
+    }
+    onCreated(newEvent)
+  }
+
+  const inputCls = "w-full bg-surface-50 border border-surface-200 rounded-xl px-3 py-2.5 text-sm " +
+    "focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
+          <h2 className="font-display font-bold text-lg">Nouvel événement</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Corps */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Titre *
+            </label>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Ex : Repas de fin de saison…" className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Description
+            </label>
+            <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Détails de l'événement…" className={inputCls + " resize-none"} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Lieu
+            </label>
+            <input value={location} onChange={e => setLocation(e.target.value)}
+              placeholder="Adresse ou nom du lieu" className={inputCls} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                Début *
+              </label>
+              <input type="datetime-local" value={startsAt}
+                onChange={e => setStartsAt(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                Fin
+              </label>
+              <input type="datetime-local" value={endsAt}
+                onChange={e => setEndsAt(e.target.value)} className={inputCls} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              Lien externe
+            </label>
+            <input value={link} onChange={e => setLink(e.target.value)}
+              placeholder="https://…" className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">
+              Visibilité *
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'public', label: '🌍 Public',  desc: 'Visible par tous les followers du club' },
+                { value: 'team',   label: '⚽ Équipe',   desc: "Membres de l'équipe uniquement" },
+                ...(isPresident ? [{ value: 'club', label: '🏛 Club', desc: 'Membres du club uniquement' }] : []),
+              ].map(v => (
+                <label key={v.value}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    visibility === v.value ? 'bg-brand-50 border-brand-300' : 'border-surface-200 hover:border-surface-300'
+                  }`}
+                >
+                  <input type="radio" name="vis" value={v.value}
+                    checked={visibility === v.value}
+                    onChange={() => setVisibility(v.value)}
+                    className="accent-brand-600" />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{v.label}</div>
+                    <div className="text-xs text-gray-400">{v.desc}</div>
+                  </div>
+                </label>
               ))}
             </div>
 
-            {/* Cases jours */}
-            <div className="grid grid-cols-7">
-              {days.map((day, idx) => {
-                const dayItems   = itemsForDay(day)
-                const inMonth    = isSameMonth(day, currentMonth)
-                const isSelected = isSameDay(day, selectedDay)
-                const isTodayDay = isToday(day)
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedDay(day)}
-                    className={`min-h-[72px] p-2 border-b border-r border-surface-100 text-left
-                                transition-colors ${isSelected ? 'bg-brand-50' : 'hover:bg-surface-50'}
-                                ${!inMonth ? 'opacity-40' : ''}`}
-                  >
-                    <span className={`inline-flex w-6 h-6 items-center justify-center rounded-full
-                                      text-xs font-medium mb-1 ${
-                      isTodayDay
-                        ? 'bg-brand-600 text-white'
-                        : isSelected
-                        ? 'text-brand-700 font-bold'
-                        : 'text-surface-700'
-                    }`}>
-                      {format(day, 'd')}
-                    </span>
-                    <div className="flex flex-col gap-0.5">
-                      {dayItems.slice(0, 3).map((item, i) => (
-                        <div key={i} className="flex items-center gap-1">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotFor(item)}`} />
-                          <span className="text-[10px] text-surface-600 truncate leading-tight">
-                            {labelFor(item)}
-                          </span>
-                        </div>
-                      ))}
-                      {dayItems.length > 3 && (
-                        <span className="text-[10px] text-surface-400">+{dayItems.length - 3}</span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </Card>
-        </div>
-
-        {/* ── Colonne droite (30%) ── */}
-        <div className="flex flex-col gap-4">
-
-          {/* Jour sélectionné */}
-          <div>
-            <h3 className="font-display font-semibold text-surface-800 text-base mb-2 capitalize">
-              {format(selectedDay, "EEEE d MMMM", { locale: fr })}
-            </h3>
-
-            {selectedDayItems.length === 0 ? (
-              <Card className="p-4 text-center">
-                <Calendar size={24} className="text-surface-300 mx-auto mb-2" />
-                <p className="text-xs text-surface-500">Aucun événement ce jour</p>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {selectedDayItems.map((item, idx) => (
-                  <ItemCard
-                    key={idx}
-                    item={item}
-                    getTeamById={getTeamById}
-                    onClick={() => handleItemClick(item)}
-                  />
-                ))}
+            {visibility === 'team' && availableTeams.length > 0 && (
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                  Quelle équipe ? *
+                </label>
+                <select value={teamId} onChange={e => setTeamId(e.target.value)} className={inputCls}>
+                  <option value="">Choisir une équipe…</option>
+                  {availableTeams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
 
-          {/* Prochains événements */}
-          {upcoming.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                À venir
-              </p>
-              <div className="space-y-2">
-                {upcoming.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setSelectedDay(item._dateObj)
-                      setCurrentMonth(item._dateObj)
-                      handleItemClick(item)
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2.5 bg-white rounded-xl
-                               border border-surface-200 hover:border-surface-300
-                               text-left transition-colors"
-                  >
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotFor(item)}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-gray-900 truncate">
-                        {labelFor(item)}
-                      </div>
-                      <div className="text-[10px] text-gray-400">
-                        {format(item._dateObj, "EEE d MMM · HH'h'mm", { locale: fr })}
-                      </div>
-                    </div>
-                    {item._kind === 'match' && (
-                      <span className="text-[10px] text-brand-600 font-medium flex-shrink-0">→</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              {error}
             </div>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-surface-100">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-surface-600
+                       hover:bg-surface-100 transition-colors">
+            Annuler
+          </button>
+          <button onClick={handleSubmit}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-brand-600
+                       hover:bg-brand-700 text-white transition-colors">
+            Créer
+          </button>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── ItemCard ───────────────────────────────────────────────────────────────
+// ─── EventDetailPopup ───────────────────────────────────────────────────────
 
-function ItemCard({ item, getTeamById, onClick }) {
-  const navigate = useNavigate()
-  const isMatch    = item._kind === 'match'
-  const isTraining = item._kind === 'training'
-  const team = item.teamId ? getTeamById(item.teamId) : null
-  const time = item._dateObj ? format(item._dateObj, "HH'h'mm") : '—'
+function EventDetailPopup({ event, onClose }) {
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
 
-  if (isMatch) {
-    return (
-      <Card
-        className="p-3 cursor-pointer hover:border-brand-200 transition-all"
-        onClick={onClick}
+  const [participating, setParticipating] = useState(null)
+
+  const isTraining = event._kind === 'training'
+  const isFuture   = event._date > new Date()
+
+  const icon = isTraining ? '🏃'
+    : event.type === 'meeting'    ? '📋'
+    : event.type === 'social'     ? '🎉'
+    : event.type === 'tournament' ? '🏆'
+    : event.type === 'carpool'    ? '🚗'
+    : '📌'
+
+  const dateStr = event._date
+    ? format(event._date, "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })
+    : '—'
+
+  const endStr = event.endsAt
+    ? format(event.endsAt instanceof Date ? event.endsAt : new Date(event.endsAt), "HH'h'mm")
+    : event.ends_at
+    ? format(new Date(event.ends_at), "HH'h'mm")
+    : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6"
+        onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
-          <Badge variant={item.isHome ? 'brand' : 'orange'}>
-            {item.isHome ? 'Domicile' : 'Déplacement'}
-          </Badge>
-          {team && <Badge variant="gray">{team.name ?? item.teamName}</Badge>}
-          {item._source === 'followed' && item.clubName && (
-            <Badge variant="gray">{item.clubName}</Badge>
-          )}
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
+            <span>{icon}</span>
+            <span>{isTraining ? 'Entraînement' : (event.title ?? 'Événement')}</span>
+          </h2>
+          <button onClick={onClose}
+            className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400 ml-4">
+            <X size={18} />
+          </button>
         </div>
-        <p className="font-semibold text-sm text-surface-900">
-          vs {item.opponentName}
-        </p>
-        <div className="mt-1.5 space-y-0.5 text-xs text-surface-500">
-          <div className="flex items-center gap-1"><Clock size={10} /> {time}</div>
-          {item.location && (
-            <div className="flex items-center gap-1"><MapPin size={10} /> {item.location}</div>
+
+        <div className="space-y-3">
+          {/* Date */}
+          <div className="flex items-start gap-2 text-sm text-gray-600">
+            <span className="mt-0.5">📅</span>
+            <span>
+              {dateStr}
+              {endStr && <span className="text-gray-400"> — {endStr}</span>}
+            </span>
+          </div>
+
+          {/* Lieu */}
+          {event.location && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>📍</span>
+              <span>{event.location}</span>
+            </div>
           )}
-          {(item.carpoolCount > 0 || (item.carpool?.length > 0)) && (
-            <div className="flex items-center gap-1 text-emerald-600 font-medium">
-              <Car size={10} />
-              {item.carpoolCount ?? item.carpool?.length} covoiturage{(item.carpoolCount ?? item.carpool?.length) > 1 ? 's' : ''}
+
+          {/* Thème (entraînement) */}
+          {isTraining && event.theme && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>🎯</span>
+              <span>{event.theme}</span>
+            </div>
+          )}
+
+          {/* Description */}
+          {event.description && (
+            <div className="pt-1">
+              <p className="text-sm font-semibold text-gray-700 mb-1">📝 Description</p>
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{event.description}</p>
+            </div>
+          )}
+
+          {/* Lien */}
+          {(event.link ?? event.link) && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">🔗 Lien</p>
+              <a href={event.link} target="_blank" rel="noopener noreferrer"
+                className="text-sm text-brand-600 hover:underline break-all">
+                {event.link}
+              </a>
+            </div>
+          )}
+
+          {/* Participation (événement futur, pas entraînement) */}
+          {!isTraining && isFuture && (
+            <div className="pt-2">
+              <p className="text-sm font-semibold text-gray-700 mb-2">✋ Votre participation</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setParticipating(true)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    participating === true
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  ✓ Je participe
+                </button>
+                <button
+                  onClick={() => setParticipating(false)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    participating === false
+                      ? 'bg-red-500 text-white'
+                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  }`}
+                >
+                  ✗ Je ne participe pas
+                </button>
+              </div>
             </div>
           )}
         </div>
-        <div className="mt-2 text-[10px] text-brand-600 font-medium">Voir la fiche →</div>
-      </Card>
-    )
-  }
 
-  if (isTraining) {
-    const tc = TYPE_COLOR.training
-    return (
-      <Card className="p-3">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className={`w-2 h-2 rounded-full ${tc.dot}`} />
-          <Badge variant={tc.badgeVariant}>{tc.label}</Badge>
-          {team && <Badge variant="gray">{team.name}</Badge>}
+        <div className="mt-6">
+          <button onClick={onClose}
+            className="w-full py-2.5 rounded-xl text-sm font-medium text-surface-600
+                       hover:bg-surface-100 border border-surface-200 transition-colors">
+            Fermer
+          </button>
         </div>
-        <div className="text-xs text-surface-500 space-y-0.5">
-          <div className="flex items-center gap-1"><Clock size={10} /> {time} · {item.duration} min</div>
-          {item.location && <div className="flex items-center gap-1"><MapPin size={10} /> {item.location}</div>}
-        </div>
-      </Card>
-    )
-  }
-
-  // Événement
-  const tc = TYPE_COLOR[item.type] ?? TYPE_COLOR.social
-  return (
-    <Card className="p-3">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className={`w-2 h-2 rounded-full ${tc.dot}`} />
-        <Badge variant={tc.badgeVariant}>{tc.label}</Badge>
       </div>
-      <p className="font-semibold text-sm text-surface-900">{item.title}</p>
-      <div className="mt-1.5 text-xs text-surface-500 space-y-0.5">
-        <div className="flex items-center gap-1"><Clock size={10} /> {time}</div>
-        {item.location && <div className="flex items-center gap-1"><MapPin size={10} /> {item.location}</div>}
-      </div>
-    </Card>
+    </div>
   )
 }

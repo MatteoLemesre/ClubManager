@@ -598,11 +598,11 @@ export default function MatchPage() {
 
       {/* Retour */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate('/app/calendar')}
         className="flex items-center gap-2 text-sm text-surface-500 hover:text-surface-800
                    mb-6 transition-colors"
       >
-        <ArrowLeft size={16} /> Retour
+        <ArrowLeft size={16} /> Retour au calendrier
       </button>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -611,6 +611,8 @@ export default function MatchPage() {
         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="gray">{match.competition}</Badge>
+            {match.category && <Badge variant="purple">{match.category}</Badge>}
+            {match.round   && <Badge variant="gray">J{match.round}</Badge>}
             {team?.category && <Badge variant="blue">{team.category}</Badge>}
             <Badge variant={match.isHome ? 'green' : 'orange'}>
               {match.isHome ? 'Domicile' : 'Déplacement'}
