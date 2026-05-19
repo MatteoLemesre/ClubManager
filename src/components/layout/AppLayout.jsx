@@ -9,13 +9,12 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Shield, Calendar, MessageCircle, Newspaper,
-  Bell, LogOut, X, User, Trophy,
+  Bell, LogOut, X, User,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
   { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
-  { to: '/app/matches',  icon: Trophy,        label: 'Matchs'     },
   { to: '/app/calendar', icon: Calendar,      label: 'Calendrier' },
   { to: '/app/messages', icon: MessageCircle, label: 'Messagerie' },
   { to: '/app/profile',  icon: User,          label: 'Profil'     },
