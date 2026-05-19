@@ -1,348 +1,277 @@
-# ClubManager — Refonte complète navigation et visibilité
+# ClubManager — Corrections sur REFONTE_COMPLETE
 
-Corrections majeures de la logique de suivi et fusion Calendrier/Événements.
-
----
-
-## 1. SUIVI CLUBS/ÉQUIPES — Nouvelle logique
-
-### Règle fondamentale
-**On peut suivre :**
-- Des clubs entiers (= tous leurs matchs + feed complet)
-- Des équipes spécifiques (= matchs de ces équipes uniquement + feed complet du club parent)
-- Plusieurs clubs + plusieurs équipes de plusieurs clubs différents
-- **Tous les rôles** (supporter, joueur, coach, président) ont les mêmes capacités de suivi
-
-### Différence club vs équipe
-
-| Je suis | Je veux voir | J'active |
-|---------|--------------|----------|
-| Fan de TOUT le club | Tous les matchs de toutes les équipes + feed | Suivre le club |
-| Fan de 2 équipes précises | Matchs de ces 2 équipes uniquement + feed du club | Suivre les 2 équipes |
-
-### Accès au feed
-**Règle :** Si je suis **au moins une équipe** d'un club (ou le club entier), j'ai accès à **tout le feed du club**.
-
-Pas de distinction — le feed est au niveau club, pas équipe.
-
-### Accès aux matchs à venir
-**Règle :**
-- Je suis **le club** → tous les matchs de toutes ses équipes
-- Je suis **2 équipes** → matchs de ces 2 équipes uniquement
-- Je suis **3 clubs + 5 équipes d'autres clubs** → matchs de tous
+Modifications à appliquer sur le code déjà implémenté selon REFONTE_COMPLETE.md v1.
 
 ---
 
-## 2. PAGE ÉQUIPES — 2 onglets simplifiés
+## CORRECTIONS À FAIRE
 
-### Onglet "Mes équipes"
+### 1. Supprimer la page "Matchs à venir" standalone
 
-**Pour TOUS les rôles (supporter inclus)**
+**Fichiers concernés :**
+- `src/pages/app/MatchesPage.jsx` → À SUPPRIMER
+- `src/App.jsx` → Supprimer la route `/app/matches` (liste)
+- Navigation principale → Retirer l'onglet "Matchs à venir"
 
-Structure visuelle :
-```
-┌────────────────────────────────────────────┐
-│  MES ÉQUIPES                               │
-├────────────────────────────────────────────┤
-│  (si joueur/coach/président)               │
-│  🏆 MON CLUB                               │
-│  FC Lens Académie                          │
-│  [Carte club avec badge "Membre"]         │
-│                                            │
-│  Mes équipes dans ce club :                │
-│  • Séniors A (Joueur)                     │
-│  • U17 (Coach)                            │
-│                                            │
-├────────────────────────────────────────────┤
-│  ⭐ CLUBS SUIVIS                           │
-│  AS Saint-Denis United                     │
-│  [Carte club]                              │
-│  📊 Toutes les équipes (5)                │
-│                                            │
-│  Olympique Lyonnais Amateur               │
-│  [Carte club]                              │
-│  📊 Équipes suivies : Séniors A, U19      │
-└────────────────────────────────────────────┘
-```
-
-**Affichage :**
-1. **Si membre d'un club** (joueur/coach/président) :
-   - Section "MON CLUB" en haut avec badge "Membre"
-   - Liste des équipes dans lesquelles on est impliqué
-   - Puis section "CLUBS SUIVIS" en dessous
-
-2. **Si supporter uniquement** :
-   - Pas de section "MON CLUB"
-   - Directement la liste "CLUBS SUIVIS" (mais SANS le titre "Clubs suivis")
-   - Visuellement identique, juste pas de distinction
-
-**Carte club :**
-- Avatar club + nom + ville
-- Badge si membre ("Membre" ou "Président" ou "Coach" ou "Joueur")
-- Indication : "Toutes les équipes (5)" OU "Équipes suivies : U13, U17"
-- Bouton "⭐ Suivi" (rempli) ou "+ Suivre"
-- Clic carte → pop-up présentation club
-
-### Onglet "Explorer"
-
-**Pour tous les rôles**
-
-Recherche de clubs avec filtres région/département + nom.
-
-Résultats sous forme de cartes → clic carte → pop-up club.
-
-Dans le pop-up club, onglet Équipes :
-- Bouton "+ Suivre le club entier" (étoile)
-- Liste équipes avec bouton "⭐ Suivre" individuel par équipe
-
-**Comportement suivi :**
-- Suivre club entier → coche toutes les équipes automatiquement
-- Suivre 2 équipes → seules ces 2 équipes cochées
-- Décocher toutes équipes → décoche le club entier
+**Raison :** Les matchs sont maintenant intégrés dans le Calendrier.
 
 ---
 
-## 3. PAGE MATCHS À VENIR — Filtre intelligent
+### 2. Fusionner Matchs + Événements dans Calendrier
 
-### Route : `/app/matches` (renommer depuis /app/calendar)
+**Fichier : `src/pages/app/CalendarPage.jsx`**
 
-**Contenu :**
-Liste de TOUS les matchs à venir des clubs/équipes suivis.
+#### Modifier le layout pour 70/30
 
-**Filtrage selon le suivi :**
-```js
-const upcomingMatches = mockMatches.filter(match => {
-  // Si je suis le club entier → tous ses matchs
-  if (user.followed_clubs.includes(match.team.club_id)) {
-    return true
-  }
-  
-  // Si je suis des équipes spécifiques → matchs de ces équipes
-  if (user.followed_teams.includes(match.team_id)) {
-    return true
-  }
-  
-  return false
-})
+**Avant (actuellement) :**
+Probablement un calendrier seul ou avec événements séparés.
+
+**Après :**
+```jsx
+<div className="flex gap-6 h-screen">
+  {/* Colonne gauche 70% - Calendrier */}
+  <div className="flex-[7] overflow-hidden">
+    <CalendarMonthView 
+      events={allEvents}  // matchs + entraînements + événements
+      onClickMatch={(matchId) => navigate(`/app/matches/${matchId}`)}
+      onClickEvent={(event) => setSelectedEvent(event)}
+    />
+  </div>
+
+  {/* Colonne droite 30% - Liste prochains */}
+  <div className="flex-[3] overflow-y-auto border-l border-surface-200 p-6">
+    <h3 className="font-semibold text-gray-900 mb-4">📌 Prochains</h3>
+    <div className="space-y-3">
+      {upcomingItems.map(item => (
+        <EventCard 
+          key={item.id}
+          item={item}
+          onClick={() => {
+            if (item.type === 'match') {
+              navigate(`/app/matches/${item.id}`)
+            } else {
+              setSelectedEvent(item)
+            }
+          }}
+        />
+      ))}
+    </div>
+    <button className="mt-4 text-brand-600 text-sm font-medium">
+      Voir tous les événements →
+    </button>
+  </div>
+</div>
 ```
 
-**Affichage :**
-```
-┌────────────────────────────────────────────┐
-│  ⚽ MATCHS À VENIR                         │
-│                                            │
-│  Filtrer par club                         │
-│  [Tous] [FC Lens] [AS Saint-Denis] ...   │
-│                                            │
-├────────────────────────────────────────────┤
-│  Samedi 22 Mai · 15h00                    │
-│  🏟️ Stade Bollaert (Domicile)            │
-│                                            │
-│  FC Lens — Séniors A                      │
-│  vs FC Valenciennes                       │
-│                                            │
-│  🚗 3 covoiturages disponibles            │
-│  [Voir les détails]                       │
-│                                            │
-├────────────────────────────────────────────┤
-│  Dimanche 23 Mai · 14h00                  │
-│  🏟️ Stade Bauer (Déplacement)            │
-│                                            │
-│  AS Saint-Denis — U17                     │
-│  vs Red Star FC                           │
-│                                            │
-│  🚗 1 covoiturage disponible              │
-│  [Voir les détails]                       │
-└────────────────────────────────────────────┘
-```
-
-Clic "Voir les détails" → page `/app/matches/:matchId` complète.
-
----
-
-## 4. PAGE MATCH DÉTAILLÉ — Section covoiturage
-
-### Route : `/app/matches/:matchId`
-
-**Accessible depuis :**
-- Page "Matchs à venir"
-- Page détail équipe, onglet Matchs
-- Notification
-
-**Sections :**
-1. Header (équipes, date, lieu, score si joué)
-2. Disponibilités (si joueur de l'équipe)
-3. **Covoiturages** (NOUVEAU)
-4. Composition (si match joué)
-5. Événements (buts, cartons)
-6. Noter coéquipiers (si joueur + match joué)
-
-### Section Covoiturages
-
-```
-┌────────────────────────────────────────────┐
-│  🚗 COVOITURAGES (3)                      │
-│                                            │
-│  Sophie Durand propose 3 places           │
-│  📍 Départ Lens centre · 13h30            │
-│  💬 "Je passe par Liévin"                 │
-│  [Contacter]                               │
-│                                            │
-│  Jean Martin cherche 1 place              │
-│  📍 Depuis Hénin-Beaumont                 │
-│  [Contacter]                               │
-│                                            │
-│  [+ Proposer un covoiturage]              │
-└────────────────────────────────────────────┘
-```
-
-**Clic "+ Proposer un covoiturage" → Modal :**
-```
-┌────────────────────────────────────────────┐
-│  Proposer un covoiturage               [✕] │
-├────────────────────────────────────────────┤
-│  Type                                      │
-│  ( ) Je propose des places                │
-│  ( ) Je cherche des places                │
-│                                            │
-│  Nombre de places *                       │
-│  [  3  ]                                  │
-│                                            │
-│  Point de départ *                        │
-│  [Lens centre-ville          ]            │
-│                                            │
-│  Heure de départ *                        │
-│  [13:30]                                  │
-│                                            │
-│  Message (optionnel)                      │
-│  [Je passe par Liévin si besoin...]      │
-│                                            │
-│  [Annuler]  [Publier]                    │
-└────────────────────────────────────────────┘
-```
-
-**Stockage :**
-Les covoiturages sont des événements avec `type = 'carpool'` + `match_id` référencé.
-
----
-
-## 5. FUSION CALENDRIER + ÉVÉNEMENTS
-
-### Nouvelle page : `/app/calendar`
-
-**Layout :**
-```
-┌──────────────────────────────────────────────────────┐
-│  📅 CALENDRIER & ÉVÉNEMENTS                          │
-├────────────────┬─────────────────────────────────────┤
-│                │                                     │
-│                │  📌 PROCHAINS ÉVÉNEMENTS            │
-│                │                                     │
-│  [Calendrier]  │  Dim 23 Mai · 14h00                │
-│  [mensuel]     │  🎉 Repas de fin de saison         │
-│  [avec]        │  Club house                        │
-│  [pastilles]   │  [Voir]                            │
-│  [colorées]    │                                     │
-│                │  Mar 25 Mai · 19h00                │
-│                │  📋 Réunion coachs                 │
-│                │  Salle de réunion                  │
-│                │  [Voir]                            │
-│                │                                     │
-│                │  Sam 29 Mai · 10h00                │
-│                │  ⚽ Tournoi U13                     │
-│                │  Stade annexe                      │
-│                │  [Voir]                            │
-│                │                                     │
-│                │  [Voir tous les événements →]      │
-└────────────────┴─────────────────────────────────────┘
-```
-
-**Colonne gauche — Calendrier mensuel (70%) :**
-- Vue mois avec grille jours
-- Pastilles colorées par type :
-  - 🔴 Match
-  - 🔵 Entraînement
-  - 🟢 Événement club
-  - 🟡 Événement équipe
-  - 🟠 Réunion
-- Clic sur un jour → filtre colonne droite sur ce jour
-- Clic sur pastille → ouvre pop-up événement
-
-**Colonne droite — Prochains événements (30%) :**
-- Liste chronologique des 5-10 prochains événements
-- Scroll si plus
-- Bouton "Voir tous" → bascule en vue liste complète
-
-**Vue liste complète (toggle) :**
-Remplace le calendrier par une liste paginée avec filtres :
-- Par type (match, entraînement, événement, réunion)
-- Par équipe/club
-- Par visibilité (public, équipe, club)
-
-**Bouton "+ Créer un événement" :**
-- Visible pour coach/président
-- Modal création avec choix visibilité (public/équipe/club)
-
----
-
-## 6. MOCK DATA MIS À JOUR
-
-### User supporter Sophie
+#### Fusionner les données
 
 ```js
-const mockUsers = {
-  supporter: {
-    id: 'mock-user-2',
-    role: 'supporter',
-    first_name: 'Sophie',
-    last_name: 'Durand',
-    current_club_id: null,  // pas membre
+const upcomingItems = useMemo(() => {
+  const items = []
+  
+  // Ajouter les matchs filtrés
+  const filteredMatches = mockUpcomingMatches.filter(match => {
+    if (currentUser.followed_clubs?.includes(match.team.club_id)) return true
+    if (currentUser.followed_teams?.includes(match.team_id)) return true
+    return false
+  }).map(m => ({ ...m, type: 'match' }))
+  
+  // Ajouter les entraînements
+  const trainings = mockTrainings
+    .filter(t => currentUser.teams?.includes(t.team_id))
+    .map(t => ({ ...t, type: 'training' }))
+  
+  // Ajouter les événements filtrés selon visibilité
+  const events = mockEvents
+    .filter(e => canSeeEvent(e, currentUser))
+    .map(e => ({ ...e, type: 'event' }))
+  
+  // Fusionner et trier par date
+  items.push(...filteredMatches, ...trainings, ...events)
+  items.sort((a, b) => new Date(a.starts_at || a.scheduled_at) - new Date(b.starts_at || b.scheduled_at))
+  
+  return items.slice(0, 10)  // 10 prochains
+}, [currentUser])
+```
+
+#### Pastilles colorées sur le calendrier
+
+```js
+const getEventColor = (event) => {
+  switch(event.type) {
+    case 'match': return 'bg-red-500'
+    case 'training': return 'bg-blue-500'
+    case 'event':
+      if (event.visibility === 'public') return 'bg-green-500'
+      if (event.visibility === 'team') return 'bg-yellow-500'
+      if (event.visibility === 'club') return 'bg-orange-500'
+    default: return 'bg-gray-500'
+  }
+}
+
+// Dans le calendrier, afficher les pastilles
+{dayEvents.map(event => (
+  <div 
+    key={event.id}
+    className={`w-2 h-2 rounded-full ${getEventColor(event)} cursor-pointer`}
+    onClick={() => handleEventClick(event)}
+  />
+))}
+```
+
+---
+
+### 3. Enrichir la page Match détaillé
+
+**Fichier : `src/pages/app/MatchDetailPage.jsx`**
+
+#### Ajouter les infos manquantes dans le header
+
+```jsx
+// Header actuel à enrichir
+<div className="bg-white rounded-2xl border border-surface-200 p-6 mb-6">
+  <button onClick={() => navigate('/app/calendar')} className="text-sm text-gray-500 mb-4">
+    ← Retour au calendrier
+  </button>
+  
+  <div className="text-center">
+    <div className="text-sm text-gray-400 mb-2">
+      🏆 {match.category || 'Championnat Régional'} — J{match.round || '15'}
+    </div>
     
-    // Suit 2 clubs entiers + 2 équipes d'un 3ème club
-    followed_clubs: ['mock-club-2', 'mock-club-3'],  // Saint-Denis + Lyon
-    followed_teams: ['mock-team-bx-1', 'mock-team-bx-2'],  // Bordeaux Séniors A + B
+    <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">
+      {match.team.club.name} — {match.team.name}
+    </h1>
+    <div className="text-xl text-gray-500 mb-1">vs</div>
+    <h2 className="font-display text-2xl font-bold text-gray-900 mb-4">
+      {match.opponent}
+    </h2>
     
-    member_of_clubs: [],  // pas membre
-    teams: [],  // pas dans d'équipe
-  },
+    {match.score && (
+      <div className="text-3xl font-bold text-brand-600 mb-4">
+        {match.score_home} - {match.score_away}
+      </div>
+    )}
+    
+    <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+      <div>📅 {format(new Date(match.scheduled_at), "EEEE d MMMM yyyy · HH'h'mm", { locale: fr })}</div>
+      <div>🏟️ {match.location} — {match.is_home ? 'Domicile' : 'Extérieur'}</div>
+      {match.referee && (
+        <div>👨‍⚖️ Arbitre : {match.referee}</div>
+      )}
+    </div>
+  </div>
+</div>
+```
+
+#### Restructurer en 5 onglets internes
+
+**Actuellement :** Probablement des sections empilées verticalement.
+
+**Après :** Onglets horizontaux comme dans TeamDetailPage.
+
+```jsx
+const [activeTab, setActiveTab] = useState('disponibilites')
+
+const tabs = [
+  { id: 'disponibilites', label: 'Disponibilités', icon: '✋' },
+  { id: 'composition', label: 'Composition', icon: '📋' },
+  { id: 'covoiturages', label: 'Covoiturages', icon: '🚗' },
+  { id: 'statistiques', label: 'Statistiques', icon: '📊' },
+  { id: 'evenements', label: 'Événements', icon: '⏱️' },
+]
+
+// Onglets
+<div className="flex border-b border-surface-200 mb-6">
+  {tabs.map(tab => (
+    <button
+      key={tab.id}
+      onClick={() => setActiveTab(tab.id)}
+      className={`px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+        activeTab === tab.id
+          ? 'border-brand-600 text-brand-600'
+          : 'border-transparent text-gray-400 hover:text-gray-600'
+      }`}>
+      {tab.icon} {tab.label}
+    </button>
+  ))}
+</div>
+
+// Contenu selon onglet actif
+{activeTab === 'disponibilites' && <DisponibilitesSection match={match} />}
+{activeTab === 'composition' && <CompositionSection match={match} />}
+{activeTab === 'covoiturages' && <CovoituragesSection match={match} />}
+{activeTab === 'statistiques' && <StatistiquesSection match={match} />}
+{activeTab === 'evenements' && <EvenementsSection match={match} />}
+```
+
+#### Section Statistiques (nouvelle)
+
+```jsx
+function StatistiquesSection({ match }) {
+  if (!match.stats) {
+    return (
+      <div className="text-center py-12 text-gray-400">
+        <div className="text-4xl mb-2">📊</div>
+        <div className="text-sm">Statistiques disponibles après le match</div>
+      </div>
+    )
+  }
+  
+  return (
+    <div className="space-y-6">
+      <StatBar label="Possession" home={match.stats.possession_home} away={match.stats.possession_away} />
+      <StatRow label="Tirs" home={match.stats.shots_home} away={match.stats.shots_away} />
+      <StatRow label="Tirs cadrés" home={match.stats.shots_on_target_home} away={match.stats.shots_on_target_away} />
+      <StatRow label="Corners" home={match.stats.corners_home} away={match.stats.corners_away} />
+      <StatRow label="Fautes" home={match.stats.fouls_home} away={match.stats.fouls_away} />
+      <StatRow label="Cartons jaunes" home={match.stats.yellow_cards_home} away={match.stats.yellow_cards_away} />
+      <StatRow label="Cartons rouges" home={match.stats.red_cards_home} away={match.stats.red_cards_away} />
+    </div>
+  )
+}
+
+function StatBar({ label, home, away }) {
+  const total = home + away
+  const homePercent = (home / total) * 100
+  const awayPercent = (away / total) * 100
+  
+  return (
+    <div>
+      <div className="text-sm font-medium text-gray-700 mb-2">{label}</div>
+      <div className="flex items-center gap-3">
+        <div className="text-sm font-semibold text-gray-900 w-12 text-right">{home}%</div>
+        <div className="flex-1 h-6 bg-surface-100 rounded-full overflow-hidden flex">
+          <div className="bg-brand-600 h-full" style={{ width: `${homePercent}%` }} />
+          <div className="bg-gray-300 h-full" style={{ width: `${awayPercent}%` }} />
+        </div>
+        <div className="text-sm font-semibold text-gray-900 w-12 text-left">{away}%</div>
+      </div>
+    </div>
+  )
+}
+
+function StatRow({ label, home, away }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-surface-100">
+      <div className="text-sm font-semibold text-gray-900 w-16 text-right">{home}</div>
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="text-sm font-semibold text-gray-900 w-16 text-left">{away}</div>
+    </div>
+  )
 }
 ```
 
-### Clubs et équipes
+---
+
+### 4. Mock data à ajouter
+
+**Fichier : `src/data/mockData.js`**
+
+#### Ajouter catégorie, arbitre, stats aux matchs
 
 ```js
-const mockClubs = [
-  { 
-    id: 'mock-club-1', 
-    name: 'FC Lens Académie', 
-    city: 'Lens',
-    teams: ['mock-team-lens-1', 'mock-team-lens-2', 'mock-team-lens-3'],
-  },
-  { 
-    id: 'mock-club-2', 
-    name: 'AS Saint-Denis United', 
-    city: 'Saint-Denis',
-    teams: ['mock-team-sd-1', 'mock-team-sd-2'],
-  },
-  { 
-    id: 'mock-club-3', 
-    name: 'Olympique Lyonnais Amateur', 
-    city: 'Lyon',
-    teams: ['mock-team-ol-1', 'mock-team-ol-2'],
-  },
-  { 
-    id: 'mock-club-4', 
-    name: 'SC Bordeaux Rive Droite', 
-    city: 'Bordeaux',
-    teams: ['mock-team-bx-1', 'mock-team-bx-2'],
-  },
-]
-```
-
-### Matchs à venir
-
-```js
-const mockUpcomingMatches = [
+export const mockUpcomingMatches = [
   {
     id: 'm1',
     team_id: 'mock-team-sd-1',
@@ -356,149 +285,124 @@ const mockUpcomingMatches = [
     scheduled_at: '2026-05-22T15:00:00Z',
     location: 'Stade Bauer',
     is_home: false,
+    category: 'Championnat Régional',  // AJOUT
+    round: 15,  // AJOUT
+    referee: 'M. Jean Dupont',  // AJOUT
     carpools: 2,
   },
-  {
-    id: 'm2',
-    team_id: 'mock-team-ol-1',
-    team: { 
-      id: 'mock-team-ol-1', 
-      name: 'Séniors A', 
-      club_id: 'mock-club-3',
-      club: { name: 'Olympique Lyonnais Amateur' },
-    },
-    opponent: 'FC Villefranche',
-    scheduled_at: '2026-05-23T14:00:00Z',
-    location: 'Stade de Gerland',
-    is_home: true,
-    carpools: 0,
-  },
-  {
-    id: 'm3',
-    team_id: 'mock-team-bx-1',
-    team: { 
-      id: 'mock-team-bx-1', 
-      name: 'Séniors A', 
-      club_id: 'mock-club-4',
-      club: { name: 'SC Bordeaux Rive Droite' },
-    },
-    opponent: 'FC Mérignac',
-    scheduled_at: '2026-05-24T15:00:00Z',
-    location: 'Stade Chaban-Delmas',
-    is_home: true,
-    carpools: 1,
-  },
+  // ... autres matchs
 ]
 
-// Sophie voit m1 + m2 (clubs entiers) + m3 (équipe suivie)
-```
-
-### Événements
-
-```js
-const mockEvents = [
+export const mockPastMatches = [
   {
-    id: 'ev1',
-    type: 'social',
-    visibility: 'public',
-    club_id: 'mock-club-2',
-    title: 'Repas de fin de saison',
-    starts_at: '2026-05-23T20:00:00Z',
-    location: 'Club house',
-    // Sophie voit (public + suit le club)
-  },
-  {
-    id: 'ev2',
-    type: 'team',
-    visibility: 'team',
-    club_id: 'mock-club-2',
+    id: 'm-past-1',
     team_id: 'mock-team-sd-1',
-    title: 'Sortie bowling équipe A',
-    starts_at: '2026-05-25T18:00:00Z',
-    // Sophie ne voit PAS (équipe interne, pas membre)
-  },
-  {
-    id: 'ev3',
-    type: 'meeting',
-    visibility: 'club',
-    club_id: 'mock-club-2',
-    title: 'Réunion coachs',
-    starts_at: '2026-05-25T19:00:00Z',
-    // Sophie ne voit PAS (réunion, pas coach/président)
-  },
-]
-```
-
-### Covoiturages (type événement spécial)
-
-```js
-const mockCarpools = [
-  {
-    id: 'cp1',
-    type: 'carpool',
-    match_id: 'm1',
-    author_id: 'mock-user-2',  // Sophie
-    carpool_type: 'offer',  // 'offer' ou 'request'
-    seats: 3,
-    departure_location: 'Lens centre-ville',
-    departure_time: '13:30',
-    message: 'Je passe par Liévin si besoin',
-    created_at: '2026-05-20T10:00:00Z',
-  },
-  {
-    id: 'cp2',
-    type: 'carpool',
-    match_id: 'm1',
-    author_id: 'mock-user-3',  // Jean
-    carpool_type: 'request',
-    seats: 1,
-    departure_location: 'Hénin-Beaumont',
-    departure_time: null,
-    message: null,
-    created_at: '2026-05-21T14:00:00Z',
+    team: { 
+      id: 'mock-team-sd-1', 
+      name: 'Séniors A', 
+      club_id: 'mock-club-2',
+      club: { name: 'AS Saint-Denis United' },
+    },
+    opponent: 'RC Arras',
+    scheduled_at: '2026-05-15T15:00:00Z',
+    location: 'Stade Bollaert',
+    is_home: true,
+    category: 'Championnat Régional',
+    round: 14,
+    referee: 'M. Pierre Martin',
+    score_home: 3,
+    score_away: 1,
+    stats: {  // AJOUT
+      possession_home: 58,
+      possession_away: 42,
+      shots_home: 14,
+      shots_away: 8,
+      shots_on_target_home: 7,
+      shots_on_target_away: 3,
+      corners_home: 6,
+      corners_away: 2,
+      fouls_home: 12,
+      fouls_away: 15,
+      yellow_cards_home: 1,
+      yellow_cards_away: 2,
+      red_cards_home: 0,
+      red_cards_away: 0,
+    },
+    events: [  // Événements du match
+      {
+        minute: 23,
+        type: 'goal',
+        player: 'Karim Diallo',
+        assist: 'Nolan Garcia',
+      },
+      {
+        minute: 45,
+        type: 'yellow_card',
+        player: 'Lucas Simon',
+        reason: 'Faute tactique',
+      },
+      {
+        minute: 56,
+        type: 'goal',
+        player: 'Nolan Garcia',
+      },
+      {
+        minute: 67,
+        type: 'substitution',
+        player_out: 'Mehdi Bensaid',
+        player_in: 'Adam Traoré',
+      },
+      {
+        minute: 78,
+        type: 'goal',
+        player: 'Karim Diallo',
+        detail: 'Penalty',
+        earned_by: 'Noah Lecomte',
+      },
+    ],
   },
 ]
 ```
 
 ---
 
-## 7. NAVIGATION MIS À JOUR
+### 5. Navigation — Supprimer onglet Matchs
 
-### Nav principale
+**Fichier : `src/components/layout/AppLayout.jsx`**
 
-- Feed (📰)
-- Équipes (⚽) — 2 onglets : Mes équipes / Explorer
-- Matchs à venir (🏟️) — liste filtrée + détails match avec covoiturages
-- Calendrier (📅) — vue mois + événements latéral
-- Messagerie (💬)
-- Profil (👤)
+**Avant (5 ou 6 onglets) :**
+- Feed
+- Équipes
+- Matchs à venir  ← À SUPPRIMER
+- Calendrier
+- Messagerie
+- Profil
 
-**Supprimé :**
-- ❌ Page "Événements" standalone (fusionnée dans Calendrier)
+**Après (5 onglets) :**
+- Feed
+- Équipes
+- Calendrier  ← Contient maintenant les matchs
+- Messagerie
+- Profil
+
+```jsx
+const navItems = [
+  { path: '/app/feed', icon: Newspaper, label: 'Feed' },
+  { path: '/app/team', icon: Shield, label: 'Équipes' },
+  { path: '/app/calendar', icon: Calendar, label: 'Calendrier' },
+  { path: '/app/messages', icon: MessageCircle, label: 'Messagerie' },
+  { path: '/app/profile', icon: User, label: 'Profil' },
+]
+```
 
 ---
 
-## 8. ORDRE D'IMPLÉMENTATION
+## RÉSUMÉ DES CHANGEMENTS
 
-### Phase 1 — Logique suivi
-1. Mock data : followed_clubs + followed_teams
-2. TeamPage : 2 onglets simplifiés
-3. Filtre matchs selon suivi
-
-### Phase 2 — Matchs
-1. Renommer /app/calendar → /app/matches
-2. Liste matchs à venir avec filtres
-3. Page détail match avec section covoiturages
-4. Modal création covoiturage
-
-### Phase 3 — Calendrier
-1. Créer /app/calendar avec layout 70/30
-2. Calendrier mensuel avec pastilles
-3. Colonne événements latérale
-4. Toggle vue liste complète
-
-### Phase 4 — Feed
-1. Charger posts de tous followed_clubs
-2. Charger posts des clubs parents de followed_teams
+✅ **Supprimer** la page `/app/matches` (liste)  
+✅ **Fusionner** matchs + événements dans `/app/calendar` (layout 70/30)  
+✅ **Enrichir** page match détaillé (catégorie, arbitre, 5 onglets)  
+✅ **Ajouter** onglet Statistiques dans page match  
+✅ **Simplifier** navigation (5 onglets au lieu de 6)
 
 ---

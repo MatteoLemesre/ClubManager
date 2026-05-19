@@ -14,7 +14,8 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(node -e \"require\\(''''./node_modules/.bin/vite''''\\)\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)"
     ]
   }
 }
