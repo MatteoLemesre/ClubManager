@@ -862,7 +862,7 @@ function ManageTrainingConvocationsModal({ training, players, convocations, onCl
         <div className="p-5 border-t border-surface-100 space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-surface-600">Joueurs sélectionnés</span>
-            <span className="font-bold text-brand-600">{selected.size}/{players.length}</span>
+            <span className="font-bold text-brand-600">{selected.size}</span>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setSelected(new Set(players.map(p => p.id)))}

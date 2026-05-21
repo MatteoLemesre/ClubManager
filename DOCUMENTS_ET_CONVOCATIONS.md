@@ -323,7 +323,7 @@ const canUploadForUser = (targetUserId, currentUser) => {
 │  [ ] #17 Dylan Moreau      Attaquant             │
 │  ...                                              │
 │                                                    │
-│  Joueurs sélectionnés : 12/18                     │
+│  Joueurs sélectionnés : 12                        │
 │                                                    │
 │  [Tout sélectionner]  [Tout désélectionner]      │
 │                                                    │
