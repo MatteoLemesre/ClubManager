@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Badge, RoleBadge } from '../../components/ui'
 import { CLUB, TEAMS, EXTERNAL_CLUBS, getAllClubs } from '../../data/mock'
-import { Search, X, Star, MapPin, Users } from 'lucide-react'
+import { Search, X, Star, MapPin, Users, ChevronRight } from 'lucide-react'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ function getClubById(id) {
 
 export default function TeamPage() {
   const { currentUser, is } = useAuth()
+  const navigate = useNavigate()
 
   const isMember = !!currentUser.current_club_id
 
@@ -121,6 +123,7 @@ export default function TeamPage() {
                 onFollowClub={() => toggleFollowClub(myClub.id)}
                 onFollowTeam={toggleFollowTeam}
                 onOpenProfile={() => setSelectedClub(myClub)}
+                onNavigateTeam={id => navigate(`/app/teams/${id}`)}
               />
             </div>
           )}
@@ -154,6 +157,7 @@ export default function TeamPage() {
                     onFollowClub={() => toggleFollowClub(club.id)}
                     onFollowTeam={toggleFollowTeam}
                     onOpenProfile={() => setSelectedClub(club)}
+                    onNavigateTeam={id => navigate(`/app/teams/${id}`)}
                   />
                 ))}
               </div>
@@ -241,6 +245,7 @@ export default function TeamPage() {
                   onFollowClub={() => toggleFollowClub(club.id)}
                   onFollowTeam={toggleFollowTeam}
                   onOpenProfile={() => setSelectedClub(club)}
+                  onNavigateTeam={id => navigate(`/app/teams/${id}`)}
                 />
               ))}
             </div>
@@ -258,6 +263,7 @@ export default function TeamPage() {
           onFollowClub={() => toggleFollowClub(selectedClub.id)}
           onFollowTeam={toggleFollowTeam}
           onClose={() => setSelectedClub(null)}
+          onNavigateTeam={id => { setSelectedClub(null); navigate(`/app/teams/${id}`) }}
         />
       )}
     </div>
@@ -266,7 +272,7 @@ export default function TeamPage() {
 
 // ─── ClubCard ──────────────────────────────────────────────────────────────
 
-function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, onFollowClub, onFollowTeam, onOpenProfile }) {
+function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, onFollowClub, onFollowTeam, onOpenProfile, onNavigateTeam }) {
   const followedCount  = club.teams?.filter(t => followedTeams.has(t.id)).length ?? 0
   const followingAll   = isFollowed && followedCount === 0  // suit le club entier
   const followedNames  = club.teams?.filter(t => followedTeams.has(t.id)).map(t => t.name) ?? []
@@ -298,12 +304,22 @@ function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, on
             {club.sport}{club.city && ` · ${club.city}`}
           </div>
 
-          {/* Équipes impliquées (si membre) */}
+          {/* Équipes impliquées (si membre) — cliquables */}
           {myTeams.length > 0 && (
-            <div className="mt-1.5 space-y-0.5">
+            <div className="mt-2 space-y-1">
               {myTeams.map(t => (
-                <div key={t.id} className="text-xs text-gray-400">
-                  • {t.name} ({t.category})
+                <div
+                  key={t.id}
+                  onClick={() => onNavigateTeam?.(t.id)}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg
+                             bg-surface-50 hover:bg-brand-50 hover:border-brand-200
+                             border border-transparent cursor-pointer transition-all group"
+                >
+                  <span className="text-xs font-medium text-gray-700 group-hover:text-brand-700">
+                    {t.name}
+                    <span className="font-normal text-gray-400 ml-1">· {t.category}</span>
+                  </span>
+                  <ChevronRight size={12} className="text-gray-300 group-hover:text-brand-500" />
                 </div>
               ))}
             </div>
@@ -351,7 +367,7 @@ function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, on
 
 // ─── ClubProfileModal ──────────────────────────────────────────────────────
 
-function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowClub, onFollowTeam, onClose }) {
+function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowClub, onFollowTeam, onClose, onNavigateTeam }) {
   const [activeTab, setActiveTab] = useState('teams')
 
   // Fermeture Escape
@@ -444,25 +460,32 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
                 return (
                   <div
                     key={team.id}
+                    onClick={() => onNavigateTeam?.(team.id)}
                     className="flex items-center justify-between p-3 bg-surface-50
-                               rounded-xl border border-surface-100"
+                               hover:bg-brand-50 rounded-xl border border-surface-100
+                               hover:border-brand-200 cursor-pointer transition-all group"
                   >
                     <div>
-                      <div className="font-medium text-sm text-gray-900">{team.name}</div>
+                      <div className="font-medium text-sm text-gray-900 group-hover:text-brand-700">
+                        {team.name}
+                      </div>
                       <div className="text-xs text-gray-400">{team.category}</div>
                     </div>
-                    {!isMember && (
-                      <button
-                        onClick={() => onFollowTeam(team.id)}
-                        className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                          isTeamFollowed
-                            ? 'bg-orange-50 text-orange-600 border-orange-200'
-                            : 'text-gray-500 border-surface-200 hover:border-orange-300'
-                        }`}
-                      >
-                        {isTeamFollowed ? '★ Suivi' : '☆ Suivre'}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!isMember && (
+                        <button
+                          onClick={e => { e.stopPropagation(); onFollowTeam(team.id) }}
+                          className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                            isTeamFollowed
+                              ? 'bg-orange-50 text-orange-600 border-orange-200'
+                              : 'text-gray-500 border-surface-200 hover:border-orange-300'
+                          }`}
+                        >
+                          {isTeamFollowed ? '★ Suivi' : '☆ Suivre'}
+                        </button>
+                      )}
+                      <ChevronRight size={14} className="text-gray-300 group-hover:text-brand-500" />
+                    </div>
                   </div>
                 )
               })}
