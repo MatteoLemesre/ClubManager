@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { format, differenceInYears } from 'date-fns'
+import { format, differenceInYears, differenceInDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, RoleBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown, Pencil } from 'lucide-react'
+import { ArrowLeft, FileText, AlertCircle, CheckCircle, ExternalLink, ChevronDown, Pencil, Upload, X, Download, Trash2, Plus } from 'lucide-react'
 import { getMemberships, getPlayerHistory, getClubById, leaveClub, canPresidentLeave, createClub, updateUser, createUserRole, getSports, resolvePostalCode } from '../../services/db'
+import { DOCUMENTS, USERS } from '../../data/mock'
 
 const INPUT_CLS = `w-full px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm
                   text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2
@@ -24,36 +25,194 @@ function Field({ label, value }) {
   )
 }
 
-function DocItem({ label, uploaded, url }) {
+const DOC_TYPE_LABELS = {
+  licence:           'Licence',
+  certificat_medical:'Certificat médical',
+  assurance:         'Assurance',
+  carte_identite:    "Carte d'identité",
+  photo_identite:    "Photo d'identité",
+  autre:             'Autre',
+}
+
+const DOC_TYPES = Object.entries(DOC_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+
+function formatFileSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} o`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
+}
+
+function DocCard({ doc, uploaderName, canDelete, onDelete }) {
+  const today     = new Date()
+  const expiresAt = doc.expires_at ? new Date(doc.expires_at) : null
+  const daysLeft  = expiresAt ? differenceInDays(expiresAt, today) : null
+  const isExpired  = daysLeft !== null && daysLeft < 0
+  const isExpiring = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
+
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-surface-100 last:border-0">
-      <div className="flex items-center gap-2">
-        <FileText size={15} className="text-surface-400" />
-        <span className="text-sm text-surface-800">{label}</span>
-      </div>
-      {uploaded ? (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-emerald-600">
-            <CheckCircle size={14} />
-            <span className="text-xs font-medium">Fourni</span>
+    <div className="p-4 bg-surface-50 border border-surface-200 rounded-2xl space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <FileText size={15} className="text-brand-500 flex-shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-surface-900 truncate">{doc.custom_name}</p>
+            <p className="text-xs text-surface-400 truncate">
+              {doc.filename} {doc.file_size ? `· ${formatFileSize(doc.file_size)}` : ''}
+            </p>
           </div>
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
+        </div>
+        {canDelete && (
+          <button
+            onClick={() => onDelete(doc.id)}
+            className="flex-shrink-0 p-1.5 text-surface-400 hover:text-red-500
+                       hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 text-xs text-surface-400 flex-wrap">
+        <span>
+          Ajouté le {format(new Date(doc.uploaded_at), 'd MMM yyyy', { locale: fr })}
+          {uploaderName ? ` par ${uploaderName}` : ''}
+        </span>
+        {expiresAt && (
+          <span className={`font-medium ${isExpired ? 'text-red-600' : isExpiring ? 'text-orange-500' : 'text-surface-500'}`}>
+            {isExpired
+              ? `⚠️ Expiré le ${format(expiresAt, 'd MMM yyyy', { locale: fr })}`
+              : isExpiring
+                ? `⚠️ Expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`
+                : `Expire le ${format(expiresAt, 'd MMM yyyy', { locale: fr })}`
+            }
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <button className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700
+                           px-2.5 py-1 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors font-medium">
+          <Download size={11} /> Télécharger
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function UploadDocumentModal({ onClose, onAdd, targetUserId }) {
+  const [docType,    setDocType]    = useState('licence')
+  const [customName, setCustomName] = useState('')
+  const [expiresAt,  setExpiresAt]  = useState('')
+  const [fileName,   setFileName]   = useState('')
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (file) setFileName(file.name)
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (!fileName) return
+    onAdd({
+      id:           `doc-new-${Date.now()}`,
+      user_id:      targetUserId,
+      type:         docType,
+      custom_name:  customName.trim() || DOC_TYPE_LABELS[docType],
+      filename:     fileName,
+      file_size:    null,
+      mime_type:    'application/pdf',
+      expires_at:   expiresAt || null,
+      uploaded_by:  targetUserId,
+      uploaded_at:  new Date().toISOString(),
+    })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display font-bold text-gray-900">Ajouter un document</h2>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className={LABEL_CLS}>Type de document <span className="text-red-500">*</span></label>
+            <select
+              value={docType}
+              onChange={e => setDocType(e.target.value)}
+              className={INPUT_CLS}
             >
-              <ExternalLink size={12} /> Voir
-            </a>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5 text-orange-500">
-          <AlertCircle size={14} />
-          <span className="text-xs font-medium">Manquant</span>
-        </div>
-      )}
+              {DOC_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Nom personnalisé (optionnel)</label>
+            <input
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder={DOC_TYPE_LABELS[docType]}
+              className={INPUT_CLS}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Date d'expiration (optionnel)</label>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={e => setExpiresAt(e.target.value)}
+              className={INPUT_CLS}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Fichier <span className="text-red-500">*</span></label>
+            <label className="flex flex-col items-center justify-center gap-2 p-5
+                              border-2 border-dashed border-surface-200 rounded-2xl
+                              cursor-pointer hover:border-brand-300 hover:bg-brand-50 transition-colors">
+              <Upload size={20} className="text-surface-400" />
+              <span className="text-sm text-surface-500 text-center">
+                {fileName
+                  ? <span className="font-medium text-brand-700">{fileName}</span>
+                  : <>Choisir un fichier<br/><span className="text-xs">PDF, JPG, PNG — max 5 Mo</span></>
+                }
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+            </label>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-surface-100 hover:bg-surface-200 text-gray-700
+                         text-sm font-medium rounded-xl transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={!fileName}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50
+                         text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              Ajouter le document
+            </button>
+          </div>
+        </form>
+      </Card>
     </div>
   )
 }
@@ -105,6 +264,10 @@ export default function ProfilePage() {
   const [editCodeDep,    setEditCodeDep]    = useState(null)
   const [editRegion,     setEditRegion]     = useState(null)
 
+  // Documents
+  const [documents,       setDocuments]       = useState(() => DOCUMENTS.filter(d => d.user_id === (id || currentUser?.id)))
+  const [showUploadModal, setShowUploadModal] = useState(false)
+
   // Création de club
   const [showCreateClub,   setShowCreateClub]   = useState(false)
   const [sports,           setSports]           = useState([])
@@ -126,6 +289,7 @@ export default function ProfilePage() {
     if (targetUser.role === 'player') {
       getPlayerHistory(targetUser.id).then(setPlayerHistory).catch(() => {})
     }
+    setDocuments(DOCUMENTS.filter(d => d.user_id === targetUser.id))
   }, [targetUser?.id])
 
   // Charger les infos du club courant
@@ -727,16 +891,51 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* Documents — président et coach uniquement */}
-      {isPrivileged && targetUser.documents && (
+      {/* Documents administratifs */}
+      {(isOwnProfile || isPrivileged) && (
         <Card className="p-5 mb-5">
-          <SectionHeader title="Documents" className="mb-0" />
-          <div className="mt-3">
-            <DocItem label="Licence PDF"        uploaded={targetUser.documents.license?.uploaded}     url={targetUser.documents.license?.url} />
-            <DocItem label="Certificat médical" uploaded={targetUser.documents.medicalCert?.uploaded} url={targetUser.documents.medicalCert?.url} />
-            <DocItem label="Photo d'identité"   uploaded={targetUser.documents.photo?.uploaded}       url={targetUser.documents.photo?.url} />
+          <div className="flex items-center justify-between mb-0">
+            <SectionHeader title="Documents administratifs" className="mb-0" />
           </div>
+          <div className="mt-3 space-y-3">
+            {documents.length === 0 ? (
+              <p className="text-sm text-surface-400 text-center py-4">Aucun document fourni</p>
+            ) : (
+              documents.map(doc => {
+                const uploader = USERS.find(u => u.id === doc.uploaded_by)
+                const uploaderName = uploader && uploader.id !== doc.user_id
+                  ? `${uploader.firstName} ${uploader.lastName}`
+                  : null
+                const canDelete = isOwnProfile || isPrivileged
+                return (
+                  <DocCard
+                    key={doc.id}
+                    doc={doc}
+                    uploaderName={uploaderName}
+                    canDelete={canDelete}
+                    onDelete={docId => setDocuments(prev => prev.filter(d => d.id !== docId))}
+                  />
+                )
+              })
+            )}
+          </div>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="mt-4 w-full py-2.5 border-2 border-dashed border-surface-200 rounded-2xl
+                       text-sm text-surface-400 hover:border-brand-300 hover:text-brand-600
+                       transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus size={14} /> Ajouter un document
+          </button>
         </Card>
+      )}
+
+      {showUploadModal && (
+        <UploadDocumentModal
+          targetUserId={targetUser.id}
+          onClose={() => setShowUploadModal(false)}
+          onAdd={doc => setDocuments(prev => [...prev, doc])}
+        />
       )}
 
       {/* Stats — si joueur */}

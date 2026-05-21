@@ -932,6 +932,169 @@ export const UPCOMING_MATCHES = [
   },
 ]
 
+// ─── DOCUMENTS ─────────────────────────────────────────────────────────────
+export const DOCUMENTS = [
+  // Karim Diallo (user-t1-9)
+  {
+    id: 'doc-1',
+    user_id: 'user-t1-9',
+    type: 'licence',
+    custom_name: 'Licence saison 2024-2025',
+    filename: 'licence_karim_diallo.pdf',
+    file_size: 245000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-08-31',
+    uploaded_by: 'user-t1-9',
+    uploaded_at: '2024-03-12T10:00:00Z',
+  },
+  {
+    id: 'doc-2',
+    user_id: 'user-t1-9',
+    type: 'certificat_medical',
+    custom_name: 'Certificat médical',
+    filename: 'certificat_medical_diallo.pdf',
+    file_size: 128000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-06-30',
+    uploaded_by: 'user-1',
+    uploaded_at: '2024-01-05T14:30:00Z',
+  },
+  // Nolan Garcia (user-t1-10)
+  {
+    id: 'doc-3',
+    user_id: 'user-t1-10',
+    type: 'licence',
+    custom_name: 'Licence 2024-2025',
+    filename: 'licence_nolan_garcia.pdf',
+    file_size: 210000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-09-15',
+    uploaded_by: 'user-t1-10',
+    uploaded_at: '2024-03-20T09:00:00Z',
+  },
+  {
+    id: 'doc-4',
+    user_id: 'user-t1-10',
+    type: 'certificat_medical',
+    custom_name: 'Certificat médical',
+    filename: 'certificat_medical_garcia.pdf',
+    file_size: 98000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-12-31',
+    uploaded_by: 'user-t1-10',
+    uploaded_at: '2024-02-10T11:00:00Z',
+  },
+  {
+    id: 'doc-5',
+    user_id: 'user-t1-10',
+    type: 'assurance',
+    custom_name: 'Attestation assurance',
+    filename: 'assurance_garcia.pdf',
+    file_size: 54000,
+    mime_type: 'application/pdf',
+    expires_at: null,
+    uploaded_by: 'user-2',
+    uploaded_at: '2024-04-01T16:00:00Z',
+  },
+  // Alex Roux (user-t1-1)
+  {
+    id: 'doc-6',
+    user_id: 'user-t1-1',
+    type: 'licence',
+    custom_name: 'Licence 2024-2025',
+    filename: 'licence_alex_roux.pdf',
+    file_size: 189000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-08-31',
+    uploaded_by: 'user-t1-1',
+    uploaded_at: '2024-03-01T08:00:00Z',
+  },
+  {
+    id: 'doc-7',
+    user_id: 'user-t1-1',
+    type: 'certificat_medical',
+    custom_name: 'Certificat médical',
+    filename: 'certificat_medical_roux.pdf',
+    file_size: 115000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-12-31',
+    uploaded_by: 'user-t1-1',
+    uploaded_at: '2024-01-20T10:00:00Z',
+  },
+  // Sophie Durand (user-2, coach)
+  {
+    id: 'doc-8',
+    user_id: 'user-2',
+    type: 'licence',
+    custom_name: 'Licence coach 2024-2025',
+    filename: 'licence_sophie_durand.pdf',
+    file_size: 198000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-08-31',
+    uploaded_by: 'user-2',
+    uploaded_at: '2024-03-05T14:00:00Z',
+  },
+  {
+    id: 'doc-9',
+    user_id: 'user-2',
+    type: 'certificat_medical',
+    custom_name: 'Certificat médical',
+    filename: 'certificat_durand.pdf',
+    file_size: 87000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-10-31',
+    uploaded_by: 'user-2',
+    uploaded_at: '2024-02-15T09:00:00Z',
+  },
+  // Alexandre Martin (user-1, président)
+  {
+    id: 'doc-10',
+    user_id: 'user-1',
+    type: 'licence',
+    custom_name: 'Licence président 2024-2025',
+    filename: 'licence_alexandre_martin.pdf',
+    file_size: 205000,
+    mime_type: 'application/pdf',
+    expires_at: '2025-08-31',
+    uploaded_by: 'user-1',
+    uploaded_at: '2024-03-10T11:00:00Z',
+  },
+]
+
+// ─── MATCH CONVOCATIONS ────────────────────────────────────────────────────
+export const MATCH_CONVOCATIONS = [
+  // match-2 (AS Grenoble, scheduled) — team-1
+  { id: 'mc-1',  match_id: 'match-2', user_id: 'user-t1-1',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-29T14:30:00Z' },
+  { id: 'mc-2',  match_id: 'match-2', user_id: 'user-t1-9',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-30T08:00:00Z' },
+  { id: 'mc-3',  match_id: 'match-2', user_id: 'user-t1-10', convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'unavailable', availability_declared_at: '2026-03-30T09:00:00Z' },
+  { id: 'mc-4',  match_id: 'match-2', user_id: 'user-t1-4',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'uncertain',   availability_declared_at: '2026-03-30T10:00:00Z' },
+  { id: 'mc-5',  match_id: 'match-2', user_id: 'user-t1-5',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: null,          availability_declared_at: null },
+  { id: 'mc-6',  match_id: 'match-2', user_id: 'user-t1-6',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-30T11:00:00Z' },
+  { id: 'mc-7',  match_id: 'match-2', user_id: 'user-t1-7',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-30T12:00:00Z' },
+  { id: 'mc-8',  match_id: 'match-2', user_id: 'user-t1-8',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: null,          availability_declared_at: null },
+  { id: 'mc-9',  match_id: 'match-2', user_id: 'user-t1-2',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-30T15:00:00Z' },
+  { id: 'mc-10', match_id: 'match-2', user_id: 'user-t1-3',  convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'available',   availability_declared_at: '2026-03-30T16:00:00Z' },
+  { id: 'mc-11', match_id: 'match-2', user_id: 'user-t1-11', convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: 'unavailable', availability_declared_at: '2026-03-31T08:00:00Z' },
+  { id: 'mc-12', match_id: 'match-2', user_id: 'user-t1-16', convoked_by: 'user-2', convoked_at: '2026-03-29T10:00:00Z', availability_status: null,          availability_declared_at: null },
+]
+
+// ─── TRAINING CONVOCATIONS ─────────────────────────────────────────────────
+export const TRAINING_CONVOCATIONS = [
+  // training-1 (team-1)
+  { id: 'tc-1', training_id: 'training-1', user_id: 'user-t1-1',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T08:00:00Z' },
+  { id: 'tc-2', training_id: 'training-1', user_id: 'user-t1-9',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T09:00:00Z' },
+  { id: 'tc-3', training_id: 'training-1', user_id: 'user-t1-10', convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T10:00:00Z' },
+  { id: 'tc-4', training_id: 'training-1', user_id: 'user-t1-4',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'absent',   presence_declared_at: '2026-03-17T11:00:00Z' },
+  { id: 'tc-5', training_id: 'training-1', user_id: 'user-t1-5',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T12:00:00Z' },
+  { id: 'tc-6', training_id: 'training-1', user_id: 'user-t1-6',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T13:00:00Z' },
+  { id: 'tc-7', training_id: 'training-1', user_id: 'user-t1-7',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'uncertain', presence_declared_at: '2026-03-17T14:00:00Z' },
+  { id: 'tc-8', training_id: 'training-1', user_id: 'user-t1-8',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: null,        presence_declared_at: null },
+  { id: 'tc-9', training_id: 'training-1', user_id: 'user-t1-2',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-17T15:00:00Z' },
+  { id: 'tc-10',training_id: 'training-1', user_id: 'user-t1-3',  convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'absent',   presence_declared_at: '2026-03-17T16:00:00Z' },
+  { id: 'tc-11',training_id: 'training-1', user_id: 'user-t1-11', convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: 'present',  presence_declared_at: '2026-03-18T08:00:00Z' },
+  { id: 'tc-12',training_id: 'training-1', user_id: 'user-t1-16', convoked_by: 'user-2', convoked_at: '2026-03-16T18:00:00Z', presence_status: null,        presence_declared_at: null },
+]
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 export function getUserById(id) {
   return USERS.find(u => u.id === id) ?? null

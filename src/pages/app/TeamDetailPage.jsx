@@ -8,7 +8,9 @@ import {
   ArrowLeft, Star, Users, Calendar, BarChart2,
   MapPin, Home, Bus, ChevronRight, X, Check,
   AlertTriangle, Clock, Shield, Target, Zap,
+  CheckCircle2, XCircle,
 } from 'lucide-react'
+import { TRAINING_CONVOCATIONS, USERS } from '../../data/mock'
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -790,11 +792,167 @@ function LineupModal({ players, lineup, onToggle, opponent, teamName, onClose })
   )
 }
 
+// ─── Modal Convocations Entraînement ─────────────────────────────────────────
+
+function ManageTrainingConvocationsModal({ training, players, convocations, onClose, onSave }) {
+  const [selected, setSelected] = useState(new Set(convocations.map(c => c.user_id)))
+  const [notify,   setNotify]   = useState(true)
+
+  function toggle(uid) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(uid) ? next.delete(uid) : next.add(uid)
+      return next
+    })
+  }
+
+  const sorted = [...players].sort((a, b) => (a.jersey ?? a.jerseyNumber ?? 99) - (b.jersey ?? b.jerseyNumber ?? 99))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-surface-100">
+          <div>
+            <h2 className="font-display font-bold text-gray-900">Gérer les convocations</h2>
+            <p className="text-sm text-surface-500">
+              {format(new Date(training.date), "EEE d MMM · HH'h'mm", { locale: fr })}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            Effectif ({players.length} joueurs)
+          </p>
+          <div className="space-y-2">
+            {sorted.map(p => {
+              const uid = p.id
+              return (
+                <label
+                  key={uid}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selected.has(uid)
+                      ? 'bg-brand-50 border-brand-200'
+                      : 'bg-surface-50 border-surface-200 hover:border-surface-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(uid)}
+                    onChange={() => toggle(uid)}
+                    className="rounded accent-brand-600"
+                  />
+                  <Avatar user={p} size="sm" />
+                  <span className="text-xs font-mono text-surface-400 w-5 flex-shrink-0">
+                    #{p.jersey ?? p.jerseyNumber}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 flex-1">
+                    {p.first_name ?? p.firstName} {p.last_name ?? p.lastName}
+                  </span>
+                  <span className="text-xs text-surface-400">{p.position}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-surface-100 space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-surface-600">Joueurs sélectionnés</span>
+            <span className="font-bold text-brand-600">{selected.size}/{players.length}</span>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setSelected(new Set(players.map(p => p.id)))}
+              className="flex-1 py-1.5 border border-surface-200 rounded-xl text-surface-600
+                         hover:bg-surface-50 transition-colors text-xs font-medium">
+              Tout sélectionner
+            </button>
+            <button onClick={() => setSelected(new Set())}
+              className="flex-1 py-1.5 border border-surface-200 rounded-xl text-surface-600
+                         hover:bg-surface-50 transition-colors text-xs font-medium">
+              Tout désélectionner
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-surface-600 cursor-pointer">
+            <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)}
+              className="rounded accent-brand-600" />
+            Envoyer une notification aux joueurs
+          </label>
+          <div className="flex gap-3">
+            <button onClick={onClose}
+              className="flex-1 py-2.5 border border-surface-200 text-surface-600
+                         hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors">
+              Annuler
+            </button>
+            <button onClick={() => onSave([...selected])}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                         rounded-xl text-sm font-medium transition-colors">
+              Enregistrer les convocations
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Onglet Entraînements ─────────────────────────────────────────────────────
 
-function TabTrainings({ team, role, canManage }) {
+// ID du premier entraînement team-1 connu dans les mocks
+const TRAINING_ID_FOR_TEAM = { 'team-1': 'training-1' }
+
+function TabTrainings({ team, role, canManage, currentUserId }) {
   const [presence, setPresence] = useState(null) // 'present' | 'absent' | 'uncertain'
   const nt = team.next_training
+
+  // Convocations pour le prochain entraînement (mock)
+  const trainingId = TRAINING_ID_FOR_TEAM[team.id]
+  const [convocations, setConvocations] = useState(
+    trainingId ? TRAINING_CONVOCATIONS.filter(c => c.training_id === trainingId) : []
+  )
+  const [showConvocModal, setShowConvocModal] = useState(false)
+  const [myPresence, setMyPresence] = useState(
+    convocations.find(c => c.user_id === currentUserId)?.presence_status ?? null
+  )
+
+  const convokedIds = new Set(convocations.map(c => c.user_id))
+  const isConvoked  = convokedIds.has(currentUserId)
+
+  const convokedList = convocations.map(c => ({
+    ...c,
+    player: USERS.find(u => u.id === c.user_id),
+  })).sort((a, b) => (a.player?.jerseyNumber ?? 99) - (b.player?.jerseyNumber ?? 99))
+
+  const convStats = {
+    total:     convocations.length,
+    present:   convocations.filter(c => c.presence_status === 'present').length,
+    absent:    convocations.filter(c => c.presence_status === 'absent').length,
+    uncertain: convocations.filter(c => c.presence_status === 'uncertain').length,
+    no_resp:   convocations.filter(c => c.presence_status === null).length,
+  }
+
+  function handleSaveConvocations(selectedIds) {
+    setConvocations(prev => {
+      const existingIds = new Set(prev.map(c => c.user_id))
+      const kept = prev.filter(c => selectedIds.includes(c.user_id))
+      const added = selectedIds
+        .filter(id => !existingIds.has(id))
+        .map(id => ({
+          id:                    `tc-new-${id}`,
+          training_id:           trainingId,
+          user_id:               id,
+          convoked_by:           currentUserId,
+          convoked_at:           new Date().toISOString(),
+          presence_status:       null,
+          presence_declared_at:  null,
+        }))
+      return [...kept, ...added]
+    })
+    setShowConvocModal(false)
+  }
 
   const presenceOptions = [
     { id: 'present',   label: 'Présent',   icon: <Check size={14} />,         color: 'emerald' },
@@ -831,69 +989,130 @@ function TabTrainings({ team, role, canManage }) {
             </div>
           </div>
 
-          {/* Vue joueur */}
-          {role === 'player' && (
-            <div className="mt-4">
-              <div className="text-sm text-gray-600 mb-2">Votre présence :</div>
-              <div className="flex gap-2">
-                {presenceOptions.map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setPresence(opt.id)}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1 ${
-                      presence === opt.id
-                        ? opt.color === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500'
-                          : opt.color === 'red'   ? 'bg-red-500 text-white border-red-500'
-                          : 'bg-amber-500 text-white border-amber-500'
-                        : opt.color === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                          : opt.color === 'red'   ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                          : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
-                    }`}
-                  >
-                    {opt.icon}
-                    {opt.label}
-                  </button>
-                ))}
+          {/* Vue joueur convoqué */}
+          {role === 'player' && isConvoked && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50
+                              border border-emerald-200 rounded-xl px-3 py-2">
+                <CheckCircle2 size={14} />
+                Vous êtes convoqué pour cet entraînement
               </div>
-              {presence && (
-                <div className={`mt-2 text-xs text-center font-medium ${
-                  presence === 'present' ? 'text-emerald-600' : presence === 'absent' ? 'text-red-500' : 'text-amber-600'
-                }`}>
-                  {presence === 'present' ? '✓ Marqué présent' : presence === 'absent' ? '✗ Marqué absent' : '⚠ Marqué incertain'}
+              <div>
+                <div className="text-sm text-gray-600 mb-2">Votre présence :</div>
+                <div className="flex gap-2">
+                  {presenceOptions.map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setMyPresence(opt.id)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1 ${
+                        myPresence === opt.id
+                          ? opt.color === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500'
+                            : opt.color === 'red'   ? 'bg-red-500 text-white border-red-500'
+                            : 'bg-amber-500 text-white border-amber-500'
+                          : opt.color === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            : opt.color === 'red'   ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                            : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
+                      }`}
+                    >
+                      {opt.icon}
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-              )}
+                {myPresence && (
+                  <div className={`mt-2 text-xs text-center font-medium ${
+                    myPresence === 'present' ? 'text-emerald-600' : myPresence === 'absent' ? 'text-red-500' : 'text-amber-600'
+                  }`}>
+                    {myPresence === 'present' ? '✓ Marqué présent' : myPresence === 'absent' ? '✗ Marqué absent' : '⚠ Marqué incertain'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Vue joueur non convoqué */}
+          {role === 'player' && !isConvoked && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-surface-500 bg-surface-50
+                            border border-surface-200 rounded-xl px-3 py-2">
+              <Users size={14} />
+              Vous n'êtes pas convoqué pour cet entraînement.
             </div>
           )}
 
           {/* Vue coach */}
           {canManage && (
-            <div className="mt-4 space-y-3">
-              <div className="text-sm font-semibold text-gray-700">
-                Présences attendues ({nt.presences.present}/{team.players_count})
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-700">
+                  Présences ({convStats.total} convoqués)
+                </div>
+                <button
+                  onClick={() => setShowConvocModal(true)}
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700 px-3 py-1.5
+                             bg-brand-50 hover:bg-brand-100 rounded-xl transition-colors"
+                >
+                  Gérer les convocations
+                </button>
               </div>
               <div className="flex gap-4 text-sm flex-wrap">
                 <div className="flex items-center gap-1.5 text-emerald-600">
                   <Check size={14} />
-                  <span className="font-semibold">{nt.presences.present}</span>
+                  <span className="font-semibold">{convStats.present}</span>
                   <span className="text-gray-400">présents</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-red-500">
                   <X size={14} />
-                  <span className="font-semibold">{nt.presences.absent}</span>
+                  <span className="font-semibold">{convStats.absent}</span>
                   <span className="text-gray-400">absents</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-amber-500">
                   <AlertTriangle size={14} />
-                  <span className="font-semibold">{nt.presences.uncertain}</span>
+                  <span className="font-semibold">{convStats.uncertain}</span>
                   <span className="text-gray-400">incertains</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-gray-400">
                   <Clock size={14} />
-                  <span className="font-semibold">{nt.presences.no_response}</span>
+                  <span className="font-semibold">{convStats.no_resp}</span>
                   <span>sans réponse</span>
                 </div>
               </div>
-              <div className="flex gap-2">
+
+              {/* Liste convoqués */}
+              {convokedList.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Convoqués ({convStats.total})
+                  </p>
+                  <div className="divide-y divide-surface-100">
+                    {convokedList.map(({ player, presence_status }) => {
+                      if (!player) return null
+                      const cfg = presence_status === 'present'
+                        ? { icon: <CheckCircle2 size={13} />, cls: 'text-emerald-600', label: 'Présent' }
+                        : presence_status === 'absent'
+                          ? { icon: <XCircle      size={13} />, cls: 'text-red-500',     label: 'Absent' }
+                          : presence_status === 'uncertain'
+                            ? { icon: <AlertTriangle size={13}/>, cls: 'text-amber-500',  label: 'Incertain' }
+                            : { icon: <Clock size={13} />,        cls: 'text-surface-400',label: 'Sans réponse' }
+                      return (
+                        <div key={player.id} className="flex items-center gap-3 py-2.5">
+                          <Avatar user={player} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-surface-800">
+                              #{player.jerseyNumber} {player.firstName} {player.lastName}
+                            </span>
+                            <span className="text-xs text-surface-400 ml-1.5">{player.position}</span>
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs font-medium ${cfg.cls}`}>
+                            {cfg.icon} {cfg.label}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
                 <button className="flex-1 py-2 border border-surface-200 text-surface-600
                                    hover:bg-surface-50 rounded-xl text-xs font-medium transition-colors">
                   Modifier l'entraînement
@@ -910,6 +1129,16 @@ function TabTrainings({ team, role, canManage }) {
         <Card className="p-5 text-center text-gray-400 text-sm">
           Aucun entraînement prévu prochainement
         </Card>
+      )}
+
+      {showConvocModal && nt && (
+        <ManageTrainingConvocationsModal
+          training={nt}
+          players={team.players ?? []}
+          convocations={convocations}
+          onClose={() => setShowConvocModal(false)}
+          onSave={handleSaveConvocations}
+        />
       )}
 
       {/* Historique */}
@@ -1405,7 +1634,7 @@ export default function TeamDetailPage() {
       {/* ── Contenu ─────────────────────────────────────────────────────────── */}
       <div className="p-5">
         {activeTab === 'matches'   && <TabMatches   team={team} role={role} canManage={canManage} />}
-        {activeTab === 'trainings' && <TabTrainings team={team} role={role} canManage={canManage} />}
+        {activeTab === 'trainings' && <TabTrainings team={team} role={role} canManage={canManage} currentUserId={currentUser?.id} />}
         {activeTab === 'players'   && <TabPlayers   players={team.players} />}
         {activeTab === 'stats'     && <TabStats      team={team} />}
       </div>

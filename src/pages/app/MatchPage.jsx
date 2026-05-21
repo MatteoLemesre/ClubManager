@@ -7,8 +7,9 @@ import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Badge, Card, SectionHeader } from '../../components/ui'
 import {
   ArrowLeft, Clock, MapPin, Target, Home, Bus,
-  Plus, Car, CheckCircle2, XCircle, AlertCircle,
+  Plus, Car, CheckCircle2, XCircle, AlertCircle, X, Users,
 } from 'lucide-react'
+import { MATCH_CONVOCATIONS } from '../../data/mock'
 
 // ─── Onglets ─────────────────────────────────────────────────────────────────
 
@@ -32,57 +33,360 @@ function Tabs({ tabs, active, onChange }) {
   )
 }
 
+// ─── Modal Gérer Convocations ─────────────────────────────────────────────────
+
+function ManageConvocationsModal({ match, teamPlayers, convocations, onClose, onSave }) {
+  const [selected, setSelected] = useState(new Set(convocations.map(c => c.user_id)))
+  const [notify,   setNotify]   = useState(true)
+
+  function toggle(uid) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(uid) ? next.delete(uid) : next.add(uid)
+      return next
+    })
+  }
+
+  const sorted = [...teamPlayers].sort((a, b) => (a.jerseyNumber ?? 99) - (b.jerseyNumber ?? 99))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-surface-100">
+          <div>
+            <h2 className="font-display font-bold text-gray-900">Gérer les convocations</h2>
+            <p className="text-sm text-surface-500">{match.teamId ? '' : ''}{match.opponentName}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5">
+          <p className="text-xs font-semibold text-surface-400 uppercase tracking-wide mb-3">
+            Effectif ({teamPlayers.length} joueurs)
+          </p>
+          <div className="space-y-2">
+            {sorted.map(p => (
+              <label
+                key={p.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                  selected.has(p.id)
+                    ? 'bg-brand-50 border-brand-200'
+                    : 'bg-surface-50 border-surface-200 hover:border-surface-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onChange={() => toggle(p.id)}
+                  className="rounded accent-brand-600"
+                />
+                <Avatar user={p} size="sm" />
+                <span className="text-xs font-mono text-surface-400 w-5 flex-shrink-0">
+                  #{p.jerseyNumber}
+                </span>
+                <span className="text-sm font-medium text-gray-900 flex-1">
+                  {p.firstName} {p.lastName}
+                </span>
+                <span className="text-xs text-surface-400">{p.position}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-surface-100 space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-surface-600">Joueurs sélectionnés</span>
+            <span className="font-bold text-brand-600">{selected.size}/{teamPlayers.length}</span>
+          </div>
+          <div className="flex gap-3 text-sm">
+            <button
+              onClick={() => setSelected(new Set(teamPlayers.map(p => p.id)))}
+              className="flex-1 py-1.5 border border-surface-200 rounded-xl text-surface-600
+                         hover:bg-surface-50 transition-colors text-xs font-medium"
+            >
+              Tout sélectionner
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="flex-1 py-1.5 border border-surface-200 rounded-xl text-surface-600
+                         hover:bg-surface-50 transition-colors text-xs font-medium"
+            >
+              Tout désélectionner
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-surface-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notify}
+              onChange={e => setNotify(e.target.checked)}
+              className="rounded accent-brand-600"
+            />
+            Envoyer une notification aux joueurs
+          </label>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-surface-200 text-surface-600
+                         hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={() => onSave([...selected])}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                         rounded-xl text-sm font-medium transition-colors"
+            >
+              Enregistrer les convocations
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Tab Résumé ───────────────────────────────────────────────────────────────
 
 function TabSummary({ match, currentUser, is, canManageTeam, users, getUserById }) {
-  const teamPlayers = users.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
-  const isMyTeam    = is('player') && currentUser.teamIds?.includes(match.teamId)
-  const isManager   = canManageTeam(match.teamId)
+  const teamPlayers  = users.filter(u => u.role === 'player' && u.teamIds?.includes(match.teamId))
+  const isMyTeam     = is('player') && currentUser.teamIds?.includes(match.teamId)
+  const isManager    = canManageTeam(match.teamId)
 
-  const squad     = match.squad ?? {}
-  const confirmed = Object.values(squad).filter(s => s === 'confirmed').length
-  const absent    = Object.values(squad).filter(s => s === 'absent').length
-  const called    = Object.values(squad).filter(s => s === 'called').length
+  // État local des convocations (mock)
+  const [convocations, setConvocations] = useState(
+    MATCH_CONVOCATIONS.filter(c => c.match_id === match.id)
+  )
+  const [showManageModal, setShowManageModal] = useState(false)
+
+  // Disponibilité courante du joueur connecté
+  const myConvocation = convocations.find(c => c.user_id === currentUser.id)
+  const [myAvailability, setMyAvailability] = useState(myConvocation?.availability_status ?? null)
+
+  const convokedIds = new Set(convocations.map(c => c.user_id))
+  const convokedList = convocations.map(c => ({
+    ...c,
+    player: users.find(u => u.id === c.user_id),
+  })).sort((a, b) => (a.player?.jerseyNumber ?? 99) - (b.player?.jerseyNumber ?? 99))
+
+  const notConvokedPlayers = teamPlayers.filter(p => !convokedIds.has(p.id))
+
+  const stats = {
+    total:       convocations.length,
+    available:   convocations.filter(c => c.availability_status === 'available').length,
+    unavailable: convocations.filter(c => c.availability_status === 'unavailable').length,
+    uncertain:   convocations.filter(c => c.availability_status === 'uncertain').length,
+    no_response: convocations.filter(c => c.availability_status === null).length,
+  }
+
+  function handleSaveConvocations(selectedIds) {
+    setConvocations(prev => {
+      const existingIds = new Set(prev.map(c => c.user_id))
+      const kept = prev.filter(c => selectedIds.includes(c.user_id))
+      const added = selectedIds
+        .filter(id => !existingIds.has(id))
+        .map(id => ({
+          id:                       `mc-new-${id}`,
+          match_id:                 match.id,
+          user_id:                  id,
+          convoked_by:              currentUser.id,
+          convoked_at:              new Date().toISOString(),
+          availability_status:      null,
+          availability_declared_at: null,
+        }))
+      return [...kept, ...added]
+    })
+    setShowManageModal(false)
+  }
 
   // ── Avant le match ────────────────────────────────────────────────────────
   if (match.status === 'scheduled') {
+    const isConvoked  = !!myConvocation || convokedIds.has(currentUser.id)
+
     return (
       <div className="space-y-4">
-        {/* Joueur → disponibilité */}
-        {isMyTeam && (
-          <Card className="p-5">
-            <p className="text-sm font-semibold text-surface-700 mb-3">Ma disponibilité</p>
-            <div className="flex gap-3">
-              <button className="flex-1 py-2.5 rounded-xl bg-emerald-50 text-emerald-700
-                                 border border-emerald-200 text-sm font-medium hover:bg-emerald-100 transition-colors">
-                ✓ Disponible
-              </button>
-              <button className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600
-                                 border border-red-200 text-sm font-medium hover:bg-red-100 transition-colors">
-                ✗ Indisponible
+        {/* ── Vue coach/président ── */}
+        {isManager && (
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-surface-700">Convocations & disponibilités</p>
+              <button
+                onClick={() => setShowManageModal(true)}
+                className="text-xs font-medium text-brand-600 hover:text-brand-700 px-3 py-1.5
+                           bg-brand-50 hover:bg-brand-100 rounded-xl transition-colors"
+              >
+                Gérer les convocations
               </button>
             </div>
-          </Card>
-        )}
 
-        {/* Manager → récap convocations */}
-        {isManager && (
-          <Card className="p-5">
-            <p className="text-sm font-semibold text-surface-700 mb-4">Réponses convocations</p>
-            <div className="flex gap-8">
+            {/* Stats */}
+            <div className="flex gap-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-emerald-600">{confirmed}</div>
+                <div className="text-2xl font-bold text-surface-700">{stats.total}</div>
+                <div className="text-xs text-surface-400 mt-0.5">Convoqués</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-600">{stats.available}</div>
                 <div className="text-xs text-surface-400 mt-0.5">Disponibles</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-red-500">{absent}</div>
+                <div className="text-2xl font-bold text-red-500">{stats.unavailable}</div>
                 <div className="text-xs text-surface-400 mt-0.5">Indisponibles</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-surface-400">{called}</div>
-                <div className="text-xs text-surface-400 mt-0.5">En attente</div>
+                <div className="text-2xl font-bold text-surface-400">{stats.no_response}</div>
+                <div className="text-xs text-surface-400 mt-0.5">Sans réponse</div>
               </div>
             </div>
+
+            {/* Liste convoqués */}
+            {convokedList.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-surface-400 uppercase tracking-wide mb-2">
+                  Convoqués ({stats.total})
+                </p>
+                <div className="divide-y divide-surface-100">
+                  {convokedList.map(({ player, availability_status }) => {
+                    if (!player) return null
+                    const cfg = availability_status === 'available'
+                      ? { label: 'Disponible',   icon: <CheckCircle2 size={13} />, cls: 'text-emerald-600' }
+                      : availability_status === 'unavailable'
+                        ? { label: 'Indisponible', icon: <XCircle      size={13} />, cls: 'text-red-500' }
+                        : availability_status === 'uncertain'
+                          ? { label: 'Incertain',    icon: <AlertCircle  size={13} />, cls: 'text-amber-500' }
+                          : { label: 'Sans réponse', icon: <Clock        size={13} />, cls: 'text-surface-400' }
+                    return (
+                      <div key={player.id} className="flex items-center gap-3 py-2.5">
+                        <Avatar user={player} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-surface-800">
+                            #{player.jerseyNumber} {player.firstName} {player.lastName}
+                          </span>
+                          <span className="text-xs text-surface-400 ml-1.5">{player.position}</span>
+                        </div>
+                        <div className={`flex items-center gap-1 text-xs font-medium ${cfg.cls}`}>
+                          {cfg.icon} {cfg.label}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Non convoqués */}
+            {notConvokedPlayers.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-surface-400 uppercase tracking-wide mb-2">
+                  Non convoqués ({notConvokedPlayers.length})
+                </p>
+                <div className="divide-y divide-surface-100">
+                  {notConvokedPlayers.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 py-2.5 text-surface-400">
+                      <Avatar user={p} size="sm" />
+                      <span className="text-sm">#{p.jerseyNumber} {p.firstName} {p.lastName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* ── Vue joueur convoqué ── */}
+        {isMyTeam && !isManager && isConvoked && (
+          <div className="space-y-4">
+            <Card className="p-5 space-y-4">
+              <p className="text-sm font-semibold text-surface-700">Votre convocation</p>
+              <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50
+                              border border-emerald-200 rounded-xl px-4 py-3">
+                <CheckCircle2 size={16} />
+                Vous êtes convoqué pour ce match
+              </div>
+
+              <div>
+                <p className="text-xs text-surface-500 mb-2">Votre disponibilité :</p>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'available',   label: '✓ Disponible',  cls: 'emerald' },
+                    { id: 'unavailable', label: '✗ Indisponible', cls: 'red'     },
+                    { id: 'uncertain',   label: '⚠ Incertain',   cls: 'amber'   },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setMyAvailability(opt.id)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                        myAvailability === opt.id
+                          ? opt.cls === 'emerald' ? 'bg-emerald-500 text-white border-emerald-500'
+                            : opt.cls === 'red'   ? 'bg-red-500 text-white border-red-500'
+                            : 'bg-amber-500 text-white border-amber-500'
+                          : opt.cls === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            : opt.cls === 'red'   ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                            : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {myAvailability && (
+                  <p className={`text-xs text-center mt-2 font-medium ${
+                    myAvailability === 'available' ? 'text-emerald-600'
+                    : myAvailability === 'unavailable' ? 'text-red-500' : 'text-amber-600'
+                  }`}>
+                    {myAvailability === 'available' ? '✓ Marqué disponible'
+                      : myAvailability === 'unavailable' ? '✗ Marqué indisponible'
+                      : '⚠ Marqué incertain'}
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            {/* Coéquipiers convoqués */}
+            <Card className="p-5">
+              <p className="text-sm font-semibold text-surface-700 mb-3">
+                Vos coéquipiers convoqués ({stats.total})
+              </p>
+              <div className="divide-y divide-surface-100">
+                {convokedList
+                  .filter(c => c.player && c.player.id !== currentUser.id)
+                  .map(({ player, availability_status }) => {
+                    if (!player) return null
+                    const cfg = availability_status === 'available'
+                      ? { icon: <CheckCircle2 size={13} />, cls: 'text-emerald-600' }
+                      : availability_status === 'unavailable'
+                        ? { icon: <XCircle      size={13} />, cls: 'text-red-500' }
+                        : availability_status === 'uncertain'
+                          ? { icon: <AlertCircle  size={13} />, cls: 'text-amber-500' }
+                          : { icon: <Clock        size={13} />, cls: 'text-surface-400' }
+                    return (
+                      <div key={player.id} className="flex items-center gap-3 py-2.5">
+                        <Avatar user={player} size="sm" />
+                        <span className="text-sm text-surface-800 flex-1">
+                          #{player.jerseyNumber} {player.firstName} {player.lastName}
+                        </span>
+                        <span className={`${cfg.cls}`}>{cfg.icon}</span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* ── Vue joueur non convoqué ── */}
+        {isMyTeam && !isManager && !isConvoked && (
+          <Card className="p-5">
+            <p className="text-sm font-semibold text-surface-700 mb-3">Convocations</p>
+            <div className="flex items-center gap-2 text-sm text-surface-500 bg-surface-50
+                            border border-surface-200 rounded-xl px-4 py-3 mb-3">
+              <Users size={16} />
+              Vous n'êtes pas convoqué pour ce match.
+            </div>
+            <p className="text-xs text-surface-400">
+              {stats.total} joueur{stats.total > 1 ? 's' : ''} ont été convoqués par le coach.
+            </p>
           </Card>
         )}
 
@@ -91,6 +395,16 @@ function TabSummary({ match, currentUser, is, canManageTeam, users, getUserById 
             <Clock size={32} className="text-surface-300 mx-auto mb-3" />
             <p className="text-surface-500 text-sm">Le résumé sera disponible après le match</p>
           </Card>
+        )}
+
+        {showManageModal && (
+          <ManageConvocationsModal
+            match={match}
+            teamPlayers={teamPlayers}
+            convocations={convocations}
+            onClose={() => setShowManageModal(false)}
+            onSave={handleSaveConvocations}
+          />
         )}
       </div>
     )

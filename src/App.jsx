@@ -14,8 +14,10 @@ import ResultsPage       from './pages/app/ResultsPage'
 import TeamHistoryPage   from './pages/app/TeamHistoryPage'
 import FeedPage          from './pages/app/FeedPage'
 import ClubProfilePage   from './pages/app/ClubProfilePage'
-import TeamDetailPage    from './pages/app/TeamDetailPage'
-import HomePage           from './pages/public/HomePage'
+import TeamDetailPage      from './pages/app/TeamDetailPage'
+import TeamDocumentsPage   from './pages/app/TeamDocumentsPage'
+import ClubDocumentsPage   from './pages/app/ClubDocumentsPage'
+import HomePage             from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterPage       from './pages/auth/RegisterPage'
 
@@ -42,6 +44,8 @@ function AppRoutes() {
         <Route path="feed"                      element={<FeedPage />} />
         <Route path="clubs/:clubId"             element={<ClubProfilePage />} />
         <Route path="teams/:teamId"             element={<TeamDetailPage />} />
+        <Route path="team-documents"            element={<TeamDocumentsPage />} />
+        <Route path="club-documents"            element={<ClubDocumentsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app/feed" replace />} />
     </Routes>
