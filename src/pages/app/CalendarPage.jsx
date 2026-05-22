@@ -104,7 +104,8 @@ export default function CalendarPage() {
         const d = t.date ? parseISO(t.date) : null
         if (!d) return
         const canSee = isPresident || userTeams.includes(t.teamId)
-        if (canSee) items.push({ ...t, _kind: 'training', _date: d })
+        const teamName = getTeamById(t.teamId)?.name ?? ''
+        if (canSee) items.push({ ...t, _kind: 'training', _date: d, teamName })
       })
     }
 
@@ -119,7 +120,7 @@ export default function CalendarPage() {
     })
 
     return items
-  }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, userTeams])
+  }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, userTeams, getTeamById])
 
   // 10 prochains items
   const now = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
@@ -320,7 +321,7 @@ function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
                   <button
                     key={i}
                     onClick={e => { e.stopPropagation(); onClickItem(item) }}
-                    title={item._kind === 'match' ? `vs ${item.opponentName}` : (item.title ?? 'Entraînement')}
+                    title={item._kind === 'match' ? `vs ${item.opponentName}` : item._kind === 'training' ? `Entraînement ${item.teamName ?? ''}`.trim() : (item.title ?? 'Événement')}
                     className={`w-2 h-2 rounded-full flex-shrink-0 hover:scale-125 transition-transform ${getItemColor(item)}`}
                   />
                 ))}
@@ -380,7 +381,7 @@ function UpcomingItemCard({ item, onClick }) {
           <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
           <span className="text-[10px] text-gray-400">{dateStr}</span>
         </div>
-        <div className="text-xs font-semibold text-gray-900">🏃 Entraînement</div>
+        <div className="text-xs font-semibold text-gray-900">🏃 Entraînement {item.teamName}</div>
         {item.location && (
           <div className="text-[10px] text-gray-500 mt-0.5">{item.location}</div>
         )}
@@ -720,7 +721,7 @@ function EventDetailPopup({ event, onClose }) {
         <div className="flex items-start justify-between mb-5">
           <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
             <span>{icon}</span>
-            <span>{isTraining ? 'Entraînement' : (event.title ?? 'Événement')}</span>
+            <span>{isTraining ? `Entraînement${event.teamName ? ` ${event.teamName}` : ''}` : (event.title ?? 'Événement')}</span>
           </h2>
           <button onClick={onClose}
             className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400 ml-4">

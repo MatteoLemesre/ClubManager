@@ -18,7 +18,6 @@ const MOCK_TEAMS = {
   'team-1': {
     id: 'team-1',
     name: 'Séniors A',
-    category: 'Séniors',
     club: { name: 'FC Lens Académie' },
     players_count: 18,
     next_match: {
@@ -66,7 +65,7 @@ const MOCK_TEAMS = {
         score_away: 1,
         location: 'Stade Bollaert',
         is_home: true,
-        scorers: ['Diallo (23\')', 'Diallo (78\')', 'Garcia (56\')'],
+        scorers: ['Diallo (23\')', 'Garcia (56\')', 'Diallo (78\')'],
         events: [
           { type: 'goal',        minute: 23, player: 'Diallo',  assist: 'Garcia' },
           { type: 'goal',        minute: 56, player: 'Garcia',  assist: null },
@@ -127,10 +126,65 @@ const MOCK_TEAMS = {
         ],
         lineup: { starters: [], subs: [] },
       },
+      {
+        id: 'm4',
+        date: '2026-04-24T15:00:00Z',
+        opponent: 'AS Cambrai',
+        score_home: 0,
+        score_away: 1,
+        location: 'Stade Municipal de Cambrai',
+        is_home: false,
+        scorers: [],
+        events: [
+          { type: 'yellow_card', minute: 33, player: 'Bensaid', assist: null },
+          { type: 'yellow_card', minute: 71, player: 'Dubois',  assist: null },
+        ],
+        lineup: { starters: [], subs: [] },
+      },
+      {
+        id: 'm5',
+        date: '2026-04-17T15:00:00Z',
+        opponent: 'FC Maubeuge',
+        score_home: 4,
+        score_away: 0,
+        location: 'Stade Bollaert',
+        is_home: true,
+        scorers: ['Diallo (8\')', 'Garcia (22\')', 'Moreau (55\')', 'Benzara (81\')'],
+        events: [
+          { type: 'goal', minute: 8,  player: 'Diallo',  assist: null },
+          { type: 'goal', minute: 22, player: 'Garcia',  assist: 'Moreau' },
+          { type: 'goal', minute: 55, player: 'Moreau',  assist: 'Traoré' },
+          { type: 'goal', minute: 81, player: 'Benzara', assist: 'Diallo' },
+        ],
+        lineup: { starters: [], subs: [] },
+      },
+      {
+        id: 'm6',
+        date: '2026-04-10T18:00:00Z',
+        opponent: 'RC Lens B',
+        score_home: 1,
+        score_away: 1,
+        location: 'Terrain annexe Bollaert',
+        is_home: false,
+        scorers: ['Lecomte (67\')'],
+        events: [
+          { type: 'goal', minute: 67, player: 'Lecomte', assist: 'Garcia' },
+        ],
+        lineup: { starters: [], subs: [] },
+      },
     ],
     past_trainings: [
       {
         id: 'tr1',
+        date: '2026-05-20T19:30:00Z',
+        location: 'Terrain Bollaert',
+        theme: 'Récupération active',
+        total: 18,
+        present: 15,
+        absent_names: ['Diallo', 'Mendes', 'Caucheteux'],
+      },
+      {
+        id: 'tr2',
         date: '2026-05-13T19:30:00Z',
         location: 'Terrain Bollaert',
         theme: 'Jeu en triangle',
@@ -139,7 +193,7 @@ const MOCK_TEAMS = {
         absent_names: ['Diallo', 'Garcia'],
       },
       {
-        id: 'tr2',
+        id: 'tr3',
         date: '2026-05-11T19:30:00Z',
         location: 'Terrain Bollaert',
         theme: 'Pressing défensif',
@@ -148,13 +202,31 @@ const MOCK_TEAMS = {
         absent_names: ['Roux', 'Simon', 'Bensaid', 'Lambert'],
       },
       {
-        id: 'tr3',
+        id: 'tr4',
         date: '2026-05-06T19:30:00Z',
         location: 'Terrain Bollaert',
         theme: 'Coups de pied arrêtés',
         total: 18,
         present: 17,
         absent_names: ['Moreau'],
+      },
+      {
+        id: 'tr5',
+        date: '2026-04-29T19:30:00Z',
+        location: 'Terrain Bollaert',
+        theme: 'Transition offensive',
+        total: 18,
+        present: 13,
+        absent_names: ['Roux', 'Fontaine', 'Bensaid', 'Achour', 'Destrez'],
+      },
+      {
+        id: 'tr6',
+        date: '2026-04-22T19:30:00Z',
+        location: 'Terrain annexe',
+        theme: 'Physique + vitesse',
+        total: 18,
+        present: 18,
+        absent_names: [],
       },
     ],
     players: [
@@ -185,10 +257,17 @@ const MOCK_TEAMS = {
   'team-2': {
     id: 'team-2',
     name: 'U13 B',
-    category: 'U13',
     club: { name: 'FC Lens Académie' },
     players_count: 14,
-    next_match: null,
+    next_match: {
+      id: 'nm-2',
+      opponent: 'US Béthune U13',
+      date: '2026-06-01T10:00:00Z',
+      location: 'Terrain annexe FC Lens',
+      is_home: true,
+      availabilities: { available: 11, unavailable: 1, no_response: 2 },
+      carpools: [],
+    },
     next_training: {
       id: 'nt-2',
       date: '2026-05-27T17:00:00Z',
@@ -197,8 +276,58 @@ const MOCK_TEAMS = {
       theme: 'Technique individuelle',
       presences: { present: 10, absent: 2, uncertain: 0, no_response: 2 },
     },
-    past_matches: [],
-    past_trainings: [],
+    past_matches: [
+      {
+        id: 'u13-m1',
+        date: '2026-05-11T10:00:00Z',
+        opponent: 'FC Arras U13',
+        score_home: 3,
+        score_away: 2,
+        location: 'Terrain annexe FC Lens',
+        is_home: true,
+        scorers: ['Martin (12\')', 'Dupont (34\')', 'Martin (67\')'],
+        events: [
+          { type: 'goal', minute: 12, player: 'Martin', assist: null },
+          { type: 'goal', minute: 34, player: 'Dupont', assist: 'Martin' },
+          { type: 'goal', minute: 67, player: 'Martin', assist: 'Dubois' },
+        ],
+        lineup: { starters: [], subs: [] },
+      },
+      {
+        id: 'u13-m2',
+        date: '2026-05-04T10:00:00Z',
+        opponent: 'AS Lens U13',
+        score_home: 1,
+        score_away: 1,
+        location: 'Stade Municipal Lens',
+        is_home: false,
+        scorers: ['Dupont (45\')'],
+        events: [
+          { type: 'goal', minute: 45, player: 'Dupont', assist: null },
+        ],
+        lineup: { starters: [], subs: [] },
+      },
+    ],
+    past_trainings: [
+      {
+        id: 'u13-tr1',
+        date: '2026-05-13T17:00:00Z',
+        location: 'Terrain annexe',
+        theme: 'Conduite de balle',
+        total: 14,
+        present: 13,
+        absent_names: ['Lecomte'],
+      },
+      {
+        id: 'u13-tr2',
+        date: '2026-05-06T17:00:00Z',
+        location: 'Terrain annexe',
+        theme: 'Jeu à 3',
+        total: 14,
+        present: 12,
+        absent_names: ['Martin', 'Fournier'],
+      },
+    ],
     players: [],
     stats: { matches: 8, wins: 4, draws: 1, losses: 3, goals_for: 15, goals_against: 11 },
   },
@@ -269,6 +398,8 @@ function TabMatches({ team, role, canManage }) {
   const [selectedMatch, setSelectedMatch]    = useState(null)
   const [showCarpoolDetail, setShowCarpoolDetail] = useState(false)
   const [selectedCarpool,   setSelectedCarpool]   = useState(null)
+  const [showCreateMatch,   setShowCreateMatch]   = useState(false)
+  const [extraMatches,      setExtraMatches]      = useState([])
   const nm = team.next_match
 
   const selectedPlayers = team.players.filter(p => p.position !== 'Gardien').slice(0, 10)
@@ -287,8 +418,23 @@ function TabMatches({ team, role, canManage }) {
     return <MatchDetail match={selectedMatch} team={team} role={role} canManage={canManage} onBack={() => setSelectedMatch(null)} />
   }
 
+  const allPastMatches = [...extraMatches, ...team.past_matches]
+
   return (
     <div className="space-y-6">
+
+      {/* Bouton création — coach/président uniquement */}
+      {canManage && (
+        <button
+          onClick={() => setShowCreateMatch(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed
+                     border-brand-300 text-brand-600 hover:bg-brand-50 rounded-xl text-sm
+                     font-medium transition-colors"
+        >
+          <Plus size={15} />
+          Créer un match
+        </button>
+      )}
 
       {/* Prochain match */}
       {nm ? (
@@ -438,13 +584,13 @@ function TabMatches({ team, role, canManage }) {
       )}
 
       {/* Résultats passés */}
-      {team.past_matches.length > 0 && (
+      {allPastMatches.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Résultats
           </div>
           <div className="space-y-3">
-            {team.past_matches.map(m => (
+            {allPastMatches.map(m => (
               <Card key={m.id} className="p-4" onClick={() => setSelectedMatch(m)}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-gray-400">
@@ -487,6 +633,15 @@ function TabMatches({ team, role, canManage }) {
           opponent={nm?.opponent ?? ''}
           teamName={team.name}
           onClose={() => setShowLineupModal(false)}
+        />
+      )}
+
+      {/* Modal création match */}
+      {showCreateMatch && (
+        <CreateMatchModal
+          team={team}
+          onClose={() => setShowCreateMatch(false)}
+          onCreate={m => setExtraMatches(prev => [m, ...prev])}
         />
       )}
 
@@ -899,6 +1054,333 @@ function ManageTrainingConvocationsModal({ training, players, convocations, onCl
   )
 }
 
+// ─── Modal Créer un match ─────────────────────────────────────────────────────
+
+function CreateMatchModal({ team, onClose, onCreate }) {
+  const [form, setForm] = useState({
+    opponent: '',
+    date: '',
+    time: '15:00',
+    location: '',
+    isHome: true,
+    category: 'Championnat',
+    round: '',
+    referee: '',
+  })
+
+  function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })) }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    onCreate?.({
+      id: `m-new-${Date.now()}`,
+      date: `${form.date}T${form.time}:00Z`,
+      opponent: form.opponent,
+      location: form.location,
+      is_home: form.isHome,
+      category: form.category,
+      round: form.round ? Number(form.round) : null,
+      referee: form.referee || null,
+      score_home: null,
+      score_away: null,
+      scorers: [],
+      events: [],
+      lineup: { starters: [], subs: [] },
+    })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-surface-100">
+          <div>
+            <h2 className="font-display font-bold text-gray-900">Créer un match</h2>
+            <p className="text-sm text-surface-500">{team.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Adversaire *
+            </label>
+            <input
+              required
+              value={form.opponent}
+              onChange={set('opponent')}
+              placeholder="Ex : AS Grenoble"
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={form.date}
+                onChange={set('date')}
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Heure *
+              </label>
+              <input
+                type="time"
+                required
+                value={form.time}
+                onChange={set('time')}
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Lieu *
+            </label>
+            <input
+              required
+              value={form.location}
+              onChange={set('location')}
+              placeholder="Ex : Terrain Bollaert"
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Réception
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isHome: true }))}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                  form.isHome
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                }`}
+              >
+                <Home size={14} /> Domicile
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isHome: false }))}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                  !form.isHome
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                }`}
+              >
+                <Bus size={14} /> Extérieur
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Catégorie
+              </label>
+              <select
+                value={form.category}
+                onChange={set('category')}
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
+              >
+                <option>Championnat</option>
+                <option>Coupe</option>
+                <option>Amical</option>
+                <option>Tournoi</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Journée
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={form.round}
+                onChange={set('round')}
+                placeholder="Ex : 15"
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Arbitre
+            </label>
+            <input
+              value={form.referee}
+              onChange={set('referee')}
+              placeholder="Ex : M. Dupont"
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-surface-200 text-surface-600 hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              Créer le match
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal Créer un entraînement ──────────────────────────────────────────────
+
+function CreateTrainingModal({ team, onClose, onCreate }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [form, setForm] = useState({
+    date: today,
+    startTime: '19:30',
+    endTime: '21:00',
+    location: '',
+    theme: '',
+  })
+
+  function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })) }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    onCreate?.({
+      id: `tr-new-${Date.now()}`,
+      date: `${form.date}T${form.startTime}:00`,
+      ends_at: `${form.date}T${form.endTime}:00`,
+      location: form.location,
+      theme: form.theme || null,
+      total: team.players_count ?? 0,
+      present: 0,
+      absent_names: [],
+    })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-surface-100">
+          <div>
+            <h2 className="font-display font-bold text-gray-900">Créer un entraînement</h2>
+            <p className="text-sm text-surface-500">{team.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Date *
+            </label>
+            <input
+              type="date"
+              required
+              value={form.date}
+              onChange={set('date')}
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Heure de début *
+              </label>
+              <input
+                type="time"
+                required
+                value={form.startTime}
+                onChange={set('startTime')}
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Heure de fin
+              </label>
+              <input
+                type="time"
+                value={form.endTime}
+                onChange={set('endTime')}
+                className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Lieu *
+            </label>
+            <input
+              required
+              value={form.location}
+              onChange={set('location')}
+              placeholder="Ex : Terrain Bollaert"
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Thème / Notes
+            </label>
+            <textarea
+              rows={3}
+              value={form.theme}
+              onChange={set('theme')}
+              placeholder="Ex : Travail de finition, pressing haut..."
+              className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-surface-200 text-surface-600 hover:bg-surface-50 rounded-xl text-sm font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              Créer l'entraînement
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── Onglet Entraînements ─────────────────────────────────────────────────────
 
 // ID du premier entraînement team-1 connu dans les mocks
@@ -906,6 +1388,8 @@ const TRAINING_ID_FOR_TEAM = { 'team-1': 'training-1' }
 
 function TabTrainings({ team, role, canManage, currentUserId }) {
   const [presence, setPresence] = useState(null) // 'present' | 'absent' | 'uncertain'
+  const [showCreateTraining, setShowCreateTraining] = useState(false)
+  const [extraTrainings,     setExtraTrainings]     = useState([])
   const nt = team.next_training
 
   // Convocations pour le prochain entraînement (mock)
@@ -960,14 +1444,29 @@ function TabTrainings({ team, role, canManage, currentUserId }) {
     { id: 'uncertain', label: 'Incertain', icon: <AlertTriangle size={14} />, color: 'amber' },
   ]
 
+  const allPastTrainings = [...extraTrainings, ...team.past_trainings]
+
   return (
     <div className="space-y-6">
+
+      {/* Bouton création — coach/président uniquement */}
+      {canManage && (
+        <button
+          onClick={() => setShowCreateTraining(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed
+                     border-brand-300 text-brand-600 hover:bg-brand-50 rounded-xl text-sm
+                     font-medium transition-colors"
+        >
+          <Plus size={15} />
+          Créer un entraînement
+        </button>
+      )}
 
       {/* Prochain entraînement */}
       {nt ? (
         <Card className="p-5">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Prochain entraînement
+            Entraînement {team.name}
           </div>
           <div className="mb-3">
             {nt.theme && (
@@ -1117,10 +1616,6 @@ function TabTrainings({ team, role, canManage, currentUserId }) {
                                    hover:bg-surface-50 rounded-xl text-xs font-medium transition-colors">
                   Modifier l'entraînement
                 </button>
-                <button className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white
-                                   rounded-xl text-xs font-medium transition-colors">
-                  + Nouvel entraîn.
-                </button>
               </div>
             </div>
           )}
@@ -1141,14 +1636,23 @@ function TabTrainings({ team, role, canManage, currentUserId }) {
         />
       )}
 
+      {/* Modal création entraînement */}
+      {showCreateTraining && (
+        <CreateTrainingModal
+          team={team}
+          onClose={() => setShowCreateTraining(false)}
+          onCreate={tr => setExtraTrainings(prev => [tr, ...prev])}
+        />
+      )}
+
       {/* Historique */}
-      {team.past_trainings.length > 0 && (
+      {allPastTrainings.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Entraînements passés
           </div>
           <div className="space-y-3">
-            {team.past_trainings.map(tr => {
+            {allPastTrainings.map(tr => {
               const pct = Math.round((tr.present / tr.total) * 100)
               return (
                 <Card key={tr.id} className="p-4">
@@ -1952,7 +2456,7 @@ export default function TeamDetailPage() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl">⚽</span>
               <h1 className="font-display font-bold text-2xl text-gray-900">{team.name}</h1>
-              <Badge variant="brand">{team.category}</Badge>
+              <Badge variant="brand">{team.name}</Badge>
             </div>
             <div className="text-sm text-gray-500">
               {team.club.name} · {team.players_count} joueurs
