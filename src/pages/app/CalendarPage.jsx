@@ -8,9 +8,41 @@ import {
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
-import { getUpcomingMatchesForUser, TEAMS } from '../../data/mock'
+import { getUpcomingMatchesForUser, TEAMS, USERS } from '../../data/mock'
 import { Card, Badge } from '../../components/ui'
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Car } from 'lucide-react'
+
+// ─── Helpers visibilité ─────────────────────────────────────────────────────
+
+function canSeeEvent(ev, user) {
+  const userClub    = user.current_club_id
+  const userTeams   = user.teamIds ?? user.teams ?? []
+  const followed    = user.followed_clubs ?? []
+
+  // Président voit tout son club
+  if (user.role === 'president' && userClub === ev.club_id) return true
+
+  switch (ev.visibility) {
+    case 'public':
+      return followed.includes(ev.club_id) || userClub === ev.club_id
+    case 'coachs':
+      return user.role === 'coach' && userClub === ev.club_id
+    case 'team':
+      return userTeams.includes(ev.teamId)
+    case 'invite':
+      return (ev.invited_users ?? []).includes(user.id)
+    // Héritage anciens events
+    case 'club':
+      return userClub === ev.club_id && user.role !== 'supporter'
+    default:
+      return false
+  }
+}
+
+function getRoleLabel(role) {
+  const labels = { president: 'Président', coach: 'Coach', player: 'Joueur', supporter: 'Supporter', parent: 'Parent' }
+  return labels[role] ?? role
+}
 
 // ─── Couleurs pastilles ─────────────────────────────────────────────────────
 function getItemColor(item) {
@@ -45,61 +77,49 @@ export default function CalendarPage() {
     [currentUser]
   )
 
-  // Fusion de tous les items
+  const userTeams = currentUser.teamIds ?? currentUser.teams ?? []
+
+  // Fusion de tous les items (filtrage par rôle selon spec EVENEMENTS_VISIBILITE_FINALE)
   const allItems = useMemo(() => {
     const items = []
 
-    // Matchs club (useClubData)
-    matches
-      .filter(m => isPresident || isSupporter || isParent || currentUser.teamIds?.includes(m.teamId))
-      .forEach(m => {
-        const d = m.scheduledAt instanceof Date ? m.scheduledAt : new Date(m.scheduledAt)
-        items.push({ ...m, _kind: 'match', _date: d })
-      })
+    // ── Matchs du club (useClubData) ──────────────────────────────────────────
+    // Président = tous · Coach/Joueur = tous les matchs du club · Supporter = aucun (pas de club)
+    matches.forEach(m => {
+      const d = m.scheduledAt instanceof Date ? m.scheduledAt : new Date(m.scheduledAt)
+      const isMember = isPresident || isOneOf('coach', 'player')
+      if (isMember) items.push({ ...m, _kind: 'match', _date: d })
+    })
 
-    // Matchs suivis (multi-clubs) — sans doublons
+    // ── Matchs suivis multi-clubs (mock) ──────────────────────────────────────
     followedMatches.forEach(m => {
       if (items.some(i => i.id === m.id)) return
       items.push({ ...m, _kind: 'match', _date: m.scheduledAt })
     })
 
-    // Entraînements (pas pour supporter/parent)
+    // ── Entraînements ─────────────────────────────────────────────────────────
+    // Président = tous · Coach/Joueur = son équipe uniquement · Supporter = aucun
     if (!isSupporter && !isParent) {
-      trainings
-        .filter(t => isPresident || currentUser.teamIds?.includes(t.teamId))
-        .forEach(t => {
-          const d = t.date ? parseISO(t.date) : null
-          if (d) items.push({ ...t, _kind: 'training', _date: d })
-        })
+      trainings.forEach(t => {
+        const d = t.date ? parseISO(t.date) : null
+        if (!d) return
+        const canSee = isPresident || userTeams.includes(t.teamId)
+        if (canSee) items.push({ ...t, _kind: 'training', _date: d })
+      })
     }
 
-    // Événements
-    const allEvents = [...events, ...localEvents]
-    allEvents
-      .filter(ev => {
-        if (ev.category === 'club' || !ev.category) {
-          if (ev.visibility === 'public' || ev.visibility === 'club') return true
-          if (ev.visibility === 'role') return ev.targetRoles?.includes(currentUser.role)
-          return false
-        }
-        if (ev.category === 'team') {
-          return isPrivileged || currentUser.teamIds?.includes(ev.teamId)
-        }
-        return false
-      })
-      .forEach(ev => {
-        const d = ev.startsAt instanceof Date
-          ? ev.startsAt
-          : ev.startsAt
-          ? new Date(ev.startsAt)
-          : ev.starts_at
-          ? new Date(ev.starts_at)
-          : null
-        if (d) items.push({ ...ev, _kind: 'event', _date: d })
-      })
+    // ── Événements (canSeeEvent par rôle) ─────────────────────────────────────
+    ;[...events, ...localEvents].forEach(ev => {
+      if (!canSeeEvent(ev, currentUser)) return
+      const d = ev.startsAt instanceof Date ? ev.startsAt
+              : ev.startsAt                 ? new Date(ev.startsAt)
+              : ev.starts_at               ? new Date(ev.starts_at)
+              : null
+      if (d) items.push({ ...ev, _kind: 'event', _date: d })
+    })
 
     return items
-  }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, isPrivileged])
+  }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, userTeams])
 
   // 10 prochains items
   const now = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
@@ -393,23 +413,44 @@ function UpcomingItemCard({ item, onClick }) {
 
 // ─── CreateEventModal ───────────────────────────────────────────────────────
 
+const VISIBILITY_OPTIONS = {
+  president: [
+    { value: 'public',  label: '🌍 Public',               desc: 'Visible par tous les followers du club' },
+    { value: 'coachs',  label: '👔 Coachs uniquement',    desc: 'Président + tous les coachs du club' },
+    { value: 'team',    label: '⚽ Équipe',                desc: 'Coach + joueurs de l\'équipe choisie' },
+    { value: 'invite',  label: '✉️ Invitation nominative', desc: 'Uniquement les personnes invitées' },
+  ],
+  coach: [
+    { value: 'public',  label: '🌍 Public',               desc: 'Visible par tous les followers du club' },
+    { value: 'team',    label: '⚽ Mon équipe',            desc: 'Moi + les joueurs de mon équipe' },
+    { value: 'invite',  label: '✉️ Invitation nominative', desc: 'Uniquement les personnes invitées' },
+  ],
+}
+
 function CreateEventModal({ currentUser, onClose, onCreated }) {
-  const [title,       setTitle]       = useState('')
-  const [description, setDescription] = useState('')
-  const [location,    setLocation]    = useState('')
-  const [startsAt,    setStartsAt]    = useState('')
-  const [endsAt,      setEndsAt]      = useState('')
-  const [link,        setLink]        = useState('')
-  const [visibility,  setVisibility]  = useState('public')
-  const [teamId,      setTeamId]      = useState('')
-  const [error,       setError]       = useState('')
+  const [title,        setTitle]        = useState('')
+  const [description,  setDescription]  = useState('')
+  const [location,     setLocation]     = useState('')
+  const [startsAt,     setStartsAt]     = useState('')
+  const [endsAt,       setEndsAt]       = useState('')
+  const [link,         setLink]         = useState('')
+  const [visibility,   setVisibility]   = useState('public')
+  const [teamId,       setTeamId]       = useState('')
+  const [invitedUsers, setInvitedUsers] = useState([])
+  const [error,        setError]        = useState('')
 
   const isPresident = currentUser.role === 'president'
   const isCoach     = currentUser.role === 'coach'
 
+  const visOptions    = VISIBILITY_OPTIONS[currentUser.role] ?? VISIBILITY_OPTIONS.coach
   const availableTeams = isPresident
     ? TEAMS
-    : TEAMS.filter(t => (currentUser.teamIds ?? []).includes(t.id))
+    : TEAMS.filter(t => (currentUser.teamIds ?? currentUser.teams ?? []).includes(t.id))
+
+  // Membres du club disponibles pour l'invitation
+  const clubMembers = USERS.filter(u =>
+    u.role !== 'supporter' && u.role !== 'parent' && u.id !== currentUser.id
+  )
 
   useEffect(() => {
     const handler = e => { if (e.key === 'Escape') onClose() }
@@ -417,26 +458,40 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
+  function handleVisibilityChange(val) {
+    setVisibility(val)
+    if (val !== 'team')   setTeamId('')
+    if (val !== 'invite') setInvitedUsers([])
+  }
+
+  function toggleInvite(userId) {
+    setInvitedUsers(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    )
+  }
+
   function handleSubmit() {
-    if (!title.trim())               { setError('Titre requis'); return }
-    if (!startsAt)                   { setError('Date de début requise'); return }
-    if (visibility === 'team' && !teamId) { setError('Équipe requise'); return }
+    if (!title.trim())                         { setError('Titre requis'); return }
+    if (!startsAt)                             { setError('Date de début requise'); return }
+    if (visibility === 'team' && !teamId)      { setError('Équipe requise'); return }
+    if (visibility === 'invite' && invitedUsers.length === 0) { setError('Invitez au moins une personne'); return }
 
     const newEvent = {
-      id:          `local-${Date.now()}`,
-      category:    'club',
-      type:        'social',
+      id:            `local-${Date.now()}`,
+      category:      'club',
+      type:          'social',
       visibility,
-      teamId:      visibility === 'team' ? teamId : null,
-      club_id:     currentUser.current_club_id,
-      title:       title.trim(),
-      description: description.trim() || null,
-      location:    location.trim() || null,
-      startsAt:    new Date(startsAt),
-      endsAt:      endsAt ? new Date(endsAt) : null,
-      link:        link.trim() || null,
-      createdBy:   currentUser.id,
-      attendees:   [],
+      teamId:        visibility === 'team'   ? teamId       : null,
+      invited_users: visibility === 'invite' ? [currentUser.id, ...invitedUsers] : null,
+      club_id:       currentUser.current_club_id,
+      title:         title.trim(),
+      description:   description.trim() || null,
+      location:      location.trim() || null,
+      startsAt:      new Date(startsAt),
+      endsAt:        endsAt ? new Date(endsAt) : null,
+      link:          link.trim() || null,
+      createdBy:     currentUser.id,
+      attendees:     [],
     }
     onCreated(newEvent)
   }
@@ -510,25 +565,24 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
               placeholder="https://…" className={inputCls} />
           </div>
 
+          {/* ── Visibilité ──────────────────────────────────────────────────── */}
           <div>
             <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">
               Visibilité *
             </label>
             <div className="space-y-2">
-              {[
-                { value: 'public', label: '🌍 Public',  desc: 'Visible par tous les followers du club' },
-                { value: 'team',   label: '⚽ Équipe',   desc: "Membres de l'équipe uniquement" },
-                ...(isPresident ? [{ value: 'club', label: '🏛 Club', desc: 'Membres du club uniquement' }] : []),
-              ].map(v => (
+              {visOptions.map(v => (
                 <label key={v.value}
                   className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                    visibility === v.value ? 'bg-brand-50 border-brand-300' : 'border-surface-200 hover:border-surface-300'
+                    visibility === v.value
+                      ? 'bg-brand-50 border-brand-300'
+                      : 'border-surface-200 hover:border-surface-300'
                   }`}
                 >
                   <input type="radio" name="vis" value={v.value}
                     checked={visibility === v.value}
-                    onChange={() => setVisibility(v.value)}
-                    className="accent-brand-600" />
+                    onChange={() => handleVisibilityChange(v.value)}
+                    className="accent-brand-600 flex-shrink-0" />
                   <div>
                     <div className="text-sm font-semibold text-gray-900">{v.label}</div>
                     <div className="text-xs text-gray-400">{v.desc}</div>
@@ -537,17 +591,65 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
               ))}
             </div>
 
-            {visibility === 'team' && availableTeams.length > 0 && (
+            {/* Si équipe */}
+            {visibility === 'team' && (
               <div className="mt-3">
                 <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
                   Quelle équipe ? *
                 </label>
-                <select value={teamId} onChange={e => setTeamId(e.target.value)} className={inputCls}>
-                  <option value="">Choisir une équipe…</option>
-                  {availableTeams.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                {availableTeams.length > 0 ? (
+                  <select value={teamId} onChange={e => setTeamId(e.target.value)} className={inputCls}>
+                    <option value="">Choisir une équipe…</option>
+                    {availableTeams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 bg-surface-50 rounded-xl text-xs text-gray-500">
+                    Aucune équipe disponible.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Si invitation nominative */}
+            {visibility === 'invite' && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-surface-500 uppercase tracking-wider">
+                    Inviter des membres *
+                  </label>
+                  <span className="text-xs text-brand-600 font-medium">
+                    {invitedUsers.length} sélectionné{invitedUsers.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="border border-surface-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+                  {clubMembers.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-400 text-center">Aucun membre trouvé</div>
+                  ) : (
+                    clubMembers.map(user => (
+                      <label
+                        key={user.id}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-surface-100 last:border-0 ${
+                          invitedUsers.includes(user.id) ? 'bg-brand-50' : 'hover:bg-surface-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={invitedUsers.includes(user.id)}
+                          onChange={() => toggleInvite(user.id)}
+                          className="rounded accent-brand-600 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {user.firstName ?? user.first_name} {user.lastName ?? user.last_name}
+                          </div>
+                          <div className="text-xs text-gray-400">{getRoleLabel(user.role)}</div>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -627,6 +729,19 @@ function EventDetailPopup({ event, onClose }) {
         </div>
 
         <div className="space-y-3">
+          {/* Visibilité badge */}
+          {!isTraining && event.visibility && (
+            <div className="flex">
+              {{
+                public:  <span className="text-xs px-2.5 py-1 bg-violet-100 text-violet-700 rounded-full font-medium">🌍 Public</span>,
+                coachs:  <span className="text-xs px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full font-medium">👔 Coachs</span>,
+                team:    <span className="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full font-medium">⚽ Équipe</span>,
+                invite:  <span className="text-xs px-2.5 py-1 bg-brand-100 text-brand-700 rounded-full font-medium">✉️ Invitation</span>,
+                club:    <span className="text-xs px-2.5 py-1 bg-surface-200 text-surface-600 rounded-full font-medium">🏛 Club</span>,
+              }[event.visibility] ?? null}
+            </div>
+          )}
+
           {/* Date */}
           <div className="flex items-start gap-2 text-sm text-gray-600">
             <span className="mt-0.5">📅</span>
