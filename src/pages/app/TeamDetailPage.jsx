@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { format, differenceInYears } from 'date-fns'
+import { format, differenceInYears, differenceInDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, Badge, Card } from '../../components/ui'
@@ -8,9 +8,9 @@ import {
   ArrowLeft, Star, Users, Calendar, BarChart2,
   MapPin, Home, Bus, ChevronRight, X, Check,
   AlertTriangle, Clock, Shield, Target, Zap,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, FileText, Download, Plus,
 } from 'lucide-react'
-import { TRAINING_CONVOCATIONS, USERS } from '../../data/mock'
+import { TRAINING_CONVOCATIONS, USERS, MOCK_PLAYER_HISTORY, DOCUMENTS } from '../../data/mock'
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -1204,7 +1204,7 @@ const POSITION_ICONS = {
   'Attaquant': '🎯',
 }
 
-function TabPlayers({ players }) {
+function TabPlayers({ players, team }) {
   const [filter, setFilter]       = useState('all')
   const [selected, setSelected]   = useState(null)
 
@@ -1276,164 +1276,470 @@ function TabPlayers({ players }) {
         )
       })}
 
-      {/* Modal fiche joueur */}
+      {/* Pop-up joueur détaillé */}
       {selected && (
-        <PlayerModal player={selected} onClose={() => setSelected(null)} />
+        <PlayerDetailModal player={selected} team={team} onClose={() => setSelected(null)} />
       )}
     </div>
   )
 }
 
-// ─── Modal fiche joueur ───────────────────────────────────────────────────────
+// ─── PlayerDetailModal (pop-up joueur avec sidebar + 5 onglets) ───────────────
 
-function PlayerModal({ player, onClose }) {
+const PLAYER_TABS = [
+  { id: 'overview',  label: "Vue d'ensemble", icon: '📊' },
+  { id: 'stats',     label: 'Statistiques',   icon: '📈' },
+  { id: 'history',   label: 'Historique',     icon: '📅' },
+  { id: 'contact',   label: 'Coordonnées',    icon: '📞' },
+  { id: 'documents', label: 'Documents',      icon: '📄' },
+]
+
+function PlayerDetailModal({ player, team, onClose }) {
+  const [activeTab, setActiveTab] = useState('overview')
+  const [copied,    setCopied]    = useState(null)
   const navigate = useNavigate()
-  const { currentUser, is, isOneOf } = useAuth()
-  const age = differenceInYears(new Date(), new Date(player.birth_date))
-  const trainingTotal = Math.round(player.training_rate / 100 * 20)
+  const { is, isOneOf } = useAuth()
 
-  // Infos sensibles visibles par coéquipiers, coach et président
-  const canViewSensitiveInfo = isOneOf('coach', 'president') || is('player')
+  const age               = differenceInYears(new Date(), new Date(player.birth_date))
+  const birthDateFormatted = format(new Date(player.birth_date), 'd MMMM yyyy', { locale: fr })
+  const trainingTotal     = Math.round(player.training_rate / 100 * 20)
+  const matchRate         = Math.round((player.matches / 13) * 100)
+
+  const history = MOCK_PLAYER_HISTORY
+    .filter(h => h.user_id === player.id)
+    .sort((a, b) => b.season.localeCompare(a.season))
+
+  const docs = DOCUMENTS.filter(d => d.user_id === player.id)
+
+  // Permissions RGPD
+  const canViewContact   = isOneOf('coach', 'president') || is('player')
+  const canViewDocuments = isOneOf('coach', 'president')
+
+  function copyToClipboard(text, key) {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 2000)
+    })
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-surface-100">
-          <h2 className="font-display font-bold text-gray-900">Fiche joueur</h2>
-          <div className="flex items-center gap-2">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex overflow-hidden">
+
+        {/* ── Sidebar gauche ──────────────────────────────────────────────────── */}
+        <div className="w-72 bg-surface-50 border-r border-surface-200 p-6 flex flex-col flex-shrink-0 overflow-y-auto">
+          {/* Avatar + infos */}
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-brand-600
+                            flex items-center justify-center text-white font-bold text-3xl">
+              {player.jersey}
+            </div>
+            <h2 className="font-display text-xl font-bold text-gray-900 mb-1">
+              {player.first_name} {player.last_name}
+            </h2>
+            <div className="text-gray-500 text-sm mb-4">{age} ans</div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1
+                            bg-white rounded-full text-sm text-gray-700 border border-surface-200 mb-2">
+              <span>⚽</span>
+              <span>{player.position}</span>
+            </div>
+            {team && (
+              <div className="text-xs text-gray-500 mt-2">
+                🏆 {team.club?.name ?? 'FC Lens Académie'} — {team.name}
+              </div>
+            )}
+          </div>
+
+          {/* Stats résumé */}
+          <div className="mb-6 p-4 bg-white rounded-xl border border-surface-200">
+            <div className="text-xs font-semibold text-gray-700 mb-3">📊 Saison 2025-2026</div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[
+                { label: 'Matchs', value: player.matches },
+                { label: 'Buts',   value: player.goals   },
+                { label: 'Passes', value: player.assists  },
+              ].map(s => (
+                <div key={s.label} className="text-center p-2 bg-surface-50 rounded-lg">
+                  <div className="text-lg font-bold text-gray-900">{s.value}</div>
+                  <div className="text-[10px] text-gray-500">{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center p-2 bg-brand-50 rounded-lg">
+              <div className="text-lg font-bold text-brand-600">⭐ {player.avg_rating}/5</div>
+              <div className="text-[10px] text-brand-700">Moyenne</div>
+            </div>
+          </div>
+
+          {/* Bouton message */}
+          <div className="mt-auto">
             <button
               onClick={() => {
                 onClose()
-                navigate('/app/messages', {
-                  state: { startConversationWith: player.id },
-                })
+                navigate('/app/messages', { state: { startConversationWith: player.id } })
               }}
-              className="px-3 py-1.5 border border-surface-200 text-surface-600
-                         hover:bg-surface-50 rounded-xl text-xs font-medium transition-colors"
+              className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm
+                         font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              💬 Message
+              💬 Envoyer un message
             </button>
+          </div>
+        </div>
+
+        {/* ── Contenu droit ────────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header : close button */}
+          <div className="flex items-center justify-end px-4 pt-3 pb-0 border-b border-surface-200">
+            <div className="flex flex-1 overflow-x-auto -mb-px">
+              {PLAYER_TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap transition-all ${
+                    activeTab === tab.id
+                      ? 'border-brand-600 text-brand-600'
+                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors"
+              className="ml-3 mb-1 p-2 hover:bg-surface-100 rounded-xl text-gray-400 flex-shrink-0 transition-colors"
             >
               <X size={18} />
             </button>
           </div>
+
+          {/* Contenu onglet */}
+          <div className="flex-1 overflow-y-auto p-6">
+
+            {/* ── Vue d'ensemble ─────────────────────────────────────────────── */}
+            {activeTab === 'overview' && (
+              <div className="space-y-5">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Informations générales
+                </div>
+                <div className="bg-surface-50 rounded-xl divide-y divide-surface-200">
+                  {[
+                    { label: 'Date de naissance', value: `${birthDateFormatted} (${age} ans)` },
+                    { label: 'Poste',             value: player.position },
+                    { label: 'Numéro',            value: `#${player.jersey}` },
+                  ].map(r => (
+                    <div key={r.label} className="flex justify-between items-center px-4 py-3">
+                      <span className="text-sm text-gray-500">{r.label}</span>
+                      <span className="text-sm font-medium text-gray-900">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">
+                  Performances saison 2025-2026
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="text-gray-600">Présence entraînements</span>
+                      <span className="font-semibold text-gray-900">
+                        {trainingTotal}/20 ({player.training_rate}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-brand-400 rounded-full"
+                           style={{ width: `${player.training_rate}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="text-gray-600">Présence matchs</span>
+                      <span className="font-semibold text-gray-900">
+                        {player.matches}/13 ({matchRate}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full"
+                           style={{ width: `${matchRate}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 bg-surface-50 rounded-xl">
+                    <div className="text-xs text-gray-400 mb-1">Minutes jouées</div>
+                    <div className="text-lg font-bold text-gray-900">{player.matches * 80} min</div>
+                  </div>
+                  <div className="p-4 bg-surface-50 rounded-xl">
+                    <div className="text-xs text-gray-400 mb-1">Cartons</div>
+                    <div className="text-sm font-medium text-gray-900 mt-1">
+                      {player.yellow_cards > 0 && (
+                        <span className="text-amber-600">{player.yellow_cards} 🟨</span>
+                      )}
+                      {player.yellow_cards > 0 && player.red_cards > 0 && (
+                        <span className="mx-1 text-gray-300">·</span>
+                      )}
+                      {player.red_cards > 0 && (
+                        <span className="text-red-600">{player.red_cards} 🟥</span>
+                      )}
+                      {player.yellow_cards === 0 && player.red_cards === 0 && (
+                        <span className="text-emerald-600">Aucun</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Statistiques ───────────────────────────────────────────────── */}
+            {activeTab === 'stats' && (
+              <div className="space-y-5">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Statistiques détaillées — 2025-2026
+                </div>
+
+                {[
+                  {
+                    title: 'Attaque',
+                    rows: [
+                      { label: 'Matchs joués',    value: player.matches },
+                      { label: 'Minutes jouées',  value: `${player.matches * 80} min` },
+                      { label: 'Buts',            value: player.goals },
+                      { label: 'Passes décisives',value: player.assists },
+                    ],
+                  },
+                  {
+                    title: 'Discipline',
+                    rows: [
+                      { label: 'Cartons jaunes', value: player.yellow_cards },
+                      { label: 'Cartons rouges', value: player.red_cards },
+                    ],
+                  },
+                  {
+                    title: 'Performance',
+                    rows: [
+                      { label: 'Note moyenne', value: `${player.avg_rating}/5` },
+                    ],
+                  },
+                  {
+                    title: 'Présence',
+                    rows: [
+                      { label: 'Présence entraînements', value: `${trainingTotal}/20 (${player.training_rate}%)` },
+                      { label: 'Présence matchs',        value: `${player.matches}/13 (${matchRate}%)` },
+                    ],
+                  },
+                ].map(section => (
+                  <div key={section.title} className="bg-surface-50 rounded-xl overflow-hidden">
+                    <div className="px-4 py-2.5 bg-surface-100 border-b border-surface-200">
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        {section.title}
+                      </span>
+                    </div>
+                    <div className="divide-y divide-surface-200">
+                      {section.rows.map(r => (
+                        <div key={r.label} className="flex justify-between px-4 py-3">
+                          <span className="text-sm text-gray-600">• {r.label}</span>
+                          <span className="text-sm font-semibold text-gray-900">{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Historique ─────────────────────────────────────────────────── */}
+            {activeTab === 'history' && (
+              <div className="space-y-4">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Historique complet
+                </div>
+                {history.length === 0 ? (
+                  <div className="text-center py-16 text-gray-400">
+                    <div className="text-4xl mb-3">📅</div>
+                    <div className="text-sm">Aucun historique disponible</div>
+                  </div>
+                ) : (
+                  history.map(season => (
+                    <div key={season.id}
+                         className="p-4 bg-surface-50 rounded-xl border border-surface-100">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-semibold text-gray-900 text-sm">
+                            {season.season}
+                            {season.season === '2025-2026' && (
+                              <span className="ml-2 text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
+                                En cours
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            ⚽ {season.club_name} — {season.team_name}
+                          </div>
+                        </div>
+                        {season.average_rating != null && (
+                          <div className="font-bold text-brand-600 text-sm">
+                            ⭐ {season.average_rating.toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <span>{season.matches} matchs</span>
+                        <span>·</span>
+                        <span>{season.goals} buts</span>
+                        <span>·</span>
+                        <span>{season.assists} passes</span>
+                      </div>
+                      {season.title && (
+                        <div className="mt-2 text-xs text-amber-600 font-medium">🏆 {season.title}</div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* ── Coordonnées ────────────────────────────────────────────────── */}
+            {activeTab === 'contact' && (
+              <div className="space-y-5">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Coordonnées
+                </div>
+                {canViewContact ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-surface-50 rounded-xl space-y-3">
+                      <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Email</div>
+                      <div className="text-sm font-medium text-gray-900">{player.email}</div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => copyToClipboard(player.email, 'email')}
+                          className="px-3 py-1.5 bg-white border border-surface-200 rounded-lg
+                                     text-xs font-medium text-gray-600 hover:bg-surface-100 transition-colors"
+                        >
+                          {copied === 'email' ? '✓ Copié' : 'Copier'}
+                        </button>
+                        <a href={`mailto:${player.email}`}
+                           className="px-3 py-1.5 bg-brand-600 text-white rounded-lg
+                                      text-xs font-medium hover:bg-brand-700 transition-colors">
+                          Envoyer un email
+                        </a>
+                      </div>
+                    </div>
+
+                    {player.phone && (
+                      <div className="p-4 bg-surface-50 rounded-xl space-y-3">
+                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Téléphone</div>
+                        <div className="text-sm font-medium text-gray-900">{player.phone}</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => copyToClipboard(player.phone, 'phone')}
+                            className="px-3 py-1.5 bg-white border border-surface-200 rounded-lg
+                                       text-xs font-medium text-gray-600 hover:bg-surface-100 transition-colors"
+                          >
+                            {copied === 'phone' ? '✓ Copié' : 'Copier'}
+                          </button>
+                          <a href={`tel:${player.phone}`}
+                             className="px-3 py-1.5 bg-white border border-surface-200 rounded-lg
+                                        text-xs font-medium text-gray-600 hover:bg-surface-100 transition-colors">
+                            Appeler
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="text-4xl mb-4">🔒</div>
+                    <div className="font-semibold text-gray-700 mb-3">Informations protégées</div>
+                    <div className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+                      Les coordonnées personnelles sont accessibles uniquement aux :
+                    </div>
+                    <ul className="mt-3 space-y-1 text-sm text-gray-500">
+                      <li>• Coéquipiers</li>
+                      <li>• Coach de l'équipe</li>
+                      <li>• Président du club</li>
+                    </ul>
+                    <div className="mt-4 text-xs text-gray-400">Cette protection respecte le RGPD.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Documents ──────────────────────────────────────────────────── */}
+            {activeTab === 'documents' && (
+              <div className="space-y-5">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Documents administratifs
+                </div>
+                {canViewDocuments ? (
+                  <>
+                    {docs.length === 0 ? (
+                      <div className="text-center py-16 text-gray-400">
+                        <div className="text-4xl mb-3">📎</div>
+                        <div className="text-sm">Aucun document</div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {docs.map(doc => {
+                          const expiresAt  = doc.expires_at ? new Date(doc.expires_at) : null
+                          const daysLeft   = expiresAt ? differenceInDays(expiresAt, new Date()) : null
+                          const isExpired  = daysLeft !== null && daysLeft < 0
+                          const isExpiring = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
+                          return (
+                            <div key={doc.id} className="p-4 bg-surface-50 border border-surface-200 rounded-xl">
+                              <div className="flex items-start gap-3">
+                                <FileText size={15} className="text-brand-500 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm text-gray-900">{doc.custom_name}</div>
+                                  <div className="text-xs text-gray-400 mt-0.5">{doc.filename}</div>
+                                  {expiresAt && (
+                                    <div className={`text-xs mt-1 font-medium ${
+                                      isExpired  ? 'text-red-600'    :
+                                      isExpiring ? 'text-orange-500' : 'text-gray-400'
+                                    }`}>
+                                      {isExpired
+                                        ? `⚠️ Expiré le ${format(expiresAt, 'd MMM yyyy', { locale: fr })}`
+                                        : isExpiring
+                                          ? `⚠️ Expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`
+                                          : `Expire le ${format(expiresAt, 'd MMM yyyy', { locale: fr })}`
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-3">
+                                <button className="flex items-center gap-1.5 text-xs text-brand-600
+                                                   hover:text-brand-700 px-2.5 py-1 bg-brand-50
+                                                   hover:bg-brand-100 rounded-lg transition-colors font-medium">
+                                  <Download size={11} /> Télécharger
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <button className="w-full py-2.5 border-2 border-dashed border-surface-200 rounded-xl
+                                       text-sm text-gray-400 hover:border-brand-300 hover:text-brand-600
+                                       transition-colors flex items-center justify-center gap-2">
+                      <Plus size={14} /> Ajouter un document pour ce joueur
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="text-4xl mb-4">🔒</div>
+                    <div className="font-semibold text-gray-700 mb-3">Accès restreint</div>
+                    <div className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+                      Les documents administratifs sont accessibles uniquement au coach et au président.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
         </div>
-
-        <div className="p-5 space-y-5">
-          {/* Identité */}
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-brand-100 flex items-center
-                            justify-center text-brand-700 font-bold text-xl">
-              {player.jersey}
-            </div>
-            <div>
-              <div className="font-bold text-xl text-gray-900">
-                {player.first_name} {player.last_name}
-              </div>
-              <div className="text-sm text-gray-500">
-                {player.position} · {age} ans
-              </div>
-            </div>
-          </div>
-
-          {/* Stats saison */}
-          <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Statistiques saison
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Matchs',   value: player.matches,      color: 'text-brand-600' },
-                { label: 'Buts',     value: player.goals,         color: 'text-emerald-600' },
-                { label: 'Passes',   value: player.assists,       color: 'text-sky-600' },
-              ].map(s => (
-                <div key={s.label} className="bg-surface-50 rounded-xl p-3 text-center">
-                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-                  <div className="text-xs text-gray-400">{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3 mt-3">
-              {player.yellow_cards > 0 && (
-                <div className="flex items-center gap-1 text-xs text-amber-600">
-                  <span>🟨</span> {player.yellow_cards} carton{player.yellow_cards > 1 ? 's' : ''} jaune{player.yellow_cards > 1 ? 's' : ''}
-                </div>
-              )}
-              {player.red_cards > 0 && (
-                <div className="flex items-center gap-1 text-xs text-red-600">
-                  <span>🟥</span> {player.red_cards} carton{player.red_cards > 1 ? 's' : ''} rouge{player.red_cards > 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-xs text-gray-500">Moyenne :</span>
-              <StarRating value={Math.round(player.avg_rating)} readonly max={5} />
-              <span className="text-xs text-gray-400">{player.avg_rating}/5</span>
-            </div>
-          </div>
-
-          {/* Présences */}
-          <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Présences
-            </div>
-            <div className="space-y-2">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">Entraînements</span>
-                  <span className="font-semibold text-gray-900">{trainingTotal}/20 ({player.training_rate}%)</span>
-                </div>
-                <div className="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-brand-400 rounded-full"
-                    style={{ width: `${player.training_rate}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">Matchs</span>
-                  <span className="font-semibold text-gray-900">{player.matches}/13 ({Math.round(player.matches/13*100)}%)</span>
-                </div>
-                <div className="w-full h-2 bg-surface-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-400 rounded-full"
-                    style={{ width: `${Math.round(player.matches/13*100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Coordonnées — RGPD */}
-          {canViewSensitiveInfo ? (
-            <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Coordonnées
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>📧</span>
-                  <a href={`mailto:${player.email}`} className="hover:text-brand-600">{player.email}</a>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>📞</span>
-                  <a href={`tel:${player.phone}`} className="hover:text-brand-600">{player.phone}</a>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-surface-50 rounded-xl text-center">
-              <div className="text-xs text-gray-400">
-                🔒 Les coordonnées sont visibles uniquement par les coéquipiers, le coach et le président.
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
+      </div>
     </div>
   )
 }
@@ -1676,7 +1982,7 @@ export default function TeamDetailPage() {
       <div className="p-5">
         {activeTab === 'matches'   && <TabMatches   team={team} role={role} canManage={canManage} />}
         {activeTab === 'trainings' && <TabTrainings team={team} role={role} canManage={canManage} currentUserId={currentUser?.id} />}
-        {activeTab === 'players'   && <TabPlayers   players={team.players} />}
+        {activeTab === 'players'   && <TabPlayers   players={team.players} team={team} />}
         {activeTab === 'stats'     && <TabStats      team={team} />}
       </div>
     </div>
