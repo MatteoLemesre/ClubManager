@@ -2074,21 +2074,39 @@ export const MOCK_PLAYER_STATS = [
   },
 ]
 
-// ─── HISTORIQUE SAISONS JOUEURS ─────────────────────────────────────────────
+// ─── HISTORIQUE CARRIÈRE (tous rôles) ─────────────────────────────────────────
+// role_type : 'player' | 'coach' | 'president'
 export const MOCK_PLAYER_HISTORY = [
+  // Jean Dupont (u-1) — président actuel, ancien coach puis joueur
+  { id: 'h-u1-1', user_id: 'u-1', role_type: 'president', season: '2025-2026', club_name: 'FC Lens Académie',  team_name: null },
+  { id: 'h-u1-2', user_id: 'u-1', role_type: 'president', season: '2024-2025', club_name: 'FC Lens Académie',  team_name: null },
+  { id: 'h-u1-3', user_id: 'u-1', role_type: 'coach',     season: '2023-2024', club_name: 'FC Lens Académie',  team_name: 'Séniors A' },
+  { id: 'h-u1-4', user_id: 'u-1', role_type: 'coach',     season: '2022-2023', club_name: 'AS Béthune',        team_name: 'Séniors A' },
+  { id: 'h-u1-5', user_id: 'u-1', role_type: 'player',    season: '2021-2022', club_name: 'AS Béthune',        team_name: 'Séniors A', matches: 8,  goals: 1, assists: 2, average_rating: 3.4 },
+  { id: 'h-u1-6', user_id: 'u-1', role_type: 'player',    season: '2020-2021', club_name: 'AS Béthune',        team_name: 'Séniors B', matches: 14, goals: 2, assists: 3, average_rating: 3.6 },
+
+  // Marc Leroy (u-2) — coach actuel, ancien joueur
+  { id: 'h-u2-1', user_id: 'u-2', role_type: 'coach',     season: '2025-2026', club_name: 'FC Lens Académie',  team_name: 'Séniors A' },
+  { id: 'h-u2-2', user_id: 'u-2', role_type: 'coach',     season: '2024-2025', club_name: 'FC Lens Académie',  team_name: 'Séniors A' },
+  { id: 'h-u2-3', user_id: 'u-2', role_type: 'player',    season: '2023-2024', club_name: 'RC Lens Réserve',   team_name: 'Séniors B', matches: 22, goals: 5, assists: 8,  average_rating: 4.1 },
+  { id: 'h-u2-4', user_id: 'u-2', role_type: 'player',    season: '2022-2023', club_name: 'RC Lens Réserve',   team_name: 'Séniors B', matches: 24, goals: 7, assists: 10, average_rating: 4.3 },
+  { id: 'h-u2-5', user_id: 'u-2', role_type: 'player',    season: '2021-2022', club_name: 'RC Lens Réserve',   team_name: 'Séniors A', matches: 18, goals: 4, assists: 6,  average_rating: 4.0 },
+
   // Lucas Martin (u-3) — persona joueur
-  { id: 'h-u3-1', user_id: 'u-3', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Lens Académie', matches: 12, goals: 6,  assists: 4, average_rating: 4.0 },
-  { id: 'h-u3-2', user_id: 'u-3', season: '2024-2025', team_name: 'Séniors B',  club_name: 'FC Lens Académie', matches: 20, goals: 9,  assists: 5, average_rating: 4.2 },
-  { id: 'h-u3-3', user_id: 'u-3', season: '2023-2024', team_name: 'U19',         club_name: 'AS Béthune',       matches: 16, goals: 4,  assists: 3, average_rating: 3.9 },
-  { id: 'h-u3-4', user_id: 'u-3', season: '2022-2023', team_name: 'U17',         club_name: 'AS Béthune',       matches: 12, goals: 2,  assists: 1, average_rating: 3.5 },
+  { id: 'h-u3-1', user_id: 'u-3', role_type: 'player', season: '2025-2026', team_name: 'Séniors A', club_name: 'FC Lens Académie', matches: 12, goals: 6,  assists: 4, average_rating: 4.0 },
+  { id: 'h-u3-2', user_id: 'u-3', role_type: 'player', season: '2024-2025', team_name: 'Séniors B', club_name: 'FC Lens Académie', matches: 20, goals: 9,  assists: 5, average_rating: 4.2 },
+  { id: 'h-u3-3', user_id: 'u-3', role_type: 'player', season: '2023-2024', team_name: 'U19',       club_name: 'AS Béthune',       matches: 16, goals: 4,  assists: 3, average_rating: 3.9 },
+  { id: 'h-u3-4', user_id: 'u-3', role_type: 'player', season: '2022-2023', team_name: 'U17',       club_name: 'AS Béthune',       matches: 12, goals: 2,  assists: 1, average_rating: 3.5 },
+
   // Matteo Russo (player-1)
-  { id: 'h-p1-1', user_id: 'player-1', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 8,  goals: 3,  assists: 2, average_rating: 3.7 },
-  { id: 'h-p1-2', user_id: 'player-1', season: '2024-2025', team_name: 'U19',         club_name: 'AS Nice Métropole', matches: 18, goals: 10, assists: 4, average_rating: 4.1 },
-  { id: 'h-p1-3', user_id: 'player-1', season: '2023-2024', team_name: 'U17',         club_name: 'AS Nice Métropole', matches: 14, goals: 5,  assists: 3, average_rating: 3.8 },
+  { id: 'h-p1-1', user_id: 'player-1', role_type: 'player', season: '2025-2026', team_name: 'Séniors A', club_name: 'FC Saint-Martin',   matches: 8,  goals: 3,  assists: 2, average_rating: 3.7 },
+  { id: 'h-p1-2', user_id: 'player-1', role_type: 'player', season: '2024-2025', team_name: 'U19',       club_name: 'AS Nice Métropole', matches: 18, goals: 10, assists: 4, average_rating: 4.1 },
+  { id: 'h-p1-3', user_id: 'player-1', role_type: 'player', season: '2023-2024', team_name: 'U17',       club_name: 'AS Nice Métropole', matches: 14, goals: 5,  assists: 3, average_rating: 3.8 },
+
   // Karim Diallo (user-t1-9)
-  { id: 'h-kd-1', user_id: 'user-t1-9', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 12, goals: 8,  assists: 3, average_rating: 4.2 },
-  { id: 'h-kd-2', user_id: 'user-t1-9', season: '2024-2025', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 20, goals: 14, assists: 5, average_rating: 4.4 },
-  { id: 'h-kd-3', user_id: 'user-t1-9', season: '2023-2024', team_name: 'U19',         club_name: 'GJ Échirolles',    matches: 15, goals: 6,  assists: 2, average_rating: 3.8 },
+  { id: 'h-kd-1', user_id: 'user-t1-9', role_type: 'player', season: '2025-2026', team_name: 'Séniors A', club_name: 'FC Saint-Martin', matches: 12, goals: 8,  assists: 3, average_rating: 4.2 },
+  { id: 'h-kd-2', user_id: 'user-t1-9', role_type: 'player', season: '2024-2025', team_name: 'Séniors A', club_name: 'FC Saint-Martin', matches: 20, goals: 14, assists: 5, average_rating: 4.4 },
+  { id: 'h-kd-3', user_id: 'user-t1-9', role_type: 'player', season: '2023-2024', team_name: 'U19',       club_name: 'GJ Échirolles',   matches: 15, goals: 6,  assists: 2, average_rating: 3.8 },
 ]
 
 // Upcoming matches filtrés selon le suivi utilisateur
