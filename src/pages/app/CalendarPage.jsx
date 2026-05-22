@@ -342,6 +342,7 @@ function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
 // ─── UpcomingItemCard ───────────────────────────────────────────────────────
 
 function UpcomingItemCard({ item, onClick }) {
+  const navigate = useNavigate()
   const dateStr = format(item._date, "EEE d MMM · HH'h'mm", { locale: fr })
 
   if (item._kind === 'match') {
@@ -381,7 +382,17 @@ function UpcomingItemCard({ item, onClick }) {
           <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
           <span className="text-[10px] text-gray-400">{dateStr}</span>
         </div>
-        <div className="text-xs font-semibold text-gray-900">🏃 Entraînement {item.teamName}</div>
+        <div className="text-xs font-semibold text-gray-900">
+          🏃 Entraînement{' '}
+          {item.teamId ? (
+            <button
+              onClick={e => { e.stopPropagation(); navigate(`/app/teams/${item.teamId}`) }}
+              className="hover:text-brand-600 transition-colors"
+            >
+              {item.teamName}
+            </button>
+          ) : item.teamName}
+        </div>
         {item.location && (
           <div className="text-[10px] text-gray-500 mt-0.5">{item.location}</div>
         )}
@@ -683,6 +694,7 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
 // ─── EventDetailPopup ───────────────────────────────────────────────────────
 
 function EventDetailPopup({ event, onClose }) {
+  const navigate = useNavigate()
   useEffect(() => {
     const handler = e => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
@@ -721,7 +733,21 @@ function EventDetailPopup({ event, onClose }) {
         <div className="flex items-start justify-between mb-5">
           <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
             <span>{icon}</span>
-            <span>{isTraining ? `Entraînement${event.teamName ? ` ${event.teamName}` : ''}` : (event.title ?? 'Événement')}</span>
+            {isTraining ? (
+              <span>
+                Entraînement{' '}
+                {event.teamId ? (
+                  <button
+                    onClick={() => { onClose(); navigate(`/app/teams/${event.teamId}`) }}
+                    className="hover:text-brand-600 transition-colors"
+                  >
+                    {event.teamName}
+                  </button>
+                ) : event.teamName}
+              </span>
+            ) : (
+              <span>{event.title ?? 'Événement'}</span>
+            )}
           </h2>
           <button onClick={onClose}
             className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400 ml-4">

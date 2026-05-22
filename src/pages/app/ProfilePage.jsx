@@ -426,6 +426,10 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Permissions contact (RGPD) ───────────────────────────────────────────────
+  const canViewContact = isOwnProfile || isPrivileged ||
+    (currentUser.teamIds ?? []).some(t => (targetUser?.teamIds ?? []).includes(t))
+
   // ── Gardes ────────────────────────────────────────────────────────────────────
   if (loading && id) {
     return (
@@ -433,9 +437,6 @@ export default function ProfilePage() {
         <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     )
-  }
-  if (!isOwnProfile && !isPrivileged) {
-    return <div className="p-8 max-w-lg mx-auto"><EmptyState title="Accès refusé" description="Vous ne pouvez consulter que votre propre profil." /></div>
   }
   if (!targetUser) {
     return <div className="p-8 max-w-lg mx-auto"><EmptyState title="Profil introuvable" description="Ce membre n'existe pas." /></div>
@@ -596,6 +597,15 @@ export default function ProfilePage() {
             className="inline-flex items-center gap-2 px-4 py-2 border border-surface-200
                        text-sm text-gray-600 hover:bg-surface-100 rounded-xl transition-colors">
             <Pencil size={14} /> Modifier mon profil
+          </button>
+        )}
+
+        {!isOwnProfile && (
+          <button
+            onClick={() => navigate('/app/messages', { state: { startConversationWith: targetUser.id } })}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
+                       text-white text-sm font-medium rounded-xl transition-colors">
+            💬 Envoyer un message
           </button>
         )}
 
@@ -797,22 +807,31 @@ export default function ProfilePage() {
           {birthPlace && <Field label="Lieu de naissance" value={birthPlace} />}
           {targetUser.role === 'player' && position && <Field label="Poste" value={position} />}
           {targetUser.role === 'player' && jerseyNum && <Field label="N° de maillot" value={`#${jerseyNum}`} />}
-          <Field label="Email" value={targetUser.email} />
-          <Field label="Téléphone" value={targetUser.phone} />
-          {(targetUser.address || targetUser.postal_code || targetUser.postalCode || targetUser.city) && (
-            <Field label="Adresse">
-              <span>
-                {[
-                  targetUser.address,
-                  [(targetUser.postal_code ?? targetUser.postalCode), targetUser.city].filter(Boolean).join(' '),
-                ].filter(Boolean).join(', ')}
-                {(targetUser.department || targetUser.region) && (
-                  <span className="block text-xs text-gray-400 mt-0.5">
-                    {[targetUser.department, targetUser.region].filter(Boolean).join(' — ')}
+          {canViewContact ? (
+            <>
+              <Field label="Email" value={targetUser.email} />
+              <Field label="Téléphone" value={targetUser.phone} />
+              {(targetUser.address || targetUser.postal_code || targetUser.postalCode || targetUser.city) && (
+                <Field label="Adresse">
+                  <span>
+                    {[
+                      targetUser.address,
+                      [(targetUser.postal_code ?? targetUser.postalCode), targetUser.city].filter(Boolean).join(' '),
+                    ].filter(Boolean).join(', ')}
+                    {(targetUser.department || targetUser.region) && (
+                      <span className="block text-xs text-gray-400 mt-0.5">
+                        {[targetUser.department, targetUser.region].filter(Boolean).join(' — ')}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-            </Field>
+                </Field>
+              )}
+            </>
+          ) : (
+            <div className="py-3 flex items-center gap-2 text-sm text-surface-400">
+              <span>🔒</span>
+              <span>Coordonnées accessibles aux coéquipiers, coach et président.</span>
+            </div>
           )}
         </div>
       </Card>

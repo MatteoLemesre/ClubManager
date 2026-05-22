@@ -106,6 +106,7 @@ function CreatePostBox({ club, authorId, onPost }) {
 // ─── PostCard ──────────────────────────────────────────────────────────────
 
 export function PostCard({ post, liked, onLike, currentUser }) {
+  const navigate = useNavigate()
   const [showComments, setShowComments] = useState(false)
   const [comments,     setComments]     = useState(post.post_comments ?? [])
   const [newComment,   setNewComment]   = useState('')
@@ -136,9 +137,20 @@ export function PostCard({ post, liked, onLike, currentUser }) {
           {post.clubs?.name?.[0] ?? '?'}
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-gray-900">{post.clubs?.name}</div>
+          <button
+            onClick={() => post.clubs?.id && navigate(`/app/clubs/${post.clubs.id}`)}
+            className="font-semibold text-gray-900 hover:text-brand-600 transition-colors"
+          >
+            {post.clubs?.name}
+          </button>
           <div className="text-xs text-gray-400">
-            par {post.users?.first_name} {post.users?.last_name}
+            par{' '}
+            <button
+              onClick={() => post.users?.id && navigate(`/app/profile/${post.users.id}`)}
+              className="hover:text-brand-600 transition-colors"
+            >
+              {post.users?.first_name} {post.users?.last_name}
+            </button>
             {' · '}{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
           </div>
         </div>
@@ -190,7 +202,12 @@ export function PostCard({ post, liked, onLike, currentUser }) {
               <Avatar user={c.users} size="sm" />
               <div className="flex-1 bg-surface-50 rounded-2xl px-3 py-2">
                 <div className="text-xs font-semibold text-gray-700">
-                  {c.users?.first_name} {c.users?.last_name}
+                  <button
+                    onClick={() => c.users?.id && navigate(`/app/profile/${c.users.id}`)}
+                    className="hover:text-brand-600 transition-colors"
+                  >
+                    {c.users?.first_name} {c.users?.last_name}
+                  </button>
                 </div>
                 <div className="text-sm text-gray-700 mt-0.5">{c.content}</div>
               </div>
@@ -350,15 +367,17 @@ export default function FeedPage() {
           {getFeedClubIds(currentUser).map(clubId => {
             const club = (MOCK_FEED_POSTS[clubId]?.[0]?.clubs) ?? { name: clubId }
             return (
-              <span key={clubId}
+              <button
+                key={clubId}
+                onClick={() => navigate(`/app/clubs/${clubId}`)}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-50
-                           text-brand-700 rounded-full text-xs font-medium">
+                           text-brand-700 rounded-full text-xs font-medium hover:bg-brand-100 transition-colors">
                 <span className="w-5 h-5 rounded-full bg-brand-600 text-white flex items-center
                                  justify-center text-[10px] font-bold">
                   {club.name[0]}
                 </span>
                 {club.name}
-              </span>
+              </button>
             )
           })}
         </div>

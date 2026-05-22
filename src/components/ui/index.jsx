@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { getInitials } from '../../data/mock'
 
 // ─── Avatar ────────────────────────────────────────────────────────────────
@@ -137,5 +138,24 @@ export function SectionHeader({ title, action, className = '' }) {
       <h2 className="font-display font-semibold text-surface-800 text-lg">{title}</h2>
       {action && <div>{action}</div>}
     </div>
+  )
+}
+
+// ─── ClickableName ──────────────────────────────────────────────────────────
+// Composant helper : clic sur un nom navigue vers /app/profile/:id
+
+export function ClickableName({ user, className = '' }) {
+  const navigate = useNavigate()
+  if (!user) return null
+  const fn = user.firstName ?? user.first_name ?? ''
+  const ln = user.lastName  ?? user.last_name  ?? ''
+  if (!user.id) return <span className={className}>{fn} {ln}</span>
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); navigate(`/app/profile/${user.id}`) }}
+      className={`hover:text-brand-600 transition-colors ${className}`}
+    >
+      {fn} {ln}
+    </button>
   )
 }
