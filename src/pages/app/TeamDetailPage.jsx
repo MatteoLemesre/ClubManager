@@ -23,9 +23,9 @@ const MOCK_TEAMS = {
     players_count: 18,
     next_match: {
       id: 'nm-1',
-      opponent: 'FC Valenciennes',
-      date: '2026-05-22T15:00:00Z',
-      location: 'Stade Bollaert',
+      opponent: 'AS Grenoble',
+      date: '2026-05-30T14:00:00Z',
+      location: 'Stade Municipal de Grenoble',
       is_home: true,
       availabilities: { available: 12, unavailable: 3, no_response: 3 },
       carpools: [
@@ -51,10 +51,10 @@ const MOCK_TEAMS = {
     },
     next_training: {
       id: 'nt-1',
-      date: '2026-05-18T19:30:00Z',
-      ends_at: '2026-05-18T21:00:00Z',
+      date: '2026-05-26T19:30:00Z',
+      ends_at: '2026-05-26T21:00:00Z',
       location: 'Terrain Bollaert',
-      theme: 'Pressing haut + transitions',
+      theme: 'Travail de finition + récupération',
       presences: { present: 14, absent: 2, uncertain: 1, no_response: 1 },
     },
     past_matches: [
@@ -191,8 +191,8 @@ const MOCK_TEAMS = {
     next_match: null,
     next_training: {
       id: 'nt-2',
-      date: '2026-05-19T17:00:00Z',
-      ends_at: '2026-05-19T18:30:00Z',
+      date: '2026-05-27T17:00:00Z',
+      ends_at: '2026-05-27T18:30:00Z',
       location: 'Terrain annexe',
       theme: 'Technique individuelle',
       presences: { present: 10, absent: 2, uncertain: 0, no_response: 2 },
@@ -1287,20 +1287,39 @@ function TabPlayers({ players }) {
 // ─── Modal fiche joueur ───────────────────────────────────────────────────────
 
 function PlayerModal({ player, onClose }) {
+  const navigate = useNavigate()
+  const { currentUser, is, isOneOf } = useAuth()
   const age = differenceInYears(new Date(), new Date(player.birth_date))
   const trainingTotal = Math.round(player.training_rate / 100 * 20)
+
+  // Infos sensibles visibles par coéquipiers, coach et président
+  const canViewSensitiveInfo = isOneOf('coach', 'president') || is('player')
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
       <Card className="w-full max-w-md">
         <div className="flex items-center justify-between p-5 border-b border-surface-100">
           <h2 className="font-display font-bold text-gray-900">Fiche joueur</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose()
+                navigate('/app/messages', {
+                  state: { startConversationWith: player.id },
+                })
+              }}
+              className="px-3 py-1.5 border border-surface-200 text-surface-600
+                         hover:bg-surface-50 rounded-xl text-xs font-medium transition-colors"
+            >
+              💬 Message
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-surface-100 rounded-xl text-gray-400 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="p-5 space-y-5">
@@ -1316,9 +1335,6 @@ function PlayerModal({ player, onClose }) {
               </div>
               <div className="text-sm text-gray-500">
                 {player.position} · {age} ans
-              </div>
-              <div className="text-xs text-gray-400 mt-0.5">
-                {player.email} · {player.phone}
               </div>
             </div>
           </div>
@@ -1391,6 +1407,31 @@ function PlayerModal({ player, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* Coordonnées — RGPD */}
+          {canViewSensitiveInfo ? (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Coordonnées
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>📧</span>
+                  <a href={`mailto:${player.email}`} className="hover:text-brand-600">{player.email}</a>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>📞</span>
+                  <a href={`tel:${player.phone}`} className="hover:text-brand-600">{player.phone}</a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-surface-50 rounded-xl text-center">
+              <div className="text-xs text-gray-400">
+                🔒 Les coordonnées sont visibles uniquement par les coéquipiers, le coach et le président.
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     </div>

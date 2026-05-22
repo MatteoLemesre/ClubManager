@@ -757,10 +757,12 @@ function TabRatings({ match, currentUser, is, users }) {
   const isTeamPlayer = is('player') && currentUser.teamIds?.includes(match.teamId)
   const hasPlayed    = match.status === 'played' && match.squad?.[currentUser.id] === 'confirmed'
 
-  if (match.status !== 'played') {
+  if (!hasPlayed) {
     return (
       <Card className="p-8 text-center">
-        <p className="text-surface-400 text-sm">La notation sera disponible après le match</p>
+        <div className="text-sm text-gray-400 py-4">
+          Seuls les joueurs ayant participé au match peuvent noter leurs coéquipiers.
+        </div>
       </Card>
     )
   }
@@ -782,11 +784,6 @@ function TabRatings({ match, currentUser, is, users }) {
 
   return (
     <div className="space-y-4">
-      {!hasPlayed && (
-        <div className="text-sm text-surface-500 p-3 bg-surface-50 rounded-xl border border-surface-200">
-          Vous n'avez pas joué ce match — vous pouvez consulter les notes mais pas noter.
-        </div>
-      )}
 
       <Card className="p-5">
         <SectionHeader title={hasPlayed ? 'Notez vos coéquipiers' : 'Notes de l\'équipe'} />
@@ -891,7 +888,7 @@ export default function MatchPage() {
     {
       id: 'ratings',
       label: 'Notation',
-      show: is('player') && currentUser.teamIds?.includes(match.teamId),
+      show: is('player') && currentUser.teamIds?.includes(match.teamId) && match.status === 'played',
     },
   ].filter(t => t.show)
 

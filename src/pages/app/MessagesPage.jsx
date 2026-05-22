@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -7,6 +8,8 @@ import { supabase } from '../../lib/supabase'
 
 export default function MessagesPage() {
   const { currentUser } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const [conversations,  setConversations]  = useState([])
   const [activeConvId,   setActiveConvId]   = useState(null)
@@ -54,11 +57,34 @@ export default function MessagesPage() {
     if (!currentUser.current_club_id) return
     supabase
       .from('users')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, role')
       .eq('current_club_id', currentUser.current_club_id)
       .neq('id', currentUser.id)
       .then(({ data }) => setMembers(data ?? []))
   }, [currentUser.current_club_id])
+
+  const getRoleLabel = (user) => {
+    const labels = {
+      president: 'Président',
+      coach:     'Coach',
+      player:    'Joueur',
+      supporter: 'Supporter',
+      parent:    'Parent',
+    }
+    return labels[user.role] || ''
+  }
+
+  // Démarrer une conversation depuis la navigation (ex: bouton Message sur fiche joueur)
+  useEffect(() => {
+    const { startConversationWith } = location.state || {}
+    if (startConversationWith && members.length > 0) {
+      const member = members.find(u => u.id === startConversationWith)
+      if (member) {
+        handleStartConversation(member)
+        navigate(location.pathname, { replace: true, state: {} })
+      }
+    }
+  }, [location.state, members])
 
   // Mettre à jour les messages affichés quand la conv active change
   useEffect(() => {
@@ -329,11 +355,16 @@ export default function MessagesPage() {
                                hover:bg-surface-50 text-left transition-all"
                   >
                     <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center
-                                    justify-center text-brand-700 font-semibold text-sm">
+                                    justify-center text-brand-700 font-semibold text-sm flex-shrink-0">
                       {m.first_name[0]}{m.last_name[0]}
                     </div>
-                    <div className="font-medium text-sm text-gray-900">
-                      {m.first_name} {m.last_name}
+                    <div>
+                      <div className="font-medium text-sm text-gray-900">
+                        {m.first_name} {m.last_name}
+                      </div>
+                      {getRoleLabel(m) && (
+                        <div className="text-xs text-gray-400">{getRoleLabel(m)}</div>
+                      )}
                     </div>
                   </button>
                 ))
