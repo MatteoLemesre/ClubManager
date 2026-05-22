@@ -39,6 +39,7 @@ const PERSONAS = {
     first_name: 'Lucas', last_name: 'Martin', firstName: 'Lucas', lastName: 'Martin',
     role: 'player', teamIds: ['team-1'], team_ids: ['team-1'], account_status: 'active',
     birth_date: '2001-03-15', birthDate: '2001-03-15',
+    birth_place: 'Lens (62)', birthPlace: 'Lens (62)',
     phone: '07 11 22 33 44', address: '8 rue Victor Hugo',
     postal_code: '62300', postalCode: '62300',
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
@@ -48,6 +49,8 @@ const PERSONAS = {
     teams: ['team-1'],
     followed_clubs: ['club-1'],
     followed_teams: ['mock-team-sd-1', 'mock-team-bx-1'],
+    position: 'Milieu',
+    jersey_number: 8, jerseyNumber: 8,
   },
   supporter: {
     id: 'u-4', email: 'supporter@test.fr', password_hash: 'password',

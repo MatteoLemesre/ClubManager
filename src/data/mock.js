@@ -2008,6 +2008,63 @@ export function getInitials(user) {
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
 }
 
+// ─── STATS JOUEURS (saison en cours) ───────────────────────────────────────
+export const MOCK_PLAYER_STATS = [
+  {
+    id: 'stat-u3',
+    user_id: 'u-3',            // Lucas Martin (persona joueur)
+    season: '2025-2026',
+    team_name: 'Séniors A',
+    club_name: 'FC Lens Académie',
+    matches: 12, goals: 6, assists: 4,
+    minutes_played: 960,
+    attendance_rate: 88,
+    yellow_cards: 2, red_cards: 0,
+    average_rating: 4.0,
+  },
+  {
+    id: 'stat-p1',
+    user_id: 'player-1',       // Matteo Russo
+    season: '2025-2026',
+    team_name: 'Séniors A',
+    club_name: 'FC Lens Académie',
+    matches: 8, goals: 3, assists: 2,
+    minutes_played: 580,
+    attendance_rate: 75,
+    yellow_cards: 1, red_cards: 0,
+    average_rating: 3.7,
+  },
+  {
+    id: 'stat-t1-9',
+    user_id: 'user-t1-9',      // Karim Diallo
+    season: '2025-2026',
+    team_name: 'Séniors A',
+    club_name: 'FC Saint-Martin',
+    matches: 12, goals: 8, assists: 3,
+    minutes_played: 1050,
+    attendance_rate: 92,
+    yellow_cards: 1, red_cards: 0,
+    average_rating: 4.2,
+  },
+]
+
+// ─── HISTORIQUE SAISONS JOUEURS ─────────────────────────────────────────────
+export const MOCK_PLAYER_HISTORY = [
+  // Lucas Martin (u-3) — persona joueur
+  { id: 'h-u3-1', user_id: 'u-3', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Lens Académie', matches: 12, goals: 6,  assists: 4, average_rating: 4.0 },
+  { id: 'h-u3-2', user_id: 'u-3', season: '2024-2025', team_name: 'Séniors B',  club_name: 'FC Lens Académie', matches: 20, goals: 9,  assists: 5, average_rating: 4.2 },
+  { id: 'h-u3-3', user_id: 'u-3', season: '2023-2024', team_name: 'U19',         club_name: 'AS Béthune',       matches: 16, goals: 4,  assists: 3, average_rating: 3.9 },
+  { id: 'h-u3-4', user_id: 'u-3', season: '2022-2023', team_name: 'U17',         club_name: 'AS Béthune',       matches: 12, goals: 2,  assists: 1, average_rating: 3.5 },
+  // Matteo Russo (player-1)
+  { id: 'h-p1-1', user_id: 'player-1', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 8,  goals: 3,  assists: 2, average_rating: 3.7 },
+  { id: 'h-p1-2', user_id: 'player-1', season: '2024-2025', team_name: 'U19',         club_name: 'AS Nice Métropole', matches: 18, goals: 10, assists: 4, average_rating: 4.1 },
+  { id: 'h-p1-3', user_id: 'player-1', season: '2023-2024', team_name: 'U17',         club_name: 'AS Nice Métropole', matches: 14, goals: 5,  assists: 3, average_rating: 3.8 },
+  // Karim Diallo (user-t1-9)
+  { id: 'h-kd-1', user_id: 'user-t1-9', season: '2025-2026', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 12, goals: 8,  assists: 3, average_rating: 4.2 },
+  { id: 'h-kd-2', user_id: 'user-t1-9', season: '2024-2025', team_name: 'Séniors A',  club_name: 'FC Saint-Martin',  matches: 20, goals: 14, assists: 5, average_rating: 4.4 },
+  { id: 'h-kd-3', user_id: 'user-t1-9', season: '2023-2024', team_name: 'U19',         club_name: 'GJ Échirolles',    matches: 15, goals: 6,  assists: 2, average_rating: 3.8 },
+]
+
 // Upcoming matches filtrés selon le suivi utilisateur
 export function getUpcomingMatchesForUser(user) {
   const followedClubs = new Set(user.followed_clubs ?? [])
