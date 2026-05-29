@@ -1,10 +1,82 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Send, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+
+// ─── MessageBubble ─────────────────────────────────────────────────────────
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
+
+function MessageBubble({ msg, isMe }) {
+  const [showPicker,       setShowPicker]       = useState(false)
+  const [selectedReaction, setSelectedReaction] = useState(null)
+
+  const handleReaction = useCallback((emoji) => {
+    setSelectedReaction(prev => prev === emoji ? null : emoji)
+    setShowPicker(false)
+  }, [])
+
+  return (
+    <div className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}>
+      <div className="relative group">
+        {/* Bulle */}
+        <div className={`max-w-xs px-4 py-2.5 rounded-2xl text-sm ${
+          isMe
+            ? 'bg-brand-600 text-white rounded-br-sm'
+            : 'bg-surface-100 text-gray-800 rounded-bl-sm'
+        }`}>
+          {msg.content}
+          <div className={`text-[10px] mt-1 ${isMe ? 'text-brand-200' : 'text-gray-400'}`}>
+            {msg.sent_at ? format(new Date(msg.sent_at), "HH'h'mm", { locale: fr }) : ''}
+          </div>
+        </div>
+
+        {/* Bouton réaction (hover) */}
+        <button
+          onClick={() => setShowPicker(p => !p)}
+          className={`absolute -bottom-5 ${isMe ? 'right-1' : 'left-1'}
+                      opacity-0 group-hover:opacity-100 transition-opacity
+                      text-base hover:scale-125`}
+          title="Réagir">
+          😊
+        </button>
+
+        {/* Picker réactions */}
+        {showPicker && (
+          <div className={`absolute bottom-7 ${isMe ? 'right-0' : 'left-0'}
+                           bg-white rounded-2xl shadow-lg px-2 py-1.5 flex gap-1
+                           border border-surface-200 z-10`}>
+            {REACTION_EMOJIS.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(emoji)}
+                className={`text-xl hover:scale-125 transition-transform rounded-lg p-1
+                            ${selectedReaction === emoji ? 'bg-brand-50' : 'hover:bg-surface-50'}`}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Réaction choisie */}
+        {selectedReaction && (
+          <button
+            onClick={() => setShowPicker(p => !p)}
+            className={`absolute -bottom-2 ${isMe ? '-right-2' : '-left-2'}
+                        text-base bg-white rounded-full w-6 h-6 flex items-center justify-center
+                        border-2 border-brand-600 shadow-sm hover:scale-110 transition-transform`}>
+            {selectedReaction}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
   const { currentUser } = useAuth()
@@ -248,26 +320,13 @@ export default function MessagesPage() {
                 Aucun message — soyez le premier !
               </div>
             )}
-            {activeMessages.map(msg => {
-              const isMe = msg.sender_id === currentUser.id
-              return (
-                <div key={msg.id}
-                  className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}>
-                  <div className={`max-w-xs px-4 py-2.5 rounded-2xl text-sm ${
-                    isMe
-                      ? 'bg-brand-600 text-white rounded-br-sm'
-                      : 'bg-surface-100 text-gray-800 rounded-bl-sm'
-                  }`}>
-                    {msg.content}
-                    <div className={`text-[10px] mt-1 ${isMe ? 'text-brand-200' : 'text-gray-400'}`}>
-                      {msg.sent_at
-                        ? format(new Date(msg.sent_at), "HH'h'mm", { locale: fr })
-                        : ''}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+            {activeMessages.map(msg => (
+              <MessageBubble
+                key={msg.id}
+                msg={msg}
+                isMe={msg.sender_id === currentUser.id}
+              />
+            ))}
             <div ref={bottomRef} />
           </div>
 

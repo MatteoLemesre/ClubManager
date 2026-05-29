@@ -206,6 +206,44 @@ function UploadDocumentModal({ targetUserId, onClose, onAdd }) {
   )
 }
 
+// ─── EditBioModal ─────────────────────────────────────────────────────────────
+
+function EditBioModal({ currentBio, onSave, onClose }) {
+  const [bio, setBio] = useState(currentBio || '')
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-display font-bold text-gray-900">Modifier votre bio</h2>
+        <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+          <X size={18} />
+        </button>
+      </div>
+      <textarea
+        value={bio}
+        onChange={e => setBio(e.target.value)}
+        maxLength={300}
+        rows={5}
+        placeholder="Présentez-vous en quelques lignes..."
+        className={`${INPUT_CLS} resize-none mb-2`}
+      />
+      <div className="text-xs text-gray-400 text-right mb-4">{bio.length}/300</div>
+      <div className="flex gap-3">
+        <button onClick={onClose}
+                className="flex-1 py-2.5 bg-surface-100 hover:bg-surface-200 text-gray-700
+                           text-sm font-medium rounded-xl transition-colors">
+          Annuler
+        </button>
+        <button onClick={() => onSave(bio)}
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white
+                           text-sm font-medium rounded-xl transition-colors">
+          Enregistrer
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ─── Page principale ───────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -243,6 +281,32 @@ export default function ProfilePage() {
   const [editPostalInfo, setEditPostalInfo] = useState('')
   const [editDep,        setEditDep]        = useState(null)
   const [editRegion,     setEditRegion]     = useState(null)
+
+  // ── Photo & Bio ──────────────────────────────────────────────────────────────
+  const photoKey = `profile_photo_${id || currentUser?.id}`
+  const bioKey   = `profile_bio_${id || currentUser?.id}`
+  const [profilePhoto,    setProfilePhoto]    = useState(() => localStorage.getItem(photoKey) ?? null)
+  const [bio,             setBio]             = useState(() => localStorage.getItem(bioKey) ?? (id ? '' : ''))
+  const [showPhotoModal,  setShowPhotoModal]  = useState(false)
+  const [showBioEdit,     setShowBioEdit]     = useState(false)
+
+  const handleUploadPhoto = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      setProfilePhoto(ev.target.result)
+      localStorage.setItem(photoKey, ev.target.result)
+      setShowPhotoModal(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSaveBio = (newBio) => {
+    setBio(newBio)
+    localStorage.setItem(bioKey, newBio)
+    setShowBioEdit(false)
+  }
 
   // ── Documents ────────────────────────────────────────────────────────────────
   const [documents,       setDocuments]       = useState(() => DOCUMENTS.filter(d => d.user_id === (id || currentUser?.id)))
@@ -560,9 +624,25 @@ export default function ProfilePage() {
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <Card className="p-6 text-center">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-brand-600 flex items-center
-                        justify-center text-white font-bold text-2xl">
-          {initials || '?'}
+        <div className="relative w-24 h-24 mx-auto mb-4">
+          {profilePhoto ? (
+            <img src={profilePhoto} alt="Photo de profil"
+                 className="w-24 h-24 rounded-full object-cover border-4 border-brand-100" />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-brand-600 flex items-center
+                            justify-center text-white font-bold text-2xl">
+              {initials || '?'}
+            </div>
+          )}
+          {isOwnProfile && (
+            <button
+              onClick={() => setShowPhotoModal(true)}
+              className="absolute bottom-0 right-0 w-8 h-8 bg-brand-600 text-white rounded-full
+                         flex items-center justify-center hover:bg-brand-700 shadow-lg transition-colors"
+              title="Modifier la photo">
+              ✏️
+            </button>
+          )}
         </div>
         <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">
           {firstName} {lastName}
@@ -704,6 +784,28 @@ export default function ProfilePage() {
           </div>
         </Card>
       )}
+
+      {/* ── Bio ──────────────────────────────────────────────────────────────── */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">📝 À propos</h2>
+          {isOwnProfile && (
+            <button onClick={() => setShowBioEdit(true)}
+                    className="text-xs text-brand-600 hover:underline">
+              Modifier
+            </button>
+          )}
+        </div>
+        {bio ? (
+          <p className="text-sm text-gray-700 leading-relaxed">{bio}</p>
+        ) : (
+          <p className="text-sm text-gray-400 italic">
+            {isOwnProfile
+              ? 'Présentez-vous ! Cliquez sur "Modifier" pour ajouter une description.'
+              : 'Aucune description pour l\'instant.'}
+          </p>
+        )}
+      </Card>
 
       {/* ── Stats saison (joueurs uniquement) ─────────────────────────────────── */}
       {targetUser.role === 'player' && currentSeasonStats && (
@@ -888,6 +990,56 @@ export default function ProfilePage() {
             <Plus size={14} /> Ajouter un document
           </button>
         </Card>
+      )}
+
+      {/* ── Modal photo profil ───────────────────────────────────────────────── */}
+      {showPhotoModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-display font-bold text-gray-900">Changer votre photo</h2>
+              <button onClick={() => setShowPhotoModal(false)}
+                      className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+            <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed
+                              border-surface-200 rounded-2xl cursor-pointer hover:border-brand-300
+                              hover:bg-brand-50 transition-colors">
+              <span className="text-5xl">📸</span>
+              <div className="text-center">
+                <div className="font-medium text-gray-900">Choisir une photo</div>
+                <div className="text-sm text-gray-500 mt-1">PNG, JPG (max 5 Mo)</div>
+              </div>
+              <input type="file" accept="image/*" onChange={handleUploadPhoto} className="sr-only" />
+            </label>
+            {profilePhoto && (
+              <button
+                onClick={() => { setProfilePhoto(null); localStorage.removeItem(photoKey); setShowPhotoModal(false) }}
+                className="w-full mt-3 py-2 text-sm text-red-500 hover:text-red-700 transition-colors">
+                Supprimer la photo
+              </button>
+            )}
+            <button onClick={() => setShowPhotoModal(false)}
+                    className="w-full mt-2 py-2.5 bg-surface-100 hover:bg-surface-200 text-gray-700
+                               text-sm font-medium rounded-xl transition-colors">
+              Annuler
+            </button>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Modal bio ────────────────────────────────────────────────────────── */}
+      {showBioEdit && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6">
+            <EditBioModal
+              currentBio={bio}
+              onSave={handleSaveBio}
+              onClose={() => setShowBioEdit(false)}
+            />
+          </Card>
+        </div>
       )}
 
       {/* ── Modal upload document ─────────────────────────────────────────────── */}

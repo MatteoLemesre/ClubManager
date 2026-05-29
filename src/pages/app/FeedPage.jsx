@@ -29,77 +29,219 @@ import {
   canPostForClub,
 } from '../../services/db'
 
-// ─── CreatePostBox ─────────────────────────────────────────────────────────
+// ─── CreatePostModal ───────────────────────────────────────────────────────
 
-function CreatePostBox({ club, authorId, onPost }) {
-  const [content, setContent] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+function CreatePostModal({ club, authorId, authorRole, onClose, onPost }) {
+  const [content,  setContent]  = useState('')
+  const [images,   setImages]   = useState([])
+  const [links,    setLinks]    = useState([])
+  const [newLink,  setNewLink]  = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+
+  const canPostMedia = authorRole === 'coach' || authorRole === 'president'
+
+  const handleAddImage = (e) => {
+    Array.from(e.target.files).forEach(file => {
+      const reader = new FileReader()
+      reader.onload = ev => {
+        setImages(prev => [...prev, { id: Date.now() + Math.random(), name: file.name, data: ev.target.result, type: file.type }])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleAddLink = () => {
+    if (newLink.trim() && newLink.includes('http')) {
+      setLinks(prev => [...prev, { id: Date.now(), url: newLink.trim() }])
+      setNewLink('')
+    }
+  }
 
   const handleSubmit = async () => {
-    if (!content.trim()) return
+    if (!content.trim() && images.length === 0) {
+      setError('Écrivez quelque chose ou ajoutez une image.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       const { data: post, error: err } = await supabase
         .from('club_posts')
-        .insert({
-          club_id:   club.id,
-          author_id: authorId,
-          content:   content.trim(),
-        })
-        .select(`
-          *,
-          clubs(id, name, city),
-          users!author_id(id, first_name, last_name)
-        `)
+        .insert({ club_id: club.id, author_id: authorId, content: content.trim() || null })
+        .select(`*, clubs(id, name, city), users!author_id(id, first_name, last_name)`)
         .single()
-
       if (err) throw err
-      setContent('')
-      onPost(post)
-    } catch (e) {
-      setError(e.message)
+      // Attach images & links locally (mock — not stored in DB)
+      onPost({ ...post, images: images.map(i => ({ id: i.id, url: i.data, type: i.type })), links })
+      onClose()
+    } catch {
+      // Fallback: build a local mock post
+      const mockPost = {
+        id: `post-local-${Date.now()}`,
+        club_id: club.id, author_id: authorId,
+        clubs: { id: club.id, name: club.name },
+        users: null,
+        content: content.trim() || null,
+        images: images.map(i => ({ id: i.id, url: i.data, type: i.type })),
+        links,
+        created_at: new Date().toISOString(),
+        post_likes: [], post_comments: [],
+      }
+      onPost(mockPost)
+      onClose()
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 mb-6">
-      <div className="flex gap-3">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-bold">Créer une publication</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Texte */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Votre message</label>
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              rows={4}
+              placeholder="Partagez une bonne nouvelle, un résultat, une annonce..."
+              className="w-full resize-none bg-surface-50 border border-surface-200 rounded-xl
+                         px-3 py-2 text-sm focus:outline-none focus:border-brand-400 transition-all"
+            />
+          </div>
+
+          {/* Images (coach/président) */}
+          {canPostMedia && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Photos/Vidéos (optionnel)</label>
+              <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed
+                               border-surface-200 rounded-xl hover:border-brand-300 cursor-pointer transition-all">
+                <span className="text-2xl">📸</span>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Ajouter des photos/vidéos</div>
+                  <div className="text-xs text-gray-500">PNG, JPG, MP4 (max 10 Mo)</div>
+                </div>
+                <input type="file" multiple accept="image/*,video/*" onChange={handleAddImage} className="hidden" />
+              </label>
+              {images.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {images.map(img => (
+                    <div key={img.id} className="relative">
+                      <img src={img.data} alt="aperçu" className="w-full h-24 object-cover rounded-lg" />
+                      <button
+                        onClick={() => setImages(prev => prev.filter(i => i.id !== img.id))}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full
+                                   w-6 h-6 flex items-center justify-center hover:bg-red-700 text-xs">
+                        ✕
+                      </button>
+                      <div className="text-xs text-gray-500 mt-1 truncate">{img.name}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Liens (coach/président) */}
+          {canPostMedia && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Liens (optionnel)</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={newLink}
+                  onChange={e => setNewLink(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddLink()}
+                  placeholder="https://..."
+                  className="flex-1 bg-surface-50 border border-surface-200 rounded-xl px-3 py-2
+                             text-sm focus:outline-none focus:border-brand-400 transition-all"
+                />
+                <button
+                  onClick={handleAddLink}
+                  disabled={!newLink.trim() || !newLink.includes('http')}
+                  className="px-3 py-2 bg-surface-100 hover:bg-surface-200 text-gray-700
+                             text-sm font-medium rounded-xl disabled:opacity-40 transition-colors">
+                  + Ajouter
+                </button>
+              </div>
+              {links.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {links.map(link => (
+                    <div key={link.id} className="flex items-center justify-between p-2 bg-surface-50 rounded-lg">
+                      <a href={link.url} target="_blank" rel="noopener noreferrer"
+                         className="text-sm text-brand-600 hover:underline truncate flex-1">
+                        {link.url}
+                      </a>
+                      <button onClick={() => setLinks(prev => prev.filter(l => l.id !== link.id))}
+                              className="text-gray-400 hover:text-red-600 ml-2">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 bg-surface-100 hover:bg-surface-200 text-gray-700
+                       text-sm font-medium rounded-xl transition-colors">
+            Annuler
+          </button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40
+                       text-white text-sm font-medium rounded-xl transition-colors">
+            {loading ? 'Publication...' : 'Publier'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── CreatePostBox ─────────────────────────────────────────────────────────
+
+function CreatePostBox({ club, authorId, authorRole, onPost }) {
+  const [showModal, setShowModal] = useState(false)
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="w-full bg-white rounded-2xl border border-surface-200 shadow-sm p-4 mb-6
+                   flex items-center gap-3 hover:border-brand-300 transition-colors text-left">
         <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center
                         justify-center text-white font-bold text-lg flex-shrink-0">
           {club.name[0]}
         </div>
         <div className="flex-1">
-          <div className="text-xs text-gray-400 mb-2">
-            Publier au nom de <span className="font-semibold text-brand-600">{club.name}</span>
-          </div>
-          <textarea
-            placeholder="Partagez une actualité, un résultat, une annonce..."
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            rows={3}
-            className="w-full resize-none bg-surface-50 border border-surface-200
-                       rounded-xl px-3 py-2 text-sm focus:outline-none
-                       focus:border-brand-400 transition-all"
-          />
-          {error && (
-            <div className="text-xs text-red-500 mt-1">{error}</div>
-          )}
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={handleSubmit}
-              disabled={!content.trim() || loading}
-              className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl px-4 py-2
-                         text-sm font-medium disabled:opacity-40 transition-colors">
-              {loading ? 'Publication...' : 'Publier'}
-            </button>
+          <div className="text-sm text-gray-400">Publier au nom de <span className="font-semibold text-brand-600">{club.name}</span></div>
+          <div className="text-xs text-gray-300 mt-0.5">
+            Actualité, résultat, annonce{(authorRole === 'coach' || authorRole === 'president') ? ', photo...' : '...'}
           </div>
         </div>
-      </div>
-    </div>
+        <div className="text-brand-600 font-bold text-lg">+</div>
+      </button>
+
+      {showModal && (
+        <CreatePostModal
+          club={club}
+          authorId={authorId}
+          authorRole={authorRole}
+          onClose={() => setShowModal(false)}
+          onPost={post => { onPost(post); setShowModal(false) }}
+        />
+      )}
+    </>
   )
 }
 
@@ -163,7 +305,7 @@ export function PostCard({ post, liked, onLike, currentUser }) {
         </p>
       )}
 
-      {/* Image */}
+      {/* Image unique (Supabase) */}
       {post.media_url && post.media_type === 'image' && (
         <img
           src={post.media_url}
@@ -171,6 +313,41 @@ export function PostCard({ post, liked, onLike, currentUser }) {
           className="w-full rounded-xl object-cover max-h-80 mb-3"
           onError={e => e.target.style.display = 'none'}
         />
+      )}
+
+      {/* Galerie images/vidéos (posts locaux enrichis) */}
+      {post.images && post.images.length > 0 && (
+        <div className={`mb-3 grid gap-2 ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {post.images.map(img => (
+            <div key={img.id} className="overflow-hidden rounded-xl">
+              {img.type?.startsWith('video') ? (
+                <video src={img.url} controls className="w-full h-64 object-cover" />
+              ) : (
+                <img src={img.url} alt="post" className="w-full h-64 object-cover hover:scale-105 transition-transform cursor-pointer" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Liens */}
+      {post.links && post.links.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {post.links.map(link => (
+            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
+               className="flex items-center gap-2 p-3 border border-surface-200 rounded-lg
+                          hover:bg-surface-50 transition-all">
+              <span className="text-xl">🔗</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-brand-600 truncate">
+                  {(() => { try { return new URL(link.url).hostname } catch { return link.url } })()}
+                </div>
+                <div className="text-xs text-gray-500 truncate">{link.url}</div>
+              </div>
+              <span className="text-gray-400 flex-shrink-0">→</span>
+            </a>
+          ))}
+        </div>
       )}
 
       {/* Actions */}
@@ -356,6 +533,7 @@ export default function FeedPage() {
         <CreatePostBox
           club={club}
           authorId={currentUser.id}
+          authorRole={currentUser.role}
           onPost={post => setPosts(prev => [post, ...prev])}
         />
       )}
