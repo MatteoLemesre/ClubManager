@@ -10,7 +10,7 @@ import {
   getClubById, leaveClub, canPresidentLeave,
   createClub, updateUser, createUserRole, getSports, resolvePostalCode,
 } from '../../services/db'
-import { DOCUMENTS, TEAMS, MOCK_PLAYER_STATS, MOCK_PLAYER_HISTORY } from '../../data/mock'
+import { DOCUMENTS, TEAMS, MOCK_PLAYER_STATS, mockExperiences } from '../../data/mock'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -19,20 +19,12 @@ const INPUT_CLS = `w-full px-3 py-2 bg-surface-50 border border-surface-200 roun
                   focus:ring-brand-300 focus:border-brand-400 transition-all`
 const LABEL_CLS = `block text-sm font-medium text-gray-700 mb-1`
 
-const CURRENT_SEASON = '2025-2026'
-
 const ROLE_LABELS = {
   president: 'Président',
   coach:     'Coach',
   player:    'Joueur',
   supporter: 'Supporter',
   parent:    'Parent',
-}
-
-const ROLE_TYPE_COLORS = {
-  president: 'bg-amber-100 text-amber-700',
-  coach:     'bg-emerald-100 text-emerald-700',
-  player:    'bg-brand-100 text-brand-700',
 }
 
 const DOC_TYPE_LABELS = {
@@ -206,6 +198,266 @@ function UploadDocumentModal({ targetUserId, onClose, onAdd }) {
   )
 }
 
+// ─── ExperienceModal ──────────────────────────────────────────────────────────
+
+function ExperienceModal({ experience, onSave, onClose }) {
+  const [role,        setRole]        = useState(experience?.role || 'player')
+  const [clubName,    setClubName]    = useState(experience?.club_name || '')
+  const [teamName,    setTeamName]    = useState(experience?.team_name || '')
+  const [position,    setPosition]    = useState(experience?.position || '')
+  const [startDate,   setStartDate]   = useState(experience?.start_date || '')
+  const [endDate,     setEndDate]     = useState(experience?.end_date || '')
+  const [isCurrent,   setIsCurrent]   = useState(!experience?.end_date)
+  const [description, setDescription] = useState(experience?.description || '')
+
+  const roles = [
+    { value: 'player',    label: '⚽ Joueur' },
+    { value: 'coach',     label: '👔 Coach' },
+    { value: 'president', label: '👔 Président' },
+    { value: 'staff',     label: '🏥 Intendant/Staff' },
+    { value: 'supporter', label: '👥 Supporter' },
+  ]
+
+  function handleSave() {
+    if (!clubName.trim() || !startDate) {
+      alert('Club et date de début obligatoires')
+      return
+    }
+    onSave({
+      id:          experience?.id || `exp-${Date.now()}`,
+      role,
+      club_name:   clubName.trim(),
+      team_name:   teamName.trim() || null,
+      position:    (role === 'player' && position.trim()) ? position.trim() : null,
+      start_date:  startDate,
+      end_date:    isCurrent ? null : endDate,
+      description: description.trim() || null,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-bold">
+            {experience ? "Modifier l'expérience" : 'Ajouter une expérience'}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className={LABEL_CLS}>Rôle *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {roles.map(r => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => { setRole(r.value); if (r.value !== 'player') setPosition('') }}
+                  className={`p-3 rounded-xl border-2 transition-all text-left text-sm font-medium ${
+                    role === r.value
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-surface-200 hover:border-brand-300 text-gray-900'
+                  }`}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Club *</label>
+            <input type="text" value={clubName} onChange={e => setClubName(e.target.value)}
+              placeholder="Ex : FC Lens Académie, AS Liévin…" className={INPUT_CLS} />
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Équipe/Catégorie{role !== 'supporter' && ' *'}</label>
+            <input type="text" value={teamName} onChange={e => setTeamName(e.target.value)}
+              placeholder="Ex : Séniors A, U19, U13…" className={INPUT_CLS} />
+          </div>
+
+          {role === 'player' && (
+            <div>
+              <label className={LABEL_CLS}>Poste sur le terrain</label>
+              <select value={position} onChange={e => setPosition(e.target.value)} className={INPUT_CLS}>
+                <option value="">Choisir un poste…</option>
+                <option>Gardien</option>
+                <option>Défenseur</option>
+                <option>Latéral</option>
+                <option>Milieu</option>
+                <option>Ailier</option>
+                <option>Attaquant</option>
+              </select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Début *</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={INPUT_CLS} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Fin</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                disabled={isCurrent} className={`${INPUT_CLS} disabled:bg-surface-50`} />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isCurrent}
+              onChange={e => { setIsCurrent(e.target.checked); if (e.target.checked) setEndDate('') }} />
+            <span className="text-sm font-medium text-gray-700">Je suis actuellement en poste ici</span>
+          </label>
+
+          <div>
+            <label className={LABEL_CLS}>Description (optionnel)</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+              placeholder="Parlez de votre rôle, accomplissements, raison du départ…"
+              className={`${INPUT_CLS} resize-none`} />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 bg-surface-100 hover:bg-surface-200 text-gray-700 text-sm font-medium rounded-xl transition-colors">
+            Annuler
+          </button>
+          <button onClick={handleSave}
+            className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition-colors">
+            {experience ? 'Mettre à jour' : "Ajouter l'expérience"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ExperienceSection ────────────────────────────────────────────────────────
+
+function ExperienceSection({ userId, isMyProfile }) {
+  const [experiences, setExperiences] = useState(() =>
+    mockExperiences
+      .filter(e => e.user_id === userId)
+      .sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
+  )
+  const [showModal,   setShowModal]   = useState(false)
+  const [editingExp,  setEditingExp]  = useState(null)
+
+  const handleSave = (exp) => {
+    setExperiences(prev => {
+      const exists = prev.find(e => e.id === exp.id)
+      return exists
+        ? prev.map(e => e.id === exp.id ? exp : e)
+        : [exp, ...prev]
+    })
+    setShowModal(false)
+    setEditingExp(null)
+  }
+
+  const handleDelete = (expId) => {
+    if (window.confirm('Supprimer cette expérience ?')) {
+      setExperiences(prev => prev.filter(e => e.id !== expId))
+    }
+  }
+
+  const roleIcon = (role) => ({ player: '⚽', coach: '👔', president: '👔', staff: '🏥', supporter: '👥' }[role] ?? '📋')
+  const roleLabel = (role) => ({ player: 'Joueur', coach: 'Coach', president: 'Président', staff: 'Intendant/Staff', supporter: 'Supporter' }[role] ?? role)
+
+  const formatDates = (start, end) => {
+    const s = new Date(start)
+    const sStr = s.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
+    const e = end ? new Date(end) : new Date()
+    const totalMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
+    const years = Math.floor(totalMonths / 12)
+    const months = totalMonths % 12
+    const duration = [years > 0 && `${years} an${years > 1 ? 's' : ''}`, months > 0 && `${months} mois`].filter(Boolean).join(' ')
+
+    if (!end) {
+      const eStr = 'Présent'
+      return `${sStr} - ${eStr}${duration ? ` (${duration})` : ''}`
+    }
+    const eStr = e.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
+    return `${sStr} - ${eStr}${duration ? ` (${duration})` : ''}`
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">💼 Expérience</h2>
+        {isMyProfile && (
+          <button
+            onClick={() => { setEditingExp(null); setShowModal(true) }}
+            className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+            <Plus size={12} /> Ajouter
+          </button>
+        )}
+      </div>
+
+      {experiences.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          <div className="text-2xl mb-2">📋</div>
+          <div className="text-sm">
+            {isMyProfile
+              ? 'Aucune expérience. Cliquez sur "Ajouter" pour commencer !'
+              : 'Aucune expérience renseignée.'}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {experiences.map(exp => (
+            <div key={exp.id} className="pb-4 border-b border-surface-100 last:border-b-0 last:pb-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-900">
+                    {roleIcon(exp.role)} {roleLabel(exp.role)} · {exp.club_name}
+                    {exp.team_name && ` — ${exp.team_name}`}
+                  </div>
+                  {exp.position && (
+                    <div className="text-xs text-gray-500 mt-0.5">📍 {exp.position}</div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {formatDates(exp.start_date, exp.end_date)}
+                  </div>
+                  {exp.description && (
+                    <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{exp.description}</p>
+                  )}
+                </div>
+                {isMyProfile && (
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => { setEditingExp(exp); setShowModal(true) }}
+                      className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                      title="Modifier">
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(exp.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Supprimer">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <ExperienceModal
+          experience={editingExp}
+          onSave={handleSave}
+          onClose={() => { setShowModal(false); setEditingExp(null) }}
+        />
+      )}
+    </Card>
+  )
+}
+
 // ─── EditBioModal ─────────────────────────────────────────────────────────────
 
 function EditBioModal({ currentBio, onSave, onClose }) {
@@ -361,9 +613,6 @@ export default function ProfilePage() {
   const uid = targetUser?.id ?? currentUser?.id
 
   const currentSeasonStats = MOCK_PLAYER_STATS.find(s => s.user_id === uid)
-  const careerHistory = MOCK_PLAYER_HISTORY
-    .filter(h => h.user_id === uid)
-    .sort((a, b) => b.season.localeCompare(a.season))
 
   const mockTeam     = TEAMS.find(t => (targetUser?.teamIds ?? targetUser?.teams ?? []).includes(t.id))
   const mockClubName = club?.name ?? (targetUser?.current_club_id ? MOCK_CLUBS[targetUser.current_club_id]?.name : null) ?? null
@@ -844,57 +1093,8 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* ── Historique carrière (tous les rôles) ──────────────────────────────── */}
-      {careerHistory.length > 0 && (
-        <Card className="p-5">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-            📅 Historique
-          </h2>
-          <div className="space-y-3">
-            {careerHistory.map(h => {
-              const rtColor = ROLE_TYPE_COLORS[h.role_type] ?? 'bg-surface-100 text-surface-600'
-              const rtLabel = h.role_type === 'president' ? 'Président'
-                            : h.role_type === 'coach'     ? 'Coach'
-                            : 'Joueur'
-              const isCurrentSeason = h.season === CURRENT_SEASON
-              return (
-                <div key={h.id} className="p-4 bg-surface-50 rounded-xl border border-surface-100">
-                  <div className="flex items-start justify-between mb-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900 text-sm">{h.season}</span>
-                      {isCurrentSeason && (
-                        <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
-                          En cours
-                        </span>
-                      )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${rtColor}`}>
-                        {rtLabel}
-                      </span>
-                    </div>
-                    {h.average_rating != null && (
-                      <div className="font-bold text-brand-600 text-sm flex-shrink-0 ml-2">
-                        ⭐ {h.average_rating.toFixed(1)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {h.club_name}{h.team_name ? ` — ${h.team_name}` : ''}
-                  </div>
-                  {h.role_type === 'player' && h.matches != null && (
-                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-1.5">
-                      <span>{h.matches} matchs</span>
-                      <span>·</span>
-                      <span>{h.goals} buts</span>
-                      <span>·</span>
-                      <span>{h.assists} passes</span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
+      {/* ── Expérience LinkedIn-style ─────────────────────────────────────────── */}
+      <ExperienceSection userId={uid} isMyProfile={isOwnProfile} />
 
       {/* ── Informations personnelles ─────────────────────────────────────────── */}
       <Card className="p-5">
