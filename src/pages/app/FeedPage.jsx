@@ -39,7 +39,7 @@ function CreatePostModal({ club, authorId, authorRole, onClose, onPost }) {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
 
-  const canPostMedia = authorRole === 'coach' || authorRole === 'president'
+  const canPostMedia = authorRole === 'coach' || authorRole === 'president' || authorRole === 'staff'
 
   const handleAddImage = (e) => {
     Array.from(e.target.files).forEach(file => {
@@ -482,8 +482,8 @@ export default function FeedPage() {
             setClub(c)
           }
         } catch {
-          // Mock mode: president/coach can post
-          if (['president', 'coach'].includes(currentUser.role)) {
+          // Mock mode: president/coach/staff can post
+          if (['president', 'coach', 'staff'].includes(currentUser.role)) {
             setCanPost(true)
             setClub({ id: currentUser.current_club_id, name: 'FC Lens Académie' })
           }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge } from '../ui'
@@ -36,7 +36,7 @@ function MobileBottomNav({ currentUser, switchRole }) {
   ]
 
   const tabs = (currentUser?.role === 'president' || currentUser?.role === 'staff')
-    ? [...baseTabs.slice(0, 4), { to: '/app/president', label: 'Mon club', emoji: '🏢' }, baseTabs[4]]
+    ? [baseTabs[0], { to: '/app/president', label: 'Mon club', emoji: '🏢' }, ...baseTabs.slice(1)]
     : baseTabs
 
   return (
@@ -392,8 +392,6 @@ export default function AppLayout() {
                 )}
               </div>
 
-              <RoleBadge role={currentUser.role} />
-
               <Link to="/app/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <Avatar user={avatarUser(currentUser)} size="sm" />
                 <span className="text-sm font-medium text-gray-700 hidden md:block">
@@ -415,38 +413,39 @@ export default function AppLayout() {
 
         {/* Ligne basse : navigation */}
         <nav className="hidden md:flex items-center gap-1 px-4 overflow-x-auto border-t border-surface-100">
-          {NAV_ITEMS.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
-                 whitespace-nowrap transition-colors
-                 ${isActive
-                   ? 'border-brand-600 text-brand-600'
-                   : 'border-transparent text-gray-400 hover:text-gray-700'
-                 }`
-              }
-            >
-              <item.icon size={16} strokeWidth={1.8} />
-              {item.label}
-            </NavLink>
+          {NAV_ITEMS.map((item, i) => (
+            <React.Fragment key={item.to}>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
+                   whitespace-nowrap transition-colors
+                   ${isActive
+                     ? 'border-brand-600 text-brand-600'
+                     : 'border-transparent text-gray-400 hover:text-gray-700'
+                   }`
+                }
+              >
+                <item.icon size={16} strokeWidth={1.8} />
+                {item.label}
+              </NavLink>
+              {i === 0 && (currentUser?.role === 'president' || currentUser?.role === 'staff') && (
+                <NavLink
+                  to={PRESIDENT_NAV.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
+                     whitespace-nowrap transition-colors
+                     ${isActive
+                       ? 'border-brand-600 text-brand-600'
+                       : 'border-transparent text-gray-400 hover:text-gray-700'
+                     }`
+                  }
+                >
+                  {PRESIDENT_NAV.label}
+                </NavLink>
+              )}
+            </React.Fragment>
           ))}
-          {(currentUser?.role === 'president' || currentUser?.role === 'staff') && (
-            <NavLink
-              to={PRESIDENT_NAV.to}
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
-                 whitespace-nowrap transition-colors
-                 ${isActive
-                   ? 'border-brand-600 text-brand-600'
-                   : 'border-transparent text-gray-400 hover:text-gray-700'
-                 }`
-              }
-            >
-              {PRESIDENT_NAV.label}
-            </NavLink>
-          )}
         </nav>
       </header>
 

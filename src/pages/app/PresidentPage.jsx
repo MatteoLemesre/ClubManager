@@ -1553,10 +1553,7 @@ export default function PresidentPage() {
                     : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300 hover:shadow-sm'
                 }`}
               >
-                <span className="text-xl md:text-2xl leading-none">
-                  {clubData.emoji_icon ?? '⚽'}
-                </span>
-                <div className="text-left hidden md:block">
+                <div className="text-left">
                   <div className="font-semibold leading-tight">{clubData.name}</div>
                   {userRoleInClub && (
                     <div className={`text-xs leading-tight ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
