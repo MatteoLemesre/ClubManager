@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { to: '/app/profile',   icon: User,          label: 'Profil'     },
 ]
 
-const PRESIDENT_NAV = { to: '/app/president', label: '👔 Mon club' }
+const PRESIDENT_NAV = { to: '/app/president', label: '🏢 Mon club' }
 
 // ── Mobile Bottom Navigation ─────────────────────────────────────────────────
 function MobileBottomNav({ currentUser, switchRole }) {
@@ -36,7 +36,7 @@ function MobileBottomNav({ currentUser, switchRole }) {
   ]
 
   const tabs = (currentUser?.role === 'president' || currentUser?.role === 'staff')
-    ? [...baseTabs.slice(0, 4), { to: '/app/president', label: 'Club', emoji: '👔' }, baseTabs[4]]
+    ? [...baseTabs.slice(0, 4), { to: '/app/president', label: 'Mon club', emoji: '🏢' }, baseTabs[4]]
     : baseTabs
 
   return (
