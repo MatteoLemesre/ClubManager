@@ -1535,16 +1535,8 @@ export default function PresidentPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
 
-      {/* Header + sélection club */}
+      {/* Sélection club */}
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">
-          {currentUser.role === 'staff' ? '🏥 Intendance' : '👔 Mes clubs'}
-        </h1>
-        <p className="text-sm text-gray-500 mb-4">
-          {myClubs.length > 1
-            ? `Vous gérez ${myClubs.length} clubs`
-            : `${currentUser.role === 'staff' ? 'Intendant' : 'Président'} · ${myClubs[0]?.name ?? ''}`}
-        </p>
         <div className="flex gap-3 flex-wrap">
           {myClubs.map(club => {
             const clubData = clubOverrides[club.id] ?? club

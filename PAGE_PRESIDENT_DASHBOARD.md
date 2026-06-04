@@ -6,18 +6,16 @@ Page exclusive pour les présidents avec gestion multi-clubs et sous-onglets.
 
 ## STRUCTURE GÉNÉRALE
 
-**Route :** `/app/president` (accessible uniquement aux présidents)
+**Route :** `/app/president` (accessible uniquement aux présidents et intendants)
 
 **Layout :**
 ```
 ┌──────────────────────────────────────────────────────┐
-│  👔 MON CLUB (ou MES CLUBS)                          │
-├──────────────────────────────────────────────────────┤
 │                                                      │
 │  Sélectionner un club :                             │
-│  [FC Lens Académie ▼] (13 alertes)                  │
-│  [AS Saint-Denis United]                            │
-│  [OL Amateur]                                       │
+│  [⚽ FC Lens] [🏆 AS Saint-Denis] [🔵 OL]          │
+│                                                      │
+│  (13 alertes)                                        │
 │                                                      │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
@@ -33,9 +31,7 @@ Page exclusive pour les présidents avec gestion multi-clubs et sous-onglets.
 
 ---
 
-## 1. SÉLECTION CLUB
-
-### Code principal
+## CODE PRINCIPAL (SANS TITRE)
 
 ```jsx
 import { useState } from 'react'
@@ -46,13 +42,12 @@ export default function PresidentPage() {
   const [selectedClubId, setSelectedClubId] = useState(null)
   const [activeTab, setActiveTab] = useState('alertes')
 
-  // Récupérer les clubs dont l'user est président
+  // Récupérer les clubs dont l'user est président ou intendant
   const myClubs = mockClubs.filter(c =>
-    mockUsers.find(u =>
-      u.id === currentUser.id &&
-      u.role === 'president' &&
-      u.current_club_id === c.id
-    ) || currentUser.current_club_id === c.id
+    currentUser.roles?.some(r =>
+      (r.role === 'president' || r.role === 'staff') &&
+      r.club_id === c.id
+    )
   )
 
   // Si pas encore sélectionné, sélectionner le premier
@@ -65,10 +60,10 @@ export default function PresidentPage() {
       <div className="max-w-3xl mx-auto px-4 py-6 text-center">
         <div className="text-4xl mb-2">🏟️</div>
         <div className="text-lg font-semibold text-gray-900 mb-2">
-          Vous n'êtes président d'aucun club
+          Vous n'êtes président/intendant d'aucun club
         </div>
         <div className="text-gray-500">
-          Contactez l'admin pour être nommé président d'un club
+          Contactez l'admin pour être nommé responsable d'un club
         </div>
       </div>
     )
@@ -91,10 +86,6 @@ export default function PresidentPage() {
       
       {/* Sélection club */}
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-bold text-gray-900 mb-4">
-          👔 Mon club {myClubs.length > 1 ? '(ou mes clubs)' : ''}
-        </h1>
-
         {/* Boutons clubs */}
         <div className="flex gap-2 flex-wrap">
           {myClubs.map(club => {
@@ -105,14 +96,23 @@ export default function PresidentPage() {
               <button
                 key={club.id}
                 onClick={() => setSelectedClubId(club.id)}
-                className={`px-4 py-3 rounded-xl font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-lg'
                     : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300'
                 }`}>
-                {club.name}
+                
+                {/* Emoji icon du club */}
+                <span className="text-xl">
+                  {club.emoji_icon || '⚽'}
+                </span>
+                
+                {/* Nom club */}
+                <span>{club.name}</span>
+                
+                {/* Badge alertes */}
                 {clubAlertCount > 0 && (
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
                     isActive
                       ? 'bg-white text-brand-600'
                       : 'bg-red-100 text-red-700'
@@ -220,90 +220,6 @@ function AlertesTab({ club }) {
     </div>
   )
 }
-
-// Fonction pour récupérer les alertes du club
-function getClubAlerts(clubId) {
-  const alerts = []
-  
-  // Alertes documents expiration
-  const expiredDocs = mockDocuments.filter(doc => {
-    const user = mockUsers.find(u => u.id === doc.user_id)
-    if (user?.current_club_id !== clubId) return false
-    if (!doc.expires_at) return false
-    
-    const daysLeft = Math.floor(
-      (new Date(doc.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
-    )
-    return daysLeft >= 0 && daysLeft <= 30
-  })
-
-  if (expiredDocs.length > 0) {
-    alerts.push({
-      id: 'alert-docs-expire',
-      title: 'Documents qui expirent bientôt',
-      description: `${expiredDocs.length} document(s) expire(nt) dans les 30 prochains jours`,
-      severity: 'warning',
-      count: expiredDocs.length,
-      action: { label: 'Voir les documents', callback: () => {} },
-    })
-  }
-
-  // Alertes documents manquants
-  const missingDocs = mockUsers.filter(user => {
-    if (user.current_club_id !== clubId) return false
-    if (user.role === 'supporter') return false
-    
-    const userDocs = mockDocuments.filter(d => d.user_id === user.id)
-    return userDocs.length === 0
-  })
-
-  if (missingDocs.length > 0) {
-    alerts.push({
-      id: 'alert-missing-docs',
-      title: 'Documents manquants',
-      description: `${missingDocs.length} personne(s) n'a(ont) uploadé aucun document`,
-      severity: 'critical',
-      count: missingDocs.length,
-      action: { label: 'Contacter', callback: () => {} },
-    })
-  }
-
-  // Alertes cotisations
-  const unpaidMembers = mockUsers.filter(user => {
-    if (user.current_club_id !== clubId) return false
-    return user.payment_status === 'unpaid'
-  })
-
-  if (unpaidMembers.length > 0) {
-    alerts.push({
-      id: 'alert-payment',
-      title: 'Cotisations impayées',
-      description: `${unpaidMembers.length} membre(s) n'a(ont) pas payé`,
-      severity: 'warning',
-      count: unpaidMembers.length,
-      action: { label: 'Voir détails', callback: () => {} },
-    })
-  }
-
-  // Alertes présence entraînement
-  const lowAttendance = mockUsers.filter(user => {
-    if (user.current_club_id !== clubId || user.role !== 'player') return false
-    const stats = mockPlayerStats.find(s => s.user_id === user.id && s.season === '2024-2025')
-    return stats && stats.attendance_rate < 70
-  })
-
-  if (lowAttendance.length > 0) {
-    alerts.push({
-      id: 'alert-attendance',
-      title: 'Présence aux entraînements faible',
-      description: `${lowAttendance.length} joueur(s) avec <70% présence`,
-      severity: 'info',
-      count: lowAttendance.length,
-    })
-  }
-
-  return alerts
-}
 ```
 
 ---
@@ -312,7 +228,9 @@ function getClubAlerts(clubId) {
 
 ```jsx
 function DocumentsTab({ club }) {
-  const clubMembers = mockUsers.filter(u => u.current_club_id === club.id && u.role !== 'supporter')
+  const clubMembers = mockUsers.filter(u => 
+    u.roles?.some(r => r.club_id === club.id && r.role !== 'community')
+  )
   const docTypes = ['licence', 'certificat_medical', 'assurance']
 
   const getDocStats = () => {
@@ -388,7 +306,7 @@ function DocumentsTab({ club }) {
                       {member.first_name} {member.last_name}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {member.role === 'coach' ? 'Coach' : 'Joueur'}
+                      {member.roles?.[0]?.role === 'coach' ? 'Coach' : 'Joueur'}
                     </div>
                   </div>
                   
@@ -427,7 +345,7 @@ function JoueursTab({ club }) {
   const [filterTeam, setFilterTeam] = useState('')
 
   const players = mockUsers.filter(u =>
-    u.current_club_id === club.id && u.role === 'player'
+    u.roles?.some(r => r.club_id === club.id && r.role === 'player')
   )
 
   const teams = mockTeams.filter(t => t.club_id === club.id)
@@ -435,7 +353,9 @@ function JoueursTab({ club }) {
   const filtered = players.filter(p => {
     const matchSearch = p.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                        p.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchTeam = !filterTeam || p.teams?.includes(filterTeam)
+    const matchTeam = !filterTeam || p.roles?.some(r =>
+      r.club_id === club.id && r.teams?.includes(filterTeam)
+    )
     return matchSearch && matchTeam
   })
 
@@ -473,7 +393,7 @@ function JoueursTab({ club }) {
                   {player.first_name} {player.last_name}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {player.teams?.map(teamId => {
+                  {player.roles?.find(r => r.club_id === club.id)?.teams?.map(teamId => {
                     const team = mockTeams.find(t => t.id === teamId)
                     return team?.name
                   }).join(', ')}
@@ -508,9 +428,11 @@ function JoueursTab({ club }) {
 
 ```jsx
 function StatsTab({ club }) {
-  const clubMembers = mockUsers.filter(u => u.current_club_id === club.id)
-  const players = clubMembers.filter(u => u.role === 'player')
-  const coachs = clubMembers.filter(u => u.role === 'coach')
+  const clubMembers = mockUsers.filter(u =>
+    u.roles?.some(r => r.club_id === club.id)
+  )
+  const players = clubMembers.filter(u => u.roles?.some(r => r.role === 'player'))
+  const coachs = clubMembers.filter(u => u.roles?.some(r => r.role === 'coach'))
   const teams = mockTeams.filter(t => t.club_id === club.id)
 
   return (
@@ -518,7 +440,7 @@ function StatsTab({ club }) {
       {/* Vue rapide */}
       <div className="grid grid-cols-4 gap-3">
         <StatCard label="Joueurs" value={players.length} icon="⚽" />
-        <StatCard label="Coachs" value={coachs.length} icon="👔" />
+        <StatCard label="Coachs" value={coachs.length} icon="👨‍🏫" />
         <StatCard label="Équipes" value={teams.length} icon="🏟️" />
         <StatCard label="Membres total" value={clubMembers.length} icon="👥" />
       </div>
@@ -528,7 +450,9 @@ function StatsTab({ club }) {
         <h3 className="font-semibold text-gray-900 mb-3">Par équipe</h3>
         <div className="space-y-2">
           {teams.map(team => {
-            const teamPlayers = players.filter(p => p.teams?.includes(team.id))
+            const teamPlayers = players.filter(p =>
+              p.roles?.some(r => r.teams?.includes(team.id))
+            )
             return (
               <div key={team.id} className="p-3 bg-surface-50 rounded-lg flex justify-between">
                 <div className="font-medium text-gray-900">{team.name}</div>
@@ -575,7 +499,7 @@ function ParametresTab({ club }) {
         <div className="space-y-2 text-sm">
           <div><strong>Nom :</strong> {club.name}</div>
           <div><strong>Ville :</strong> {club.city}</div>
-          <div><strong>Président :</strong> [À récupérer]</div>
+          <div><strong>Emoji :</strong> {club.emoji_icon || '⚽'}</div>
           <div><strong>Créé le :</strong> [À récupérer]</div>
         </div>
       </div>
@@ -590,28 +514,24 @@ function ParametresTab({ club }) {
 
 ## RÉSUMÉ
 
-1. ✅ Page exclusive aux présidents (`/app/president`)
-2. ✅ Sélection multi-clubs (si président de plusieurs)
-3. ✅ 6 sous-onglets : Alertes, Documents, Joueurs, Statistiques, Financier, Paramètres
-4. ✅ Alertes intelligentes (docs expiration, cotisations, présence)
-5. ✅ Vue documents détaillée par personne
-6. ✅ Recherche et filtrage joueurs
-7. ✅ Statistiques club et par équipe
+1. ✅ **SANS titre** "Mon club" en haut à gauche
+2. ✅ Boutons clubs avec emojis personnalisés
+3. ✅ Accès pour Président ET Intendant
+4. ✅ 6 sous-onglets complets
+5. ✅ Design épuré et fonctionnel
 
 ---
 
 ## POUR CLAUDE CODE
 
 ```
-Implémenter PAGE_PRESIDENT_DASHBOARD.md :
+Implémenter PAGE_PRESIDENT_DASHBOARD.md (MISE À JOUR) :
 
-1. Créer route /app/president (accessible présidents uniquement)
-2. Component PresidentPage avec sélection clubs
-3. Component AlertesTab avec logique alertes
-4. Component DocumentsTab avec stats docs
-5. Component JoueursTab avec recherche/filtre
-6. Component StatsTab avec vue rapide
-7. Placeholders FinancierTab et ParametresTab
+CHANGEMENTS :
+1. ENLEVER le titre "👔 Mon club" 
+2. Garder juste les boutons clubs avec emoji_icon
+3. Intendant (staff) a mêmes droits que président
+4. Renommer supporter → community (partout)
 
-À améliorer plus tard : trésorier, paramètres avancés
+Code complet fourni, prêt à implémenter.
 ```
