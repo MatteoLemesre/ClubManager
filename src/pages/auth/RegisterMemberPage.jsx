@@ -10,11 +10,11 @@ const STEPS = ['Votre club', 'Vos infos', 'Votre rôle']
 const ROLE_OPTIONS = [
   { id: 'player',    label: 'Joueur',    desc: 'Je joue dans une équipe du club' },
   { id: 'coach',     label: 'Coach',     desc: "J'encadre une ou plusieurs équipes" },
-  { id: 'supporter', label: 'Supporter', desc: 'Je suis le club en tant que spectateur' },
+  { id: 'community', label: 'Communauté', desc: 'Je suis le club en tant que spectateur' },
 ]
 
 const VALIDATION_INFO = {
-  supporter: { icon: Zap,   color: 'emerald', title: 'Accès immédiat',             desc: 'Compte créé instantanément, pas de validation requise.' },
+  community: { icon: Zap,   color: 'emerald', title: 'Accès immédiat',             desc: 'Compte créé instantanément, pas de validation requise.' },
   coach:     { icon: Clock, color: 'amber',   title: 'Validation président',        desc: 'Le président reçoit une notification pour valider votre inscription.' },
   player:    { icon: Clock, color: 'amber',   title: 'Validation coach',            desc: 'Le coach de votre équipe reçoit une notification pour vous valider.' },
 }
@@ -175,7 +175,7 @@ export default function RegisterMemberPage() {
       const existing = await db.getUserByEmail(email)
       if (existing) { setError('Cet email est déjà utilisé'); setLoading(false); return }
 
-      if (role === 'supporter') {
+      if (role === 'community') {
         const user = await db.createUser({
           email:           email.toLowerCase().trim(),
           password_hash:   db.hashPassword(password),
@@ -188,7 +188,7 @@ export default function RegisterMemberPage() {
         })
         await db.createUserRole({
           user_id:    user.id,
-          role_type:  'supporter',
+          role_type:  'community',
           scope_type: 'club',
           scope_id:   selectedClub.id,
         })
@@ -579,7 +579,7 @@ export default function RegisterMemberPage() {
                   disabled={loading}
                   className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium rounded-xl px-4 py-2 text-sm"
                 >
-                  {loading ? 'Envoi…' : role === 'supporter' ? 'Créer mon compte' : 'Envoyer ma demande'}
+                  {loading ? 'Envoi…' : role === 'community' ? 'Créer mon compte' : 'Envoyer ma demande'}
                 </button>
               </div>
             </form>

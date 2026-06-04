@@ -21,9 +21,11 @@ const LABEL_CLS = `block text-sm font-medium text-gray-700 mb-1`
 
 const ROLE_LABELS = {
   president: 'Président',
+  staff:     'Intendant',
   coach:     'Coach',
   player:    'Joueur',
-  supporter: 'Supporter',
+  community: 'Communauté',
+  supporter: 'Communauté', // legacy compat
   parent:    'Parent',
 }
 
@@ -215,7 +217,7 @@ function ExperienceModal({ experience, onSave, onClose }) {
     { value: 'coach',     label: '👔 Coach' },
     { value: 'president', label: '👔 Président' },
     { value: 'staff',     label: '🏥 Intendant/Staff' },
-    { value: 'supporter', label: '👥 Supporter' },
+    { value: 'community', label: '👥 Communauté' },
   ]
 
   function handleSave() {
@@ -274,7 +276,7 @@ function ExperienceModal({ experience, onSave, onClose }) {
           </div>
 
           <div>
-            <label className={LABEL_CLS}>Équipe/Catégorie{role !== 'supporter' && ' *'}</label>
+            <label className={LABEL_CLS}>Équipe/Catégorie{role !== 'community' && ' *'}</label>
             <input type="text" value={teamName} onChange={e => setTeamName(e.target.value)}
               placeholder="Ex : Séniors A, U19, U13…" className={INPUT_CLS} />
           </div>
@@ -363,8 +365,8 @@ function ExperienceSection({ userId, isMyProfile }) {
     }
   }
 
-  const roleIcon = (role) => ({ player: '⚽', coach: '👔', president: '👔', staff: '🏥', supporter: '👥' }[role] ?? '📋')
-  const roleLabel = (role) => ({ player: 'Joueur', coach: 'Coach', president: 'Président', staff: 'Intendant/Staff', supporter: 'Supporter' }[role] ?? role)
+  const roleIcon = (role) => ({ player: '⚽', coach: '👔', president: '👔', staff: '🏥', community: '👥', supporter: '👥' }[role] ?? '📋')
+  const roleLabel = (role) => ({ player: 'Joueur', coach: 'Coach', president: 'Président', staff: 'Intendant/Staff', community: 'Communauté', supporter: 'Communauté' }[role] ?? role)
 
   const formatDates = (start, end) => {
     const s = new Date(start)
@@ -493,6 +495,50 @@ function EditBioModal({ currentBio, onSave, onClose }) {
         </button>
       </div>
     </>
+  )
+}
+
+// ─── RolesSection ─────────────────────────────────────────────────────────────
+
+const ROLE_ICON_MAP = { president: '👔', staff: '🏥', coach: '👨‍🏫', player: '⚽', community: '👥', supporter: '👥' }
+const ROLE_LABEL_MAP = { president: 'Président', staff: 'Intendant', coach: 'Coach', player: 'Joueur', community: 'Communauté', supporter: 'Communauté' }
+
+function RolesSection({ user }) {
+  const roles = user?.roles ?? []
+  if (!roles.length) return null
+
+  return (
+    <Card className="p-5">
+      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">👔 Rôles</h2>
+      <div className="space-y-2">
+        {roles.map((r, idx) => {
+          const club = MOCK_CLUBS[r.club_id]
+          return (
+            <div key={idx} className="p-3 bg-surface-50 rounded-xl flex items-center justify-between">
+              <div>
+                <div className="font-medium text-gray-900 text-sm">
+                  {ROLE_ICON_MAP[r.role] ?? '📋'} {ROLE_LABEL_MAP[r.role] ?? r.role}
+                </div>
+                {club && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {club.emoji_icon} {club.name}
+                    {r.teams?.length > 0 && <span> · {r.teams.length} équipe{r.teams.length > 1 ? 's' : ''}</span>}
+                  </div>
+                )}
+                {!club && r.club_id == null && (
+                  <div className="text-xs text-gray-400 mt-0.5">Sans club</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {roles.length > 1 && (
+        <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-blue-700">
+          Rôle principal : <strong>{ROLE_LABEL_MAP[user.current_role] ?? user.current_role}</strong>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -899,9 +945,9 @@ export default function ProfilePage() {
         {age !== null && <div className="text-gray-500 text-sm mb-3">{age} ans</div>}
 
         <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-          {targetUser.role === 'supporter' ? (
+          {(targetUser.role === 'supporter' || targetUser.role === 'community') ? (
             <span className="px-3 py-1.5 bg-surface-100 rounded-full text-gray-600 text-sm font-medium">
-              👥 Supporter
+              👥 Communauté
             </span>
           ) : (
             <span className="px-3 py-1.5 bg-brand-50 rounded-full text-brand-700 text-sm font-medium">
@@ -1092,6 +1138,9 @@ export default function ProfilePage() {
           </div>
         </Card>
       )}
+
+      {/* ── Rôles ────────────────────────────────────────────────────────────── */}
+      {isOwnProfile && <RolesSection user={currentUser} />}
 
       {/* ── Expérience LinkedIn-style ─────────────────────────────────────────── */}
       <ExperienceSection userId={uid} isMyProfile={isOwnProfile} />

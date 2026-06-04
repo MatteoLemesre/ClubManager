@@ -140,7 +140,8 @@ export default function MessagesPage() {
       president: 'Président',
       coach:     'Coach',
       player:    'Joueur',
-      supporter: 'Supporter',
+      community: 'Communauté',
+      supporter: 'Communauté',
       parent:    'Parent',
     }
     return labels[user.role] || ''

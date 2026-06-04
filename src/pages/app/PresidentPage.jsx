@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth, MOCK_CLUBS, canAccessDashboard } from '../../context/AuthContext'
 import { USERS, TEAMS, DOCUMENTS, MOCK_PLAYER_STATS } from '../../data/mock'
 
 // ── Mock data pour AS Saint-Denis United ────────────────────────────────────
@@ -228,12 +228,12 @@ const MOCK_TRANSACTIONS = [
 const ALL_CLUBS = {
   'club-1': {
     id: 'club-1', name: 'FC Lens Académie', city: 'Lens',
-    sport: 'Football', founded: 2005,
+    sport: 'Football', founded: 2005, emoji_icon: '⚽',
     description: 'Club de football amateur fondé en 2005, basé à Lens.',
   },
   'mock-club-sd': {
     id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis',
-    sport: 'Football', founded: 2010,
+    sport: 'Football', founded: 2010, emoji_icon: '🏆',
     description: 'Association sportive de Saint-Denis, fondée en 2010.',
   },
 }
@@ -290,7 +290,7 @@ function getClubAlerts(clubId) {
 
   // Documents manquants
   const missingDocsUsers = members.filter(member =>
-    member.role !== 'supporter' && !docs.some(d => d.user_id === member.id)
+    member.role !== 'community' && member.role !== 'supporter' && !docs.some(d => d.user_id === member.id)
   )
   if (missingDocsUsers.length > 0) {
     alerts.push({
@@ -761,7 +761,7 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
   const [docFilter,    setDocFilter]    = useState(initialDocFilter)
   const [memberModal,  setMemberModal]  = useState(null)
 
-  const clubMembers = getClubMembers(club.id).filter(u => u.role !== 'supporter')
+  const clubMembers = getClubMembers(club.id).filter(u => u.role !== 'community' && u.role !== 'supporter')
   const allDocs     = getClubDocuments(club.id)
   const docTypes    = ['licence', 'certificat_medical', 'assurance']
   const docLabels   = { licence: 'Licences', certificat_medical: 'Certs médicaux', assurance: 'Assurances' }
@@ -1475,23 +1475,25 @@ export default function PresidentPage() {
   const [tabExtra,       setTabExtra]       = useState({})
   const [clubOverrides,  setClubOverrides]  = useState({})
 
-  // Guard d'accès
-  if (!is('president')) {
+  // Guard d'accès : président OU intendant (staff)
+  if (!canAccessDashboard(currentUser)) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
         <div className="text-4xl mb-3">🔒</div>
         <div className="text-lg font-semibold text-gray-900 mb-2">Accès réservé</div>
-        <div className="text-gray-500">Cette page est accessible uniquement aux présidents de club.</div>
+        <div className="text-gray-500">Cette page est accessible aux présidents et intendants de club.</div>
       </div>
     )
   }
 
-  // Clubs du président
-  const presidentClubIds = (currentUser.user_roles ?? [])
-    .filter(r => r.role_type === 'president' && r.scope_type === 'club')
-    .map(r => r.scope_id)
+  // Clubs où l'user est président OU intendant
+  const managedRoles = (currentUser.roles ?? []).filter(r => r.role === 'president' || r.role === 'staff')
+  const myClubs = managedRoles
+    .map(r => ALL_CLUBS[r.club_id])
+    .filter(Boolean)
+    .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i) // dédupliquer
 
-  const myClubs = presidentClubIds.map(id => ALL_CLUBS[id]).filter(Boolean)
+  // Fallback si roles[] vide
   if (myClubs.length === 0 && currentUser.current_club_id && ALL_CLUBS[currentUser.current_club_id]) {
     myClubs.push(ALL_CLUBS[currentUser.current_club_id])
   }
@@ -1535,26 +1537,44 @@ export default function PresidentPage() {
 
       {/* Header + sélection club */}
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold text-gray-900 mb-4">
-          👔 Mon club {myClubs.length > 1 ? '(ou mes clubs)' : ''}
+        <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">
+          {currentUser.role === 'staff' ? '🏥 Intendance' : '👔 Mes clubs'}
         </h1>
-        <div className="flex gap-2 flex-wrap">
+        <p className="text-sm text-gray-500 mb-4">
+          {myClubs.length > 1
+            ? `Vous gérez ${myClubs.length} clubs`
+            : `${currentUser.role === 'staff' ? 'Intendant' : 'Président'} · ${myClubs[0]?.name ?? ''}`}
+        </p>
+        <div className="flex gap-3 flex-wrap">
           {myClubs.map(club => {
+            const clubData = clubOverrides[club.id] ?? club
             const count    = getAlertCount(club.id)
             const isActive = activeClub.id === club.id
+            // Rôle de l'user dans ce club
+            const userRoleInClub = (currentUser.roles ?? []).find(r => r.club_id === club.id)?.role
             return (
               <button
                 key={club.id}
                 onClick={() => { setSelectedClubId(club.id); setActiveTab('alertes'); setTabExtra({}) }}
-                className={`px-4 py-3 rounded-xl font-medium transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-lg'
-                    : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300'
+                    : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300 hover:shadow-sm'
                 }`}
               >
-                {clubOverrides[club.id]?.name ?? club.name}
+                <span className="text-2xl leading-none">
+                  {clubData.emoji_icon ?? '⚽'}
+                </span>
+                <div className="text-left">
+                  <div className="font-semibold leading-tight">{clubData.name}</div>
+                  {userRoleInClub && (
+                    <div className={`text-xs leading-tight ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                      {userRoleInClub === 'staff' ? 'Intendant' : 'Président'}
+                    </div>
+                  )}
+                </div>
                 {count > 0 && (
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
                     isActive ? 'bg-white text-brand-600' : 'bg-red-100 text-red-700'
                   }`}>
                     {count}

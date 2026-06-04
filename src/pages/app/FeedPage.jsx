@@ -431,7 +431,7 @@ export default function FeedPage() {
   const [club,       setClub]       = useState(null)
 
   // Supporter sans club → charger les posts des clubs suivis depuis le mock
-  const isFollowerMode = !currentUser.current_club_id && currentUser.role === 'supporter'
+  const isFollowerMode = !currentUser.current_club_id && (currentUser.role === 'community' || currentUser.role === 'supporter')
 
   useEffect(() => {
     if (isFollowerMode) {

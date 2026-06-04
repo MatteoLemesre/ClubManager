@@ -70,11 +70,13 @@ export function LicenseBadge({ status }) {
 
 // ─── RoleBadge ─────────────────────────────────────────────────────────────
 const roleConfig = {
-  president: { label: 'Président', variant: 'brand' },
-  coach:     { label: 'Coach',     variant: 'purple' },
-  player:    { label: 'Joueur',    variant: 'blue' },
-  supporter: { label: 'Supporter', variant: 'orange' },
-  parent:    { label: 'Parent',    variant: 'green' },
+  president: { label: 'Président',  variant: 'brand' },
+  staff:     { label: 'Intendant',  variant: 'yellow' },
+  coach:     { label: 'Coach',      variant: 'purple' },
+  player:    { label: 'Joueur',     variant: 'blue' },
+  community: { label: 'Communauté', variant: 'orange' },
+  supporter: { label: 'Communauté', variant: 'orange' }, // compat legacy
+  parent:    { label: 'Parent',     variant: 'green' },
 }
 
 export function RoleBadge({ role }) {

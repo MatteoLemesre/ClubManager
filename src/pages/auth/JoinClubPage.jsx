@@ -25,8 +25,8 @@ const ROLES = [
     badge:   'pending',
   },
   {
-    value:   'supporter',
-    label:   '🎉 Supporter',
+    value:   'community',
+    label:   '👥 Communauté',
     desc:    'Accès immédiat sans validation',
     badge:   'instant',
   },
@@ -124,11 +124,11 @@ export default function JoinClubPage() {
     try {
       const season = await db.getCurrentSeason(selectedClub.id)
 
-      if (selectedRole === 'supporter') {
+      if (selectedRole === 'community') {
         await db.updateUser(currentUser.id, { current_club_id: selectedClub.id })
         await db.createUserRole({
           user_id:    currentUser.id,
-          role_type:  'supporter',
+          role_type:  'community',
           scope_type: 'club',
           scope_id:   selectedClub.id,
         })
@@ -437,7 +437,7 @@ export default function JoinClubPage() {
               )}
 
               {/* Message optionnel */}
-              {selectedRole && selectedRole !== 'supporter' && (
+              {selectedRole && selectedRole !== 'community' && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                     Message <span className="font-normal normal-case">(optionnel)</span>
@@ -457,23 +457,23 @@ export default function JoinClubPage() {
               {/* Bandeau info validation */}
               {selectedRole && (
                 <div className={`flex items-start gap-3 p-3 rounded-xl border text-sm ${
-                  selectedRole === 'supporter'
+                  selectedRole === 'community'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                     : 'bg-amber-50 border-amber-200 text-amber-800'
                 }`}>
-                  {selectedRole === 'supporter'
+                  {selectedRole === 'community'
                     ? <Zap size={15} className="flex-shrink-0 mt-0.5" />
                     : <Clock size={15} className="flex-shrink-0 mt-0.5" />
                   }
                   <div>
                     <span className="font-semibold">
-                      {selectedRole === 'supporter' ? 'Accès immédiat' :
+                      {selectedRole === 'community' ? 'Accès immédiat' :
                        selectedRole === 'player'    ? 'Validation par le coach' :
                        selectedRole === 'coach'     ? 'Validation par le président' :
                                                       'Validation par un président'}
                     </span>
                     <span className="block text-xs mt-0.5 opacity-80">
-                      {selectedRole === 'supporter'
+                      {selectedRole === 'community'
                         ? 'Votre compte sera activé instantanément.'
                         : 'Vous recevrez une notification dès validation de votre demande.'}
                     </span>
@@ -500,7 +500,7 @@ export default function JoinClubPage() {
                                   rounded-full animate-spin" />
                 ) : (
                   <>
-                    {selectedRole === 'supporter' ? 'Rejoindre' : 'Envoyer la demande'}
+                    {selectedRole === 'community' ? 'Rejoindre' : 'Envoyer la demande'}
                     <ArrowRight size={15} />
                   </>
                 )}

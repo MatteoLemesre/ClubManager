@@ -33,14 +33,14 @@ function canSeeEvent(ev, user) {
       return (ev.invited_users ?? []).includes(user.id)
     // Héritage anciens events
     case 'club':
-      return userClub === ev.club_id && user.role !== 'supporter'
+      return userClub === ev.club_id && user.role !== 'community' && user.role !== 'supporter'
     default:
       return false
   }
 }
 
 function getRoleLabel(role) {
-  const labels = { president: 'Président', coach: 'Coach', player: 'Joueur', supporter: 'Supporter', parent: 'Parent' }
+  const labels = { president: 'Président', staff: 'Intendant', coach: 'Coach', player: 'Joueur', community: 'Communauté', supporter: 'Communauté', parent: 'Parent' }
   return labels[role] ?? role
 }
 
@@ -62,7 +62,7 @@ export default function CalendarPage() {
   const { events, trainings, matches, getTeamById, loading } = useClubData()
 
   const isPresident  = is('president')
-  const isSupporter  = is('supporter')
+  const isSupporter  = is('community') || is('supporter')
   const isParent     = is('parent')
   const isPrivileged = isOneOf('president', 'coach')
 
@@ -461,7 +461,7 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
 
   // Membres du club disponibles pour l'invitation
   const clubMembers = USERS.filter(u =>
-    u.role !== 'supporter' && u.role !== 'parent' && u.id !== currentUser.id
+    u.role !== 'community' && u.role !== 'supporter' && u.role !== 'parent' && u.id !== currentUser.id
   )
 
   useEffect(() => {

@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { to: '/app/profile',   icon: User,          label: 'Profil'     },
 ]
 
-const PRESIDENT_NAV = { to: '/app/president', label: '👔 Mon club', role: 'president' }
+const PRESIDENT_NAV = { to: '/app/president', label: '👔 Mon club' }
 
 export default function AppLayout() {
   const { currentUser, logout, switchRole } = useAuth()
@@ -394,7 +394,7 @@ export default function AppLayout() {
               {item.label}
             </NavLink>
           ))}
-          {currentUser?.role === 'president' && (
+          {(currentUser?.role === 'president' || currentUser?.role === 'staff') && (
             <NavLink
               to={PRESIDENT_NAV.to}
               className={({ isActive }) =>
@@ -422,10 +422,11 @@ export default function AppLayout() {
                       border border-surface-200 p-2 flex items-center gap-1.5 z-50">
         <span className="text-[10px] text-gray-400 font-medium pl-1 pr-0.5">DEV</span>
         {[
-          { key: 'president', label: 'Président', icon: '👤' },
-          { key: 'coach',     label: 'Coach',     icon: '📋' },
-          { key: 'player',    label: 'Joueur',    icon: '⚽' },
-          { key: 'supporter', label: 'Supporter', icon: '👥' },
+          { key: 'president', label: 'Président',  icon: '👔' },
+          { key: 'staff',     label: 'Intendant',  icon: '🏥' },
+          { key: 'coach',     label: 'Coach',      icon: '📋' },
+          { key: 'player',    label: 'Joueur',     icon: '⚽' },
+          { key: 'community', label: 'Communauté', icon: '👥' },
         ].map(({ key, label, icon }) => {
           const active = currentUser?.role === key
           return (

@@ -281,7 +281,8 @@ function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, on
     president: 'Président',
     coach:     'Coach',
     player:    'Joueur',
-    supporter: 'Supporteur',
+    community: 'Communauté',
+    supporter: 'Communauté',
   }[role] ?? 'Membre'
 
   return (

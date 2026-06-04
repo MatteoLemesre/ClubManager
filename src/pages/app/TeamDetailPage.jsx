@@ -2427,13 +2427,13 @@ export default function TeamDetailPage() {
     )
   }
 
-  const role      = currentUser?.role ?? 'supporter'
+  const role      = currentUser?.role ?? 'community'
   const canManage = canManageTeam(teamId)
 
-  // Les supporters ne voient pas l'onglet Entraînements
+  // Les membres communauté ne voient pas l'onglet Entraînements
   const tabs = [
     { id: 'matches',   label: 'Matchs' },
-    ...(role !== 'supporter' ? [{ id: 'trainings', label: 'Entraînements' }] : []),
+    ...(role !== 'community' && role !== 'supporter' ? [{ id: 'trainings', label: 'Entraînements' }] : []),
     { id: 'players',   label: 'Joueurs' },
     { id: 'stats',     label: 'Stats' },
   ]
@@ -2463,7 +2463,7 @@ export default function TeamDetailPage() {
             </div>
           </div>
 
-          {isOneOf('supporter', 'parent') && (
+          {isOneOf('community', 'supporter', 'parent') && (
             <button
               onClick={() => setFollowing(f => !f)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium
