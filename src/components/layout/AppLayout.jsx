@@ -282,7 +282,6 @@ export default function AppLayout() {
     return { ...u, firstName: u?.first_name ?? u?.firstName, lastName: u?.last_name ?? u?.lastName }
   }
 
-  const clubName = club?.name ?? currentUser?.current_club_id ?? ''
 
   return (
     <div className="flex flex-col h-screen bg-surface-50 overflow-hidden">
@@ -292,8 +291,8 @@ export default function AppLayout() {
 
         {/* Ligne haute : logo + club + user actions */}
         <div className="flex items-center justify-between px-6 h-14">
-          {/* Logo + nom club */}
-          <Link to="/app/feed" className="flex items-center gap-2.5">
+          {/* Logo */}
+          <Link to="/app/feed" className="flex items-center">
             <div className="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="white" strokeWidth="1.5">
                 <circle cx="12" cy="12" r="10" fill="none" stroke="white" strokeWidth="1.5" />
@@ -302,11 +301,6 @@ export default function AppLayout() {
                 <polygon points="12,14 9,10 5,13 7,18 12,19" fill="white" fillOpacity=".5" />
               </svg>
             </div>
-            {clubName && (
-              <span className="font-display font-bold text-sm text-gray-900 hidden sm:block">
-                {clubName}
-              </span>
-            )}
           </Link>
 
           {/* Actions utilisateur */}
