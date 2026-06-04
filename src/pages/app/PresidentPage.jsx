@@ -61,13 +61,13 @@ const SD_MEMBERS = [
 ]
 
 const SD_DOCUMENTS = [
-  { id: 'sd-doc-1', user_id: 'sd-u2', type: 'licence', expires_at: '2027-08-31' },
-  { id: 'sd-doc-2', user_id: 'sd-u2', type: 'certificat_medical', expires_at: '2027-06-30' },
-  { id: 'sd-doc-3', user_id: 'sd-u4', type: 'licence', expires_at: '2026-09-15' },
-  { id: 'sd-doc-4', user_id: 'sd-u5', type: 'licence', expires_at: '2027-08-31' },
-  { id: 'sd-doc-5', user_id: 'sd-u6', type: 'licence', expires_at: '2027-08-31' },
-  { id: 'sd-doc-6', user_id: 'sd-u6', type: 'certificat_medical', expires_at: '2027-12-31' },
-  { id: 'sd-doc-7', user_id: 'sd-u7', type: 'licence', expires_at: '2027-08-31' },
+  { id: 'sd-doc-1', user_id: 'sd-u2', type: 'licence',            custom_name: 'Licence 2025-2026', expires_at: '2027-08-31', uploaded_at: '2025-09-01T10:00:00Z' },
+  { id: 'sd-doc-2', user_id: 'sd-u2', type: 'certificat_medical', custom_name: 'Certificat médical', expires_at: '2027-06-30', uploaded_at: '2025-09-03T10:00:00Z' },
+  { id: 'sd-doc-3', user_id: 'sd-u4', type: 'licence',            custom_name: 'Licence 2025-2026', expires_at: '2026-09-15', uploaded_at: '2025-09-02T10:00:00Z' },
+  { id: 'sd-doc-4', user_id: 'sd-u5', type: 'licence',            custom_name: 'Licence 2025-2026', expires_at: '2027-08-31', uploaded_at: '2025-09-01T10:00:00Z' },
+  { id: 'sd-doc-5', user_id: 'sd-u6', type: 'licence',            custom_name: 'Licence 2025-2026', expires_at: '2027-08-31', uploaded_at: '2025-09-01T10:00:00Z' },
+  { id: 'sd-doc-6', user_id: 'sd-u6', type: 'certificat_medical', custom_name: 'Certificat médical', expires_at: '2027-12-31', uploaded_at: '2025-09-05T10:00:00Z' },
+  { id: 'sd-doc-7', user_id: 'sd-u7', type: 'licence',            custom_name: 'Licence 2025-2026', expires_at: '2027-08-31', uploaded_at: '2025-09-01T10:00:00Z' },
   // sd-u3 has no docs → missing docs alert
 ]
 
@@ -92,7 +92,7 @@ const MOCK_TRANSACTIONS = [
   {
     id: 'trans-2', club_id: 'club-1', type: 'expense', category: 'equipment',
     title: 'Achat ballons et cônes', amount: 450,
-    from_to: 'Decathlon', description: '12 ballons + 20 cônes d\'entraînement',
+    from_to: 'Decathlon', description: "12 ballons + 20 cônes d'entraînement",
     date: '2025-09-05', is_recurring: false, created_at: '2025-09-05T14:00:00Z',
   },
   {
@@ -133,7 +133,7 @@ const MOCK_TRANSACTIONS = [
   },
   {
     id: 'trans-9', club_id: 'club-1', type: 'revenue', category: 'donation',
-    title: 'Don anonyme fin d\'année', amount: 300,
+    title: "Don anonyme fin d'année", amount: 300,
     from_to: 'Donateur anonyme', description: 'Don reçu lors du repas de Noël',
     date: '2025-12-20', is_recurring: false, created_at: '2025-12-20T19:00:00Z',
   },
@@ -194,7 +194,7 @@ const MOCK_TRANSACTIONS = [
   },
   {
     id: 'sd-trans-2', club_id: 'mock-club-sd', type: 'expense', category: 'equipment',
-    title: 'Achat équipements d\'entraînement', amount: 310,
+    title: "Achat équipements d'entraînement", amount: 310,
     from_to: 'Nike Store', description: 'Ballons, chasubles, plots',
     date: '2025-09-10', is_recurring: false, created_at: '2025-09-10T14:00:00Z',
   },
@@ -229,10 +229,12 @@ const ALL_CLUBS = {
   'club-1': {
     id: 'club-1', name: 'FC Lens Académie', city: 'Lens',
     sport: 'Football', founded: 2005,
+    description: 'Club de football amateur fondé en 2005, basé à Lens.',
   },
   'mock-club-sd': {
     id: 'mock-club-sd', name: 'AS Saint-Denis United', city: 'Saint-Denis',
     sport: 'Football', founded: 2010,
+    description: 'Association sportive de Saint-Denis, fondée en 2010.',
   },
 }
 
@@ -243,8 +245,7 @@ function getClubTeams(clubId) {
 }
 
 function getClubMembers(clubId) {
-  if (clubId === 'club-1')
-    return USERS.filter(u => ['player', 'coach'].includes(u.role))
+  if (clubId === 'club-1')       return USERS.filter(u => ['player', 'coach'].includes(u.role))
   if (clubId === 'mock-club-sd') return SD_MEMBERS
   return []
 }
@@ -263,7 +264,7 @@ function getClubPlayerStats(clubId) {
 
 // ── Alertes ──────────────────────────────────────────────────────────────────
 function getClubAlerts(clubId) {
-  const alerts = []
+  const alerts   = []
   const members  = getClubMembers(clubId)
   const docs     = getClubDocuments(clubId)
   const stats    = getClubPlayerStats(clubId)
@@ -283,23 +284,23 @@ function getClubAlerts(clubId) {
       description: `${expiringSoon.length} document(s) expire(nt) dans les 30 prochains jours`,
       severity: 'warning',
       count: expiringSoon.length,
-      action: { label: 'Voir les documents' },
+      action: { label: 'Voir les documents', tab: 'documents', extra: { docFilter: 'expiring-soon' } },
     })
   }
 
-  // Documents manquants (membres sans aucun document)
-  const missingDocs = members.filter(member =>
-    member.role !== 'supporter' &&
-    !docs.some(d => d.user_id === member.id)
+  // Documents manquants
+  const missingDocsUsers = members.filter(member =>
+    member.role !== 'supporter' && !docs.some(d => d.user_id === member.id)
   )
-  if (missingDocs.length > 0) {
+  if (missingDocsUsers.length > 0) {
     alerts.push({
       id: 'alert-missing-docs',
       title: 'Documents manquants',
-      description: `${missingDocs.length} personne(s) n'a(ont) uploadé aucun document`,
+      description: `${missingDocsUsers.length} personne(s) n'a(ont) uploadé aucun document`,
       severity: 'critical',
-      count: missingDocs.length,
-      action: { label: 'Voir les membres' },
+      count: missingDocsUsers.length,
+      users: missingDocsUsers,
+      action: { label: 'Contacter', contact: true },
     })
   }
 
@@ -312,23 +313,24 @@ function getClubAlerts(clubId) {
       description: `${unpaid.length} membre(s) n'a(ont) pas payé leur cotisation`,
       severity: 'warning',
       count: unpaid.length,
-      action: { label: 'Voir les détails' },
+      action: { label: 'Voir détails', tab: 'financier' },
     })
   }
 
-  // Présence faible (< 70%)
-  const lowAttendance = members.filter(m => {
+  // Présence faible
+  const lowAttendancePlayers = members.filter(m => {
     if (m.role !== 'player') return false
     const s = stats.find(s => s.user_id === m.id)
     return s && s.attendance_rate < 70
   })
-  if (lowAttendance.length > 0) {
+  if (lowAttendancePlayers.length > 0) {
     alerts.push({
       id: 'alert-attendance',
       title: 'Présence aux entraînements faible',
-      description: `${lowAttendance.length} joueur(s) avec moins de 70% de présence`,
+      description: `${lowAttendancePlayers.length} joueur(s) avec moins de 70% de présence`,
       severity: 'info',
-      count: lowAttendance.length,
+      count: lowAttendancePlayers.length,
+      action: { label: 'Voir joueurs', tab: 'joueurs', extra: { attendanceFilter: 'low' } },
     })
   }
 
@@ -339,10 +341,363 @@ function getAlertCount(clubId) {
   return getClubAlerts(clubId).length
 }
 
-// ── Sub-composants ────────────────────────────────────────────────────────────
+// ── Helpers CSS ───────────────────────────────────────────────────────────────
+const inputCls = 'w-full px-3 py-2 border border-surface-200 rounded-xl text-sm text-gray-900 ' +
+                 'focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white'
+const btnPrimary   = 'px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors shadow'
+const btnSecondary = 'px-4 py-2.5 border border-surface-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-surface-50 transition-colors'
 
-function AlertesTab({ club }) {
+// ── ContactModal ──────────────────────────────────────────────────────────────
+function ContactModal({ users, onClose }) {
+  const [message, setMessage] = useState(
+    'Bonjour,\n\nNous vous rappelons que vos documents administratifs sont attendus. Merci de les transmettre dès que possible.\n\nCordialement,\nLa direction du club'
+  )
+  const [sent, setSent] = useState(false)
+
+  const handleSend = () => {
+    // Simulation envoi
+    setSent(true)
+    setTimeout(onClose, 1500)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-xl font-bold text-gray-900">
+            Contacter {users.length} personne(s)
+          </h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
+        </div>
+
+        <div className="mb-4 max-h-28 overflow-y-auto bg-surface-50 rounded-xl p-3">
+          <div className="text-xs text-gray-500 mb-1.5 font-medium uppercase tracking-wide">Destinataires</div>
+          <div className="space-y-1">
+            {users.map(u => (
+              <div key={u.id} className="text-sm text-gray-700">
+                {u.firstName} {u.lastName}
+                {u.role === 'coach' && <span className="ml-1 text-xs text-gray-400">(coach)</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            rows={5}
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+
+        {sent ? (
+          <div className="text-center py-2 text-emerald-600 font-medium text-sm">
+            ✓ Message envoyé avec succès !
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <button onClick={onClose}    className={`flex-1 ${btnSecondary}`}>Annuler</button>
+            <button onClick={handleSend} className={`flex-1 ${btnPrimary}`}>
+              Envoyer à {users.length}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── MemberDocumentsModal ──────────────────────────────────────────────────────
+const DOC_TYPE_LABELS = {
+  licence:            '📜 Licence',
+  certificat_medical: '🏥 Certificat médical',
+  assurance:          '📋 Assurance',
+}
+
+function MemberDocumentsModal({ member, docs, onClose }) {
+  const memberDocs = docs.filter(d => d.user_id === member.id)
+  const now = new Date()
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="font-display text-xl font-bold text-gray-900">
+              {member.firstName} {member.lastName}
+            </h2>
+            <p className="text-sm text-gray-500">{member.role === 'coach' ? 'Coach' : 'Joueur'}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
+        </div>
+
+        {memberDocs.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">📂</div>
+            <div>Aucun document uploadé</div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {memberDocs.map(doc => {
+              const expired    = doc.expires_at && new Date(doc.expires_at) < now
+              const expiringSoon = doc.expires_at && !expired &&
+                new Date(doc.expires_at) <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+              return (
+                <div key={doc.id} className={`p-4 rounded-xl border ${
+                  expired       ? 'bg-red-50 border-red-200' :
+                  expiringSoon  ? 'bg-orange-50 border-orange-200' :
+                                  'bg-surface-50 border-surface-200'
+                }`}>
+                  <div className="font-medium text-gray-900 mb-1">
+                    {DOC_TYPE_LABELS[doc.type] ?? doc.type}
+                    {doc.custom_name && doc.custom_name !== doc.type && (
+                      <span className="ml-1 text-sm font-normal text-gray-500">— {doc.custom_name}</span>
+                    )}
+                  </div>
+                  {doc.uploaded_at && (
+                    <div className="text-xs text-gray-500 mb-1">
+                      Ajouté le {format(new Date(doc.uploaded_at), 'd MMM yyyy', { locale: fr })}
+                    </div>
+                  )}
+                  {doc.expires_at && (
+                    <div className={`text-xs font-medium ${
+                      expired ? 'text-red-600' : expiringSoon ? 'text-orange-600' : 'text-gray-500'
+                    }`}>
+                      {expired       ? '⚠️ Expiré le '          : '⏰ Expire le '}
+                      {format(new Date(doc.expires_at), 'd MMM yyyy', { locale: fr })}
+                    </div>
+                  )}
+                  <div className="flex gap-3 mt-3">
+                    <button className="text-sm text-brand-600 hover:underline font-medium">
+                      Télécharger
+                    </button>
+                    <button className="text-sm text-red-500 hover:underline">
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <button onClick={onClose} className={`w-full mt-4 ${btnSecondary} justify-center`}>
+          Fermer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── PlayerDetailModal ─────────────────────────────────────────────────────────
+function PlayerDetailModal({ player, teams, stats, docs, onClose }) {
+  const playerTeams    = teams.filter(t => player.teamIds?.includes(t.id))
+  const playerStats    = stats.find(s => s.user_id === player.id)
+  const playerDocs     = docs.filter(d => d.user_id === player.id)
+  const s              = player.stats ?? {}
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="font-display text-xl font-bold text-gray-900">
+              {player.firstName} {player.lastName}
+            </h2>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {player.position && (
+                <span className="text-sm text-gray-500">{player.position}</span>
+              )}
+              {player.jerseyNumber && (
+                <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
+                  #{player.jerseyNumber}
+                </span>
+              )}
+              {player.license && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  player.license.status === 'active'   ? 'bg-emerald-100 text-emerald-700' :
+                  player.license.status === 'expiring' ? 'bg-orange-100 text-orange-700' :
+                                                          'bg-red-100 text-red-700'
+                }`}>
+                  {player.license.status === 'active'   ? 'Licencié' :
+                   player.license.status === 'expiring' ? 'Expire bientôt' : 'Expiré'}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
+        </div>
+
+        {/* Équipes */}
+        {playerTeams.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1.5">Équipe(s)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {playerTeams.map(t => (
+                <span key={t.id} className="text-sm bg-surface-100 text-gray-700 px-2.5 py-1 rounded-lg">
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats saison */}
+        {(s.matches > 0 || s.goals >= 0) && (
+          <div className="mb-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">Stats saison</div>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Matchs',   value: s.matches   ?? '—' },
+                { label: 'Buts',     value: s.goals     ?? '—' },
+                { label: 'Passes',   value: s.assists   ?? '—' },
+                { label: '🟨',       value: s.yellowCards ?? '—' },
+              ].map(stat => (
+                <div key={stat.label} className="bg-surface-50 rounded-xl p-2.5 text-center">
+                  <div className="text-lg font-bold text-gray-900">{stat.value}</div>
+                  <div className="text-xs text-gray-500">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Présence */}
+        {playerStats && (
+          <div className="mb-4">
+            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1.5">Présence entraînements</div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-surface-200 rounded-full h-2.5">
+                <div
+                  className={`h-2.5 rounded-full transition-all ${
+                    playerStats.attendance_rate >= 80 ? 'bg-emerald-500' :
+                    playerStats.attendance_rate >= 60 ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${playerStats.attendance_rate}%` }}
+                />
+              </div>
+              <span className={`text-sm font-bold ${
+                playerStats.attendance_rate >= 80 ? 'text-emerald-600' :
+                playerStats.attendance_rate >= 60 ? 'text-orange-600' : 'text-red-600'
+              }`}>
+                {playerStats.attendance_rate}%
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Documents */}
+        <div className="mb-4">
+          <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">Documents</div>
+          <div className="flex gap-2">
+            {['licence', 'certificat_medical', 'assurance'].map(type => {
+              const hasDoc = playerDocs.some(d => d.type === type)
+              return (
+                <div key={type} className={`flex-1 p-2 rounded-lg text-center text-xs font-medium ${
+                  hasDoc ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {hasDoc ? '✓' : '✗'}
+                  <div className="mt-0.5 text-[10px]">
+                    {type === 'licence' ? 'Licence' : type === 'certificat_medical' ? 'Médical' : 'Assurance'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <button onClick={onClose} className={`w-full ${btnSecondary} justify-center`}>
+          Fermer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── EditClubModal ─────────────────────────────────────────────────────────────
+function EditClubModal({ club, onClose, onSave }) {
+  const [name,        setName]        = useState(club.name)
+  const [city,        setCity]        = useState(club.city)
+  const [description, setDescription] = useState(club.description ?? '')
+  const [error,       setError]       = useState('')
+
+  const handleSave = () => {
+    if (!name.trim() || !city.trim()) {
+      setError('Le nom et la ville sont obligatoires.')
+      return
+    }
+    onSave({ ...club, name: name.trim(), city: city.trim(), description: description.trim() || null })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-bold text-gray-900">Éditer le club</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Logo placeholder */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Logo du club</label>
+            <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed
+                              border-surface-200 rounded-xl hover:border-brand-300 cursor-pointer transition-colors">
+              <span className="text-2xl">🖼️</span>
+              <span className="text-sm text-gray-600">Cliquer pour choisir une image</span>
+              <input type="file" accept="image/*" className="hidden" />
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nom du club *</label>
+            <input value={name} onChange={e => setName(e.target.value)} className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ville *</label>
+            <input value={city} onChange={e => setCity(e.target.value)} className={inputCls} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Présentez votre club..."
+              className={`${inputCls} resize-none`}
+            />
+          </div>
+
+          {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose}    className={`flex-1 ${btnSecondary}`}>Annuler</button>
+          <button onClick={handleSave} className={`flex-1 ${btnPrimary}`}>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Onglet Alertes ────────────────────────────────────────────────────────────
+function AlertesTab({ club, onNavigate }) {
+  const [contactUsers, setContactUsers] = useState(null)
   const alerts = getClubAlerts(club.id)
+
+  const handleAction = (alert) => {
+    const { action } = alert
+    if (!action) return
+    if (action.contact) {
+      setContactUsers(alert.users ?? [])
+    } else if (action.tab) {
+      onNavigate(action.tab, action.extra ?? {})
+    }
+  }
 
   if (alerts.length === 0) {
     return (
@@ -354,65 +709,92 @@ function AlertesTab({ club }) {
   }
 
   return (
-    <div className="space-y-3">
-      {alerts.map(alert => (
-        <div
-          key={alert.id}
-          className={`p-4 rounded-xl border-l-4 ${
-            alert.severity === 'critical'
-              ? 'bg-red-50 border-red-500'
-              : alert.severity === 'warning'
-              ? 'bg-orange-50 border-orange-500'
-              : 'bg-blue-50 border-blue-500'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="font-semibold text-gray-900 mb-1">
-                {alert.severity === 'critical' && '🚨 '}
-                {alert.severity === 'warning'  && '⚠️ '}
-                {alert.severity === 'info'     && 'ℹ️ '}
-                {alert.title}
+    <>
+      <div className="space-y-3">
+        {alerts.map(alert => (
+          <div
+            key={alert.id}
+            className={`p-4 rounded-xl border-l-4 ${
+              alert.severity === 'critical' ? 'bg-red-50 border-red-500'    :
+              alert.severity === 'warning'  ? 'bg-orange-50 border-orange-500' :
+                                              'bg-blue-50 border-blue-500'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-gray-900 mb-1">
+                  {alert.severity === 'critical' && '🚨 '}
+                  {alert.severity === 'warning'  && '⚠️ '}
+                  {alert.severity === 'info'     && 'ℹ️ '}
+                  {alert.title}
+                </div>
+                <div className="text-sm text-gray-700">{alert.description}</div>
+                {alert.action && (
+                  <button
+                    onClick={() => handleAction(alert)}
+                    className="mt-2 text-sm font-medium text-brand-600 hover:underline"
+                  >
+                    {alert.action.label} →
+                  </button>
+                )}
               </div>
-              <div className="text-sm text-gray-700">{alert.description}</div>
-              {alert.action && (
-                <button className="mt-2 text-sm font-medium text-brand-600 hover:underline">
-                  {alert.action.label} →
-                </button>
+              {alert.count && (
+                <div className="ml-4 text-right flex-shrink-0">
+                  <div className="text-2xl font-bold text-gray-900">{alert.count}</div>
+                  <div className="text-xs text-gray-500">personnes</div>
+                </div>
               )}
             </div>
-            {alert.count && (
-              <div className="ml-4 text-right">
-                <div className="text-2xl font-bold text-gray-900">{alert.count}</div>
-                <div className="text-xs text-gray-500">personnes</div>
-              </div>
-            )}
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      {contactUsers && (
+        <ContactModal users={contactUsers} onClose={() => setContactUsers(null)} />
+      )}
+    </>
   )
 }
 
-function DocumentsTab({ club }) {
+// ── Onglet Documents ──────────────────────────────────────────────────────────
+function DocumentsTab({ club, initialDocFilter = '' }) {
+  const [docFilter,    setDocFilter]    = useState(initialDocFilter)
+  const [memberModal,  setMemberModal]  = useState(null)
+
   const clubMembers = getClubMembers(club.id).filter(u => u.role !== 'supporter')
   const allDocs     = getClubDocuments(club.id)
   const docTypes    = ['licence', 'certificat_medical', 'assurance']
   const docLabels   = { licence: 'Licences', certificat_medical: 'Certs médicaux', assurance: 'Assurances' }
   const docIcons    = { licence: '📜', certificat_medical: '🏥', assurance: '📋' }
+  const now         = new Date()
+  const in30days    = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
+  // Stats pour les barres de progression (toujours sur l'ensemble)
   const docStats = {}
   docTypes.forEach(type => {
     const total   = clubMembers.length
     const hasDocs = clubMembers.filter(member => {
       const doc = allDocs.find(d => d.user_id === member.id && d.type === type)
-      return doc && (!doc.expires_at || new Date(doc.expires_at) > new Date())
+      return doc && (!doc.expires_at || new Date(doc.expires_at) > now)
     }).length
     docStats[type] = { total, hasDocs, missing: total - hasDocs, percentage: total ? Math.round((hasDocs / total) * 100) : 0 }
   })
 
+  // Filtrage membres
+  const filteredMembers = clubMembers.filter(member => {
+    const memberDocs = allDocs.filter(d => d.user_id === member.id)
+    if (docFilter === 'expiring-soon') {
+      return memberDocs.some(d => d.expires_at && new Date(d.expires_at) >= now && new Date(d.expires_at) <= in30days)
+    }
+    if (docFilter === 'missing') {
+      return memberDocs.length === 0
+    }
+    return true
+  })
+
   return (
     <div className="space-y-6">
+      {/* Barres résumé */}
       <div className="grid grid-cols-3 gap-4">
         {docTypes.map(type => {
           const s = docStats[type]
@@ -422,10 +804,7 @@ function DocumentsTab({ club }) {
               <div className="text-sm text-gray-600 mb-2">{docLabels[type]}</div>
               <div className="text-3xl font-bold text-gray-900 mb-1">{s.hasDocs}/{s.total}</div>
               <div className="w-full bg-surface-200 rounded-full h-2">
-                <div
-                  className="bg-brand-600 h-2 rounded-full transition-all"
-                  style={{ width: `${s.percentage}%` }}
-                />
+                <div className="bg-brand-600 h-2 rounded-full transition-all" style={{ width: `${s.percentage}%` }} />
               </div>
               <div className="text-xs text-gray-500 mt-2">
                 {s.missing > 0 ? `${s.missing} manquant(s)` : '✓ Complet'}
@@ -435,30 +814,62 @@ function DocumentsTab({ club }) {
         })}
       </div>
 
+      {/* Filtre */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-gray-500 font-medium">Filtrer :</span>
+        {[
+          { value: '',               label: 'Tous' },
+          { value: 'expiring-soon',  label: '⏰ Expirent bientôt' },
+          { value: 'missing',        label: '⚠️ Sans documents' },
+        ].map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setDocFilter(opt.value)}
+            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+              docFilter === opt.value
+                ? 'bg-brand-600 text-white shadow'
+                : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {docFilter && (
+          <span className="text-xs text-gray-400 ml-1">
+            {filteredMembers.length} résultat(s)
+          </span>
+        )}
+      </div>
+
+      {/* Liste membres — cliquable */}
       <div>
         <h3 className="font-semibold text-gray-900 mb-3">Détail par personne</h3>
         <div className="space-y-2">
-          {clubMembers.map(member => {
+          {filteredMembers.map(member => {
             const memberDocs = allDocs.filter(d => d.user_id === member.id)
             return (
-              <div key={member.id} className="p-3 bg-surface-50 rounded-lg">
+              <button
+                key={member.id}
+                onClick={() => setMemberModal(member)}
+                className="w-full p-3 bg-surface-50 rounded-xl hover:bg-surface-100 transition-all text-left"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium text-gray-900">
                       {member.firstName} {member.lastName}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {member.role === 'coach' ? 'Coach' : 'Joueur'}
+                      {member.role === 'coach' ? 'Coach' : 'Joueur'} · {memberDocs.length} document(s)
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     {docTypes.map(type => {
                       const hasDoc = memberDocs.some(d => d.type === type)
                       return (
                         <div
                           key={type}
                           title={docLabels[type]}
-                          className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold ${
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
                             hasDoc ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                           }`}
                         >
@@ -466,40 +877,64 @@ function DocumentsTab({ club }) {
                         </div>
                       )
                     })}
+                    <span className="text-gray-300 ml-1">›</span>
                   </div>
                 </div>
-              </div>
+              </button>
             )
           })}
+          {filteredMembers.length === 0 && (
+            <div className="text-center py-6 text-gray-400 text-sm">
+              Aucun membre correspondant au filtre
+            </div>
+          )}
         </div>
       </div>
+
+      {memberModal && (
+        <MemberDocumentsModal
+          member={memberModal}
+          docs={allDocs}
+          onClose={() => setMemberModal(null)}
+        />
+      )}
     </div>
   )
 }
 
-function JoueursTab({ club }) {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterTeam, setFilterTeam] = useState('')
+// ── Onglet Joueurs ────────────────────────────────────────────────────────────
+function JoueursTab({ club, initialAttendanceFilter = '' }) {
+  const [searchTerm,       setSearchTerm]       = useState('')
+  const [filterTeam,       setFilterTeam]       = useState('')
+  const [attendanceFilter, setAttendanceFilter] = useState(initialAttendanceFilter)
+  const [playerModal,      setPlayerModal]      = useState(null)
 
   const players = getClubMembers(club.id).filter(u => u.role === 'player')
   const teams   = getClubTeams(club.id)
+  const stats   = getClubPlayerStats(club.id)
+  const docs    = getClubDocuments(club.id)
 
   const filtered = players.filter(p => {
     const name = `${p.firstName} ${p.lastName}`.toLowerCase()
-    const matchSearch = name.includes(searchTerm.toLowerCase())
-    const matchTeam   = !filterTeam || p.teamIds?.includes(filterTeam)
-    return matchSearch && matchTeam
+    if (!name.includes(searchTerm.toLowerCase())) return false
+    if (filterTeam && !p.teamIds?.includes(filterTeam)) return false
+    if (attendanceFilter === 'low') {
+      const s = stats.find(s => s.user_id === p.id)
+      return s && s.attendance_rate < 70
+    }
+    return true
   })
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      {/* Barre de recherche + filtres */}
+      <div className="flex gap-2 flex-wrap">
         <input
           type="text"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           placeholder="Rechercher un joueur..."
-          className="flex-1 pl-4 pr-4 py-2 bg-white border border-surface-200 rounded-xl text-sm
+          className="flex-1 min-w-40 pl-4 pr-4 py-2 bg-white border border-surface-200 rounded-xl text-sm
                      text-gray-900 placeholder-surface-400 focus:outline-none focus:ring-2
                      focus:ring-brand-300 focus:border-brand-400"
         />
@@ -516,9 +951,32 @@ function JoueursTab({ club }) {
         </select>
       </div>
 
+      {/* Filtre présence */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500 font-medium">Présence :</span>
+        {[
+          { value: '',    label: 'Tous' },
+          { value: 'low', label: '⚠️ Présence faible (<70%)' },
+        ].map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setAttendanceFilter(opt.value)}
+            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+              attendanceFilter === opt.value
+                ? 'bg-brand-600 text-white shadow'
+                : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Liste joueurs */}
       <div className="space-y-2">
         {filtered.map(player => {
-          const playerTeams = teams.filter(t => player.teamIds?.includes(t.id))
+          const playerTeams   = teams.filter(t => player.teamIds?.includes(t.id))
+          const playerStats   = stats.find(s => s.user_id === player.id)
           return (
             <div
               key={player.id}
@@ -528,13 +986,29 @@ function JoueursTab({ club }) {
                 <div>
                   <div className="font-semibold text-gray-900">
                     {player.firstName} {player.lastName}
+                    {player.jerseyNumber && (
+                      <span className="ml-2 text-xs text-gray-400">#{player.jerseyNumber}</span>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {player.position && <span className="mr-2">{player.position}</span>}
-                    {playerTeams.map(t => t.name).join(', ')}
+                  <div className="text-sm text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
+                    {player.position && <span>{player.position}</span>}
+                    {playerTeams.length > 0 && (
+                      <span className="text-gray-300">·</span>
+                    )}
+                    <span>{playerTeams.map(t => t.name).join(', ')}</span>
+                    {playerStats && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <span className={
+                          playerStats.attendance_rate < 70 ? 'text-red-500 font-medium' : 'text-gray-500'
+                        }>
+                          {playerStats.attendance_rate}% présence
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {player.license && (
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       player.license.status === 'active'   ? 'bg-emerald-100 text-emerald-700' :
@@ -545,6 +1019,12 @@ function JoueursTab({ club }) {
                        player.license.status === 'expiring' ? 'Expire bientôt' : 'Expiré'}
                     </span>
                   )}
+                  <button
+                    onClick={() => setPlayerModal(player)}
+                    className="text-sm text-brand-600 hover:underline font-medium"
+                  >
+                    Voir profil
+                  </button>
                 </div>
               </div>
             </div>
@@ -555,14 +1035,24 @@ function JoueursTab({ club }) {
       {filtered.length === 0 && (
         <div className="text-center py-8 text-gray-400">Aucun joueur trouvé</div>
       )}
-
       <div className="text-sm text-gray-500">
         {filtered.length} joueur(s) sur {players.length}
       </div>
+
+      {playerModal && (
+        <PlayerDetailModal
+          player={playerModal}
+          teams={teams}
+          stats={stats}
+          docs={docs}
+          onClose={() => setPlayerModal(null)}
+        />
+      )}
     </div>
   )
 }
 
+// ── StatsTab ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon }) {
   return (
     <div className="bg-surface-50 rounded-xl p-4 text-center">
@@ -602,12 +1092,8 @@ function StatsTab({ club }) {
 
       {(totalGoals > 0 || avgAttendance !== null) && (
         <div className="grid grid-cols-2 gap-3">
-          {totalGoals > 0 && (
-            <StatCard label="Buts cette saison" value={totalGoals} icon="🥅" />
-          )}
-          {avgAttendance !== null && (
-            <StatCard label="Présence moy." value={`${avgAttendance}%`} icon="📅" />
-          )}
+          {totalGoals > 0 && <StatCard label="Buts cette saison" value={totalGoals}          icon="🥅" />}
+          {avgAttendance !== null && <StatCard label="Présence moy." value={`${avgAttendance}%`} icon="📅" />}
         </div>
       )}
 
@@ -629,7 +1115,7 @@ function StatsTab({ club }) {
   )
 }
 
-// ── Catégories ───────────────────────────────────────────────────────────────
+// ── Catégories Financier ─────────────────────────────────────────────────────
 const REVENUE_CATEGORIES = [
   { value: 'subscription', label: 'Cotisations/Adhésions' },
   { value: 'subsidy',      label: 'Subvention' },
@@ -641,15 +1127,15 @@ const REVENUE_CATEGORIES = [
 ]
 
 const EXPENSE_CATEGORIES = [
-  { value: 'equipment',    label: 'Fournitures/Équipements' },
-  { value: 'arbitrage',    label: 'Arbitrage' },
-  { value: 'travel',       label: 'Déplacements' },
-  { value: 'salary',       label: 'Salaires/Indemnités' },
-  { value: 'insurance',    label: 'Assurances' },
-  { value: 'admin',        label: 'Frais administratifs' },
-  { value: 'licenses',     label: 'Adhésions/Licences fédérales' },
-  { value: 'maintenance',  label: 'Maintenance' },
-  { value: 'other',        label: 'Autre' },
+  { value: 'equipment',   label: 'Fournitures/Équipements' },
+  { value: 'arbitrage',   label: 'Arbitrage' },
+  { value: 'travel',      label: 'Déplacements' },
+  { value: 'salary',      label: 'Salaires/Indemnités' },
+  { value: 'insurance',   label: 'Assurances' },
+  { value: 'admin',       label: 'Frais administratifs' },
+  { value: 'licenses',    label: 'Adhésions/Licences fédérales' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'other',       label: 'Autre' },
 ]
 
 const CATEGORY_LABELS = Object.fromEntries(
@@ -660,7 +1146,7 @@ function fmt(amount) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount)
 }
 
-// ── Modal ajout transaction ───────────────────────────────────────────────────
+// ── AddTransactionModal ───────────────────────────────────────────────────────
 function AddTransactionModal({ clubId, onClose, onCreate }) {
   const [type,        setType]        = useState('revenue')
   const [category,    setCategory]    = useState('')
@@ -684,53 +1170,39 @@ function AddTransactionModal({ clubId, onClose, onCreate }) {
       return
     }
     onCreate({
-      id:          `trans-${Date.now()}`,
-      club_id:     clubId,
+      id:           `trans-${Date.now()}`,
+      club_id:      clubId,
       type,
       category,
-      title:       title.trim(),
-      amount:      parseFloat(amount),
-      currency:    'EUR',
-      from_to:     fromTo.trim(),
-      description: description.trim() || null,
+      title:        title.trim(),
+      amount:       parseFloat(amount),
+      currency:     'EUR',
+      from_to:      fromTo.trim(),
+      description:  description.trim() || null,
       date,
       is_recurring: isRecurring,
-      created_at:  new Date().toISOString(),
+      created_at:   new Date().toISOString(),
     })
   }
-
-  const inputCls = 'w-full px-3 py-2 border border-surface-200 rounded-xl text-sm text-gray-900 ' +
-                   'focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white'
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl font-bold text-gray-900">Ajouter une transaction</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
         </div>
 
         <div className="space-y-4">
-          {/* Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
             <div className="flex gap-2">
-              {[
-                { value: 'revenue', label: '📈 Revenu' },
-                { value: 'expense', label: '📉 Dépense' },
-              ].map(t => (
+              {[{ value: 'revenue', label: '📈 Revenu' }, { value: 'expense', label: '📉 Dépense' }].map(t => (
                 <button
                   key={t.value}
                   onClick={() => { setType(t.value); setCategory('') }}
                   className={`flex-1 py-2 rounded-xl font-medium text-sm transition-all ${
-                    type === t.value
-                      ? 'bg-brand-600 text-white shadow'
-                      : 'bg-surface-100 text-gray-700 hover:bg-surface-200'
+                    type === t.value ? 'bg-brand-600 text-white shadow' : 'bg-surface-100 text-gray-700 hover:bg-surface-200'
                   }`}
                 >
                   {t.label}
@@ -739,109 +1211,57 @@ function AddTransactionModal({ clubId, onClose, onCreate }) {
             </div>
           </div>
 
-          {/* Catégorie */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie *</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className={inputCls}>
               <option value="">Choisir une catégorie...</option>
-              {categories.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
+              {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
 
-          {/* Titre */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
-            <input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Ex : Cotisations saison 2025-2026"
-              className={inputCls}
-            />
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Ex : Cotisations saison 2025-2026" className={inputCls} />
           </div>
 
-          {/* Montant */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Montant (€) *</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              className={inputCls}
-            />
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              placeholder="0" min="0" step="0.01" className={inputCls} />
           </div>
 
-          {/* De/À */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {type === 'revenue' ? 'De qui *' : 'À qui *'}
             </label>
-            <input
-              value={fromTo}
-              onChange={e => setFromTo(e.target.value)}
-              placeholder={type === 'revenue' ? 'Ex : Mairie de Lens' : 'Ex : Decathlon'}
-              className={inputCls}
-            />
+            <input value={fromTo} onChange={e => setFromTo(e.target.value)}
+              placeholder={type === 'revenue' ? 'Ex : Mairie de Lens' : 'Ex : Decathlon'} className={inputCls} />
           </div>
 
-          {/* Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              className={inputCls}
-            />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={2}
-              placeholder="Détails supplémentaires..."
-              className={`${inputCls} resize-none`}
-            />
+            <textarea value={description} onChange={e => setDescription(e.target.value)}
+              rows={2} placeholder="Détails supplémentaires..." className={`${inputCls} resize-none`} />
           </div>
 
-          {/* Récurrence */}
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isRecurring}
-              onChange={e => setIsRecurring(e.target.checked)}
-              className="w-4 h-4 rounded border-surface-300 text-brand-600"
-            />
+            <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)}
+              className="w-4 h-4 rounded border-surface-300 text-brand-600" />
             <span className="text-sm text-gray-700">Transaction récurrente (cotisations, assurances…)</span>
           </label>
 
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 border border-surface-200 rounded-xl text-sm font-medium
-                       text-gray-700 hover:bg-surface-50 transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleCreate}
-            className="flex-1 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium
-                       hover:bg-brand-700 transition-colors shadow"
-          >
-            Ajouter
-          </button>
+          <button onClick={onClose}    className={`flex-1 ${btnSecondary}`}>Annuler</button>
+          <button onClick={handleCreate} className={`flex-1 ${btnPrimary}`}>Ajouter</button>
         </div>
       </div>
     </div>
@@ -860,106 +1280,68 @@ function FinancierTab({ club }) {
     ...localTrans.filter(t => t.club_id === club.id),
   ].sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  // Filtrage par période
   const filtered = baseTrans.filter(t => {
     if (filterType !== 'all' && t.type !== filterType) return false
     if (filterPeriod !== 'all') {
-      const d   = new Date(t.date)
-      const now = new Date()
-      if (filterPeriod === 'month') {
+      const d = new Date(t.date), now = new Date()
+      if (filterPeriod === 'month')
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      }
-      if (filterPeriod === 'quarter') {
-        return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) &&
-               d.getFullYear() === now.getFullYear()
-      }
-      if (filterPeriod === 'year') {
+      if (filterPeriod === 'quarter')
+        return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) && d.getFullYear() === now.getFullYear()
+      if (filterPeriod === 'year')
         return d.getFullYear() === now.getFullYear()
-      }
     }
     return true
   })
 
-  // Calculs sur l'ensemble des transactions (pas juste le filtre)
   const totalRevenue = baseTrans.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0)
   const totalExpense = baseTrans.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance      = totalRevenue - totalExpense
-
-  const periodLabel = { all: 'total', month: 'ce mois', quarter: 'ce trimestre', year: 'cette année' }[filterPeriod]
-
-  const handleAdd = (trans) => {
-    setLocalTrans(prev => [...prev, trans])
-    setShowModal(false)
-  }
+  const periodLabel  = { all: 'total', month: 'ce mois', quarter: 'ce trimestre', year: 'cette année' }[filterPeriod]
 
   return (
     <div className="space-y-5">
-      {/* Cartes résumé */}
       <div className="grid grid-cols-3 gap-4">
         <div className={`rounded-xl p-4 border ${balance >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-          <div className={`text-xs font-medium mb-1 ${balance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-            Solde {periodLabel}
-          </div>
+          <div className={`text-xs font-medium mb-1 ${balance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Solde {periodLabel}</div>
           <div className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {balance >= 0 ? '+' : ''}{fmt(balance)}
           </div>
         </div>
-
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <div className="text-xs font-medium text-blue-700 mb-1">Revenus ({periodLabel})</div>
           <div className="text-2xl font-bold text-blue-600">+{fmt(totalRevenue)}</div>
         </div>
-
         <div className="bg-red-50 rounded-xl p-4 border border-red-200">
           <div className="text-xs font-medium text-red-700 mb-1">Dépenses ({periodLabel})</div>
           <div className="text-2xl font-bold text-red-600">-{fmt(totalExpense)}</div>
         </div>
       </div>
 
-      {/* Filtres + bouton ajout */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex gap-1 bg-surface-100 p-1 rounded-xl">
-          {[
-            { value: 'all',     label: 'Tous' },
-            { value: 'revenue', label: '📈 Revenus' },
-            { value: 'expense', label: '📉 Dépenses' },
-          ].map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => setFilterType(opt.value)}
+          {[{ value: 'all', label: 'Tous' }, { value: 'revenue', label: '📈 Revenus' }, { value: 'expense', label: '📉 Dépenses' }].map(opt => (
+            <button key={opt.value} onClick={() => setFilterType(opt.value)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                filterType === opt.value
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
-              }`}
-            >
+                filterType === opt.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+              }`}>
               {opt.label}
             </button>
           ))}
         </div>
-
-        <select
-          value={filterPeriod}
-          onChange={e => setFilterPeriod(e.target.value)}
-          className="px-3 py-1.5 border border-surface-200 rounded-xl text-sm bg-white text-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-brand-300"
-        >
+        <select value={filterPeriod} onChange={e => setFilterPeriod(e.target.value)}
+          className="px-3 py-1.5 border border-surface-200 rounded-xl text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300">
           <option value="all">Tout le temps</option>
           <option value="month">Ce mois</option>
           <option value="quarter">Ce trimestre</option>
           <option value="year">Cette année</option>
         </select>
-
-        <button
-          onClick={() => setShowModal(true)}
-          className="ml-auto px-4 py-1.5 bg-brand-600 text-white rounded-xl text-sm font-medium
-                     hover:bg-brand-700 transition-colors shadow"
-        >
+        <button onClick={() => setShowModal(true)}
+          className="ml-auto px-4 py-1.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors shadow">
           + Ajouter une transaction
         </button>
       </div>
 
-      {/* Tableau */}
       <div className="bg-white rounded-xl border border-surface-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
@@ -986,20 +1368,14 @@ function FinancierTab({ club }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          trans.type === 'revenue' ? 'bg-emerald-400' : 'bg-red-400'
-                        }`} />
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${trans.type === 'revenue' ? 'bg-emerald-400' : 'bg-red-400'}`} />
                         <div>
                           <div className="text-sm font-medium text-gray-900">{trans.title}</div>
-                          {trans.description && (
-                            <div className="text-xs text-gray-400 mt-0.5">{trans.description}</div>
-                          )}
+                          {trans.description && <div className="text-xs text-gray-400 mt-0.5">{trans.description}</div>}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 hidden sm:table-cell">
-                      {trans.from_to}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 hidden sm:table-cell">{trans.from_to}</td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-xs px-2 py-0.5 bg-surface-100 text-gray-600 rounded-full">
                         {CATEGORY_LABELS[trans.category] ?? trans.category}
@@ -1019,38 +1395,74 @@ function FinancierTab({ club }) {
       </div>
 
       <p className="text-xs text-gray-400 text-right">
-        {filtered.length} transaction(s) · Solde affiché sur l'ensemble des données
+        {filtered.length} transaction(s) · Solde calculé sur l'ensemble des données
       </p>
 
       {showModal && (
         <AddTransactionModal
           clubId={club.id}
           onClose={() => setShowModal(false)}
-          onCreate={handleAdd}
+          onCreate={trans => { setLocalTrans(prev => [...prev, trans]); setShowModal(false) }}
         />
       )}
     </div>
   )
 }
 
-function ParametresTab({ club }) {
+// ── Onglet Paramètres ─────────────────────────────────────────────────────────
+function ParametresTab({ club, onUpdateClub }) {
+  const [showEditModal, setShowEditModal] = useState(false)
+
   return (
     <div className="space-y-4">
       <div className="bg-surface-50 rounded-xl p-5">
         <div className="font-semibold text-gray-900 mb-3">Informations du club</div>
-        <div className="space-y-2 text-sm">
-          <div><span className="text-gray-500 w-24 inline-block">Nom :</span> <span className="font-medium">{club.name}</span></div>
-          <div><span className="text-gray-500 w-24 inline-block">Ville :</span> {club.city}</div>
-          <div><span className="text-gray-500 w-24 inline-block">Sport :</span> {club.sport}</div>
+        <div className="space-y-3 text-sm">
+          <div>
+            <span className="text-gray-500 block text-xs uppercase tracking-wide mb-0.5">Nom</span>
+            <span className="font-medium text-gray-900">{club.name}</span>
+          </div>
+          <div>
+            <span className="text-gray-500 block text-xs uppercase tracking-wide mb-0.5">Ville</span>
+            <span className="font-medium text-gray-900">{club.city}</span>
+          </div>
+          <div>
+            <span className="text-gray-500 block text-xs uppercase tracking-wide mb-0.5">Sport</span>
+            <span className="font-medium text-gray-900">{club.sport}</span>
+          </div>
           {club.founded && (
-            <div><span className="text-gray-500 w-24 inline-block">Fondé en :</span> {club.founded}</div>
+            <div>
+              <span className="text-gray-500 block text-xs uppercase tracking-wide mb-0.5">Fondé en</span>
+              <span className="font-medium text-gray-900">{club.founded}</span>
+            </div>
+          )}
+          {club.description && (
+            <div>
+              <span className="text-gray-500 block text-xs uppercase tracking-wide mb-0.5">Description</span>
+              <span className="text-gray-700">{club.description}</span>
+            </div>
           )}
         </div>
       </div>
-      <button className="px-4 py-2 border border-surface-200 rounded-xl text-sm font-medium
-                         text-gray-700 hover:bg-surface-50 transition-colors">
-        Éditer les informations
+
+      <button
+        onClick={() => setShowEditModal(true)}
+        className="px-4 py-2.5 border border-surface-200 rounded-xl text-sm font-medium
+                   text-gray-700 hover:bg-surface-50 transition-colors flex items-center gap-2"
+      >
+        ✏️ Éditer les informations du club
       </button>
+
+      {showEditModal && (
+        <EditClubModal
+          club={club}
+          onClose={() => setShowEditModal(false)}
+          onSave={updatedClub => {
+            onUpdateClub(updatedClub)
+            setShowEditModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1059,9 +1471,11 @@ function ParametresTab({ club }) {
 export default function PresidentPage() {
   const { currentUser, is } = useAuth()
   const [selectedClubId, setSelectedClubId] = useState(null)
-  const [activeTab, setActiveTab] = useState('alertes')
+  const [activeTab,      setActiveTab]      = useState('alertes')
+  const [tabExtra,       setTabExtra]       = useState({})
+  const [clubOverrides,  setClubOverrides]  = useState({})
 
-  // Accès réservé aux présidents
+  // Guard d'accès
   if (!is('president')) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
@@ -1072,23 +1486,20 @@ export default function PresidentPage() {
     )
   }
 
-  // Récupérer les clubs du président depuis ses rôles
+  // Clubs du président
   const presidentClubIds = (currentUser.user_roles ?? [])
     .filter(r => r.role_type === 'president' && r.scope_type === 'club')
     .map(r => r.scope_id)
 
-  const myClubs = presidentClubIds
-    .map(id => ALL_CLUBS[id])
-    .filter(Boolean)
-
-  // Fallback : utiliser current_club_id si pas de rôles
+  const myClubs = presidentClubIds.map(id => ALL_CLUBS[id]).filter(Boolean)
   if (myClubs.length === 0 && currentUser.current_club_id && ALL_CLUBS[currentUser.current_club_id]) {
     myClubs.push(ALL_CLUBS[currentUser.current_club_id])
   }
 
-  const activeClub = selectedClubId
-    ? ALL_CLUBS[selectedClubId]
-    : myClubs[0]
+  const baseClub  = selectedClubId ? ALL_CLUBS[selectedClubId] : myClubs[0]
+  const activeClub = baseClub
+    ? { ...baseClub, ...(clubOverrides[baseClub.id] ?? {}) }
+    : null
 
   if (!activeClub) {
     return (
@@ -1098,6 +1509,16 @@ export default function PresidentPage() {
         <div className="text-gray-500">Contactez l'administrateur pour être nommé président d'un club.</div>
       </div>
     )
+  }
+
+  // Navigation depuis les alertes : change l'onglet + mémorise les filtres
+  const handleNavigate = (tab, extra = {}) => {
+    setTabExtra(extra)
+    setActiveTab(tab)
+  }
+
+  const handleUpdateClub = (updatedClub) => {
+    setClubOverrides(prev => ({ ...prev, [updatedClub.id]: updatedClub }))
   }
 
   const tabs = [
@@ -1117,7 +1538,6 @@ export default function PresidentPage() {
         <h1 className="font-display text-2xl font-bold text-gray-900 mb-4">
           👔 Mon club {myClubs.length > 1 ? '(ou mes clubs)' : ''}
         </h1>
-
         <div className="flex gap-2 flex-wrap">
           {myClubs.map(club => {
             const count    = getAlertCount(club.id)
@@ -1125,14 +1545,14 @@ export default function PresidentPage() {
             return (
               <button
                 key={club.id}
-                onClick={() => { setSelectedClubId(club.id); setActiveTab('alertes') }}
+                onClick={() => { setSelectedClubId(club.id); setActiveTab('alertes'); setTabExtra({}) }}
                 className={`px-4 py-3 rounded-xl font-medium transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-lg'
                     : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300'
                 }`}
               >
-                {club.name}
+                {clubOverrides[club.id]?.name ?? club.name}
                 {count > 0 && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
                     isActive ? 'bg-white text-brand-600' : 'bg-red-100 text-red-700'
@@ -1152,7 +1572,7 @@ export default function PresidentPage() {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setActiveTab(tab.id); setTabExtra({}) }}
               className={`flex-1 px-3 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-600 bg-brand-50'
@@ -1165,12 +1585,28 @@ export default function PresidentPage() {
         </div>
 
         <div className="p-6">
-          {activeTab === 'alertes'    && <AlertesTab    club={activeClub} />}
-          {activeTab === 'documents'  && <DocumentsTab  club={activeClub} />}
-          {activeTab === 'joueurs'    && <JoueursTab    club={activeClub} />}
+          {activeTab === 'alertes' && (
+            <AlertesTab club={activeClub} onNavigate={handleNavigate} />
+          )}
+          {activeTab === 'documents' && (
+            <DocumentsTab
+              club={activeClub}
+              initialDocFilter={tabExtra.docFilter ?? ''}
+              key={`docs-${activeClub.id}-${tabExtra.docFilter ?? ''}`}
+            />
+          )}
+          {activeTab === 'joueurs' && (
+            <JoueursTab
+              club={activeClub}
+              initialAttendanceFilter={tabExtra.attendanceFilter ?? ''}
+              key={`joueurs-${activeClub.id}-${tabExtra.attendanceFilter ?? ''}`}
+            />
+          )}
           {activeTab === 'stats'      && <StatsTab      club={activeClub} />}
           {activeTab === 'financier'  && <FinancierTab  club={activeClub} />}
-          {activeTab === 'parametres' && <ParametresTab club={activeClub} />}
+          {activeTab === 'parametres' && (
+            <ParametresTab club={activeClub} onUpdateClub={handleUpdateClub} />
+          )}
         </div>
       </div>
     </div>
