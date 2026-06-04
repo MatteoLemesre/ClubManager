@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, RoleBadge } from '../ui'
 import * as db from '../../services/db'
@@ -21,6 +21,50 @@ const NAV_ITEMS = [
 ]
 
 const PRESIDENT_NAV = { to: '/app/president', label: '👔 Mon club' }
+
+// ── Mobile Bottom Navigation ─────────────────────────────────────────────────
+function MobileBottomNav({ currentUser, switchRole }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const baseTabs = [
+    { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
+    { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
+    { to: '/app/calendar', icon: Calendar,      label: 'Agenda'     },
+    { to: '/app/messages', icon: MessageCircle, label: 'Messages'   },
+    { to: '/app/profile',  icon: User,          label: 'Profil'     },
+  ]
+
+  const tabs = (currentUser?.role === 'president' || currentUser?.role === 'staff')
+    ? [...baseTabs.slice(0, 4), { to: '/app/president', label: 'Club', emoji: '👔' }, baseTabs[4]]
+    : baseTabs
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-200 md:hidden z-40">
+      <div className="flex">
+        {tabs.map(tab => {
+          const isActive = location.pathname.startsWith(tab.to)
+          return (
+            <button
+              key={tab.to}
+              onClick={() => navigate(tab.to)}
+              className={`relative flex-1 py-2 flex flex-col items-center gap-0.5 transition-all ${
+                isActive ? 'text-brand-600' : 'text-gray-400'
+              }`}
+            >
+              {tab.emoji
+                ? <span className="text-lg leading-none">{tab.emoji}</span>
+                : <tab.icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
+              }
+              <span className="text-[9px] font-medium">{tab.label}</span>
+              {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 rounded-full" />}
+            </button>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
 
 export default function AppLayout() {
   const { currentUser, logout, switchRole } = useAuth()
@@ -376,7 +420,7 @@ export default function AppLayout() {
         </div>
 
         {/* Ligne basse : navigation */}
-        <nav className="flex items-center gap-1 px-4 overflow-x-auto border-t border-surface-100">
+        <nav className="hidden md:flex items-center gap-1 px-4 overflow-x-auto border-t border-surface-100">
           {NAV_ITEMS.map(item => (
             <NavLink
               key={item.to}
@@ -413,12 +457,12 @@ export default function AppLayout() {
       </header>
 
       {/* ── CONTENU ─────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         <Outlet />
       </main>
 
       {/* ── Dev role switcher ────────────────────────────────────────────────── */}
-      <div className="fixed bottom-4 right-4 bg-white rounded-2xl shadow-lg
+      <div className="fixed bottom-20 right-4 md:bottom-4 bg-white rounded-2xl shadow-lg
                       border border-surface-200 p-2 flex items-center gap-1.5 z-50">
         <span className="text-[10px] text-gray-400 font-medium pl-1 pr-0.5">DEV</span>
         {[
@@ -445,6 +489,9 @@ export default function AppLayout() {
           )
         })}
       </div>
+
+      {/* ── Mobile Bottom Nav ──────────────────────────────────────────────── */}
+      <MobileBottomNav currentUser={currentUser} />
     </div>
   )
 }

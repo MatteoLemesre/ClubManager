@@ -361,8 +361,8 @@ function ContactModal({ users, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-md md:rounded-2xl p-4 md:p-6 flex-1 md:flex-none overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-xl font-bold text-gray-900">
             Contacter {users.length} personne(s)
@@ -421,8 +421,8 @@ function MemberDocumentsModal({ member, docs, onClose }) {
   const now = new Date()
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-md md:rounded-2xl p-4 md:p-6 flex-1 md:flex-none overflow-y-auto md:max-h-[90vh] shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-display text-xl font-bold text-gray-900">
@@ -499,8 +499,8 @@ function PlayerDetailModal({ player, teams, stats, docs, onClose }) {
   const s              = player.stats ?? {}
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-md md:rounded-2xl p-4 md:p-6 flex-1 md:flex-none overflow-y-auto md:max-h-[90vh] shadow-xl">
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="font-display text-xl font-bold text-gray-900">
@@ -632,8 +632,8 @@ function EditClubModal({ club, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-md md:rounded-2xl p-4 md:p-6 flex-1 md:flex-none overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl font-bold text-gray-900">Éditer le club</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
@@ -1083,7 +1083,7 @@ function StatsTab({ club }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         <StatCard label="Joueurs"       value={players.length} icon="⚽" />
         <StatCard label="Coachs"        value={coaches.length} icon="👔" />
         <StatCard label="Équipes"       value={teams.length}   icon="🏟️" />
@@ -1186,8 +1186,8 @@ function AddTransactionModal({ clubId, onClose, onCreate }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-md md:rounded-2xl p-4 md:p-6 flex-1 md:flex-none overflow-y-auto md:max-h-[90vh] shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl font-bold text-gray-900">Ajouter une transaction</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-100 text-gray-400">✕</button>
@@ -1533,31 +1533,30 @@ export default function PresidentPage() {
   ]
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto">
 
-      {/* Sélection club */}
-      <div className="mb-6">
-        <div className="flex gap-3 flex-wrap">
+      {/* Sélection club — scroll horizontal sur mobile */}
+      <div className="px-4 pt-4 pb-2 md:px-4 md:pt-6 md:pb-0 md:mb-6 overflow-x-auto">
+        <div className="flex gap-2 md:gap-3 flex-nowrap md:flex-wrap">
           {myClubs.map(club => {
             const clubData = clubOverrides[club.id] ?? club
             const count    = getAlertCount(club.id)
             const isActive = activeClub.id === club.id
-            // Rôle de l'user dans ce club
             const userRoleInClub = (currentUser.roles ?? []).find(r => r.club_id === club.id)?.role
             return (
               <button
                 key={club.id}
                 onClick={() => { setSelectedClubId(club.id); setActiveTab('alertes'); setTabExtra({}) }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                className={`flex-shrink-0 flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-lg'
                     : 'bg-white border border-surface-200 text-gray-900 hover:border-brand-300 hover:shadow-sm'
                 }`}
               >
-                <span className="text-2xl leading-none">
+                <span className="text-xl md:text-2xl leading-none">
                   {clubData.emoji_icon ?? '⚽'}
                 </span>
-                <div className="text-left">
+                <div className="text-left hidden md:block">
                   <div className="font-semibold leading-tight">{clubData.name}</div>
                   {userRoleInClub && (
                     <div className={`text-xs leading-tight ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
@@ -1566,7 +1565,7 @@ export default function PresidentPage() {
                   )}
                 </div>
                 {count > 0 && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
                     isActive ? 'bg-white text-brand-600' : 'bg-red-100 text-red-700'
                   }`}>
                     {count}
@@ -1579,24 +1578,25 @@ export default function PresidentPage() {
       </div>
 
       {/* Onglets */}
-      <div className="bg-white rounded-2xl border border-surface-200 overflow-hidden">
+      <div className="bg-white md:rounded-2xl md:border border-surface-200 overflow-hidden mt-2 md:mt-0">
         <div className="flex border-b border-surface-200 overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => { setActiveTab(tab.id); setTabExtra({}) }}
-              className={`flex-1 px-3 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+              className={`flex-1 px-2 md:px-3 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-600 bg-brand-50'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
               }`}
             >
-              {tab.icon} {tab.label}
+              <span>{tab.icon}</span>
+              <span className="hidden md:inline"> {tab.label}</span>
             </button>
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-3 md:p-6">
           {activeTab === 'alertes' && (
             <AlertesTab club={activeClub} onNavigate={handleNavigate} />
           )}
