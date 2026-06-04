@@ -13,12 +13,14 @@ import {
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
-  { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
-  { to: '/app/calendar', icon: Calendar,      label: 'Calendrier' },
-  { to: '/app/messages', icon: MessageCircle, label: 'Messagerie' },
-  { to: '/app/profile',  icon: User,          label: 'Profil'     },
+  { to: '/app/feed',      icon: Newspaper,     label: 'Feed'       },
+  { to: '/app/team',      icon: Shield,        label: 'Équipes'    },
+  { to: '/app/calendar',  icon: Calendar,      label: 'Calendrier' },
+  { to: '/app/messages',  icon: MessageCircle, label: 'Messagerie' },
+  { to: '/app/profile',   icon: User,          label: 'Profil'     },
 ]
+
+const PRESIDENT_NAV = { to: '/app/president', label: '👔 Mon club', role: 'president' }
 
 export default function AppLayout() {
   const { currentUser, logout, switchRole } = useAuth()
@@ -392,6 +394,21 @@ export default function AppLayout() {
               {item.label}
             </NavLink>
           ))}
+          {currentUser?.role === 'president' && (
+            <NavLink
+              to={PRESIDENT_NAV.to}
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px
+                 whitespace-nowrap transition-colors
+                 ${isActive
+                   ? 'border-brand-600 text-brand-600'
+                   : 'border-transparent text-gray-400 hover:text-gray-700'
+                 }`
+              }
+            >
+              {PRESIDENT_NAV.label}
+            </NavLink>
+          )}
         </nav>
       </header>
 

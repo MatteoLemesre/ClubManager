@@ -13,8 +13,11 @@ const PERSONAS = {
     postal_code: '62300', postalCode: '62300',
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
     current_club_id: 'club-1',
-    user_roles: [{ role_type: 'president', scope_type: 'club', scope_id: 'club-1' }],
-    member_of_clubs: ['club-1'],
+    user_roles: [
+      { role_type: 'president', scope_type: 'club', scope_id: 'club-1' },
+      { role_type: 'president', scope_type: 'club', scope_id: 'mock-club-sd' },
+    ],
+    member_of_clubs: ['club-1', 'mock-club-sd'],
     teams: ['team-1', 'team-2', 'team-3', 'team-4'],
     followed_clubs: ['club-1', 'mock-club-ol'],
     followed_teams: ['mock-team-bx-2'],
