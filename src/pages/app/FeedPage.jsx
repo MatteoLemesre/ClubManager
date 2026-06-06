@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { MOCK_FEED_POSTS } from '../../context/AuthContext'
-import { EXTERNAL_CLUBS } from '../../data/mock'
+import { MOCK_FEED_POSTS, MOCK_CLUBS } from '../../context/AuthContext'
+import { EXTERNAL_CLUBS, SPORTS } from '../../data/mock'
 
 // Retourne les club IDs dont il faut charger le feed (followed_clubs + clubs parents des followed_teams)
 function getFeedClubIds(user) {
@@ -420,15 +420,22 @@ export function PostCard({ post, liked, onLike, currentUser }) {
 
 // ─── FeedPage ──────────────────────────────────────────────────────────────
 
+function getPostSport(post) {
+  const clubId = post.club_id
+  const club = MOCK_CLUBS[clubId]
+  return club?.sport ?? 'football'
+}
+
 export default function FeedPage() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
-  const [posts,      setPosts]      = useState([])
-  const [loading,    setLoading]    = useState(true)
-  const [likedPosts, setLikedPosts] = useState(new Set())
-  const [error,      setError]      = useState(null)
-  const [canPost,    setCanPost]    = useState(false)
-  const [club,       setClub]       = useState(null)
+  const [posts,          setPosts]          = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [likedPosts,     setLikedPosts]     = useState(new Set())
+  const [error,          setError]          = useState(null)
+  const [canPost,        setCanPost]        = useState(false)
+  const [club,           setClub]           = useState(null)
+  const [selectedSports, setSelectedSports] = useState(['all'])
 
   // Supporter sans club → charger les posts des clubs suivis depuis le mock
   const isFollowerMode = !currentUser.current_club_id && (currentUser.role === 'community' || currentUser.role === 'supporter')
@@ -512,6 +519,13 @@ export default function FeedPage() {
     })
   }
 
+  const filteredPosts = selectedSports.includes('all')
+    ? posts
+    : posts.filter(post => {
+        const sport = getPostSport(post)
+        return selectedSports.includes(sport)
+      })
+
   if (error) return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <h1 className="font-display text-2xl font-bold text-gray-900 mb-6">Feed</h1>
@@ -561,6 +575,42 @@ export default function FeedPage() {
         </div>
       )}
 
+      {/* Filtres sports */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <button
+          onClick={() => setSelectedSports(['all'])}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+            selectedSports.includes('all')
+              ? 'bg-brand-600 text-white border-brand-600'
+              : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+          }`}
+        >
+          Tous les sports
+        </button>
+        {Object.entries(SPORTS).map(([key, sport]) => (
+          <button
+            key={key}
+            onClick={() => {
+              if (selectedSports.includes('all')) {
+                setSelectedSports([key])
+              } else if (selectedSports.includes(key)) {
+                const next = selectedSports.filter(s => s !== key)
+                setSelectedSports(next.length === 0 ? ['all'] : next)
+              } else {
+                setSelectedSports([...selectedSports.filter(s => s !== 'all'), key])
+              }
+            }}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              selectedSports.includes(key)
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+            }`}
+          >
+            {sport.icon} {sport.name}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-2 border-brand-200 border-t-brand-600
@@ -579,7 +629,7 @@ export default function FeedPage() {
             </button>
           }
         />
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <EmptyState
           icon="📰"
           title="Aucun post pour l'instant"
@@ -594,7 +644,7 @@ export default function FeedPage() {
         />
       ) : (
         <div className="space-y-4">
-          {posts.map(post => (
+          {filteredPosts.map(post => (
             <PostCard
               key={post.id}
               post={post}

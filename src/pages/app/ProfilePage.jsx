@@ -10,7 +10,7 @@ import {
   getClubById, leaveClub, canPresidentLeave,
   createClub, updateUser, createUserRole, getSports, resolvePostalCode,
 } from '../../services/db'
-import { DOCUMENTS, TEAMS, MOCK_PLAYER_STATS, mockExperiences } from '../../data/mock'
+import { DOCUMENTS, TEAMS, MOCK_PLAYER_STATS, mockExperiences, SPORTS as SPORTS_INFO } from '../../data/mock'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -507,35 +507,113 @@ function RolesSection({ user }) {
   const roles = user?.roles ?? []
   if (!roles.length) return null
 
+  // Group roles by sport
+  const rolesBySport = {}
+  const noSportRoles = []
+  roles.forEach(r => {
+    if (r.sport) {
+      if (!rolesBySport[r.sport]) rolesBySport[r.sport] = []
+      rolesBySport[r.sport].push(r)
+    } else {
+      noSportRoles.push(r)
+    }
+  })
+
+  const hasSportGroups = Object.keys(rolesBySport).length > 0
+
   return (
     <Card className="p-5">
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">👔 Rôles</h2>
-      <div className="space-y-2">
-        {roles.map((r, idx) => {
-          const club = MOCK_CLUBS[r.club_id]
-          return (
-            <div key={idx} className="p-3 bg-surface-50 rounded-xl flex items-center justify-between">
-              <div>
-                <div className="font-medium text-gray-900 text-sm">
-                  {ROLE_ICON_MAP[r.role] ?? '📋'} {ROLE_LABEL_MAP[r.role] ?? r.role}
+      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">👔 Rôles ({roles.length})</h2>
+
+      {hasSportGroups ? (
+        <div className="space-y-4">
+          {Object.entries(rolesBySport).map(([sport, sportRoles]) => {
+            const sportInfo = SPORTS_INFO[sport]
+            return (
+              <div key={sport}>
+                <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-surface-200">
+                  <span className="text-lg">{sportInfo?.icon ?? '🏆'}</span>
+                  <h3 className="text-sm font-semibold text-gray-700">{sportInfo?.name ?? sport}</h3>
                 </div>
-                {club && (
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {club.emoji_icon} {club.name}
-                    {r.teams?.length > 0 && <span> · {r.teams.length} équipe{r.teams.length > 1 ? 's' : ''}</span>}
-                  </div>
-                )}
-                {!club && r.club_id == null && (
-                  <div className="text-xs text-gray-400 mt-0.5">Sans club</div>
-                )}
+                <div className="space-y-2 ml-1">
+                  {sportRoles.map((r, idx) => {
+                    const club = MOCK_CLUBS[r.club_id]
+                    return (
+                      <div key={r.id ?? idx} className="p-3 bg-surface-50 rounded-xl flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">
+                            {ROLE_ICON_MAP[r.role] ?? '📋'} {ROLE_LABEL_MAP[r.role] ?? r.role}
+                          </div>
+                          {(club || r.club_name) && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {club?.emoji_icon ?? ''} {club?.name ?? r.club_name}
+                              {r.position && <span> · {r.position}</span>}
+                              {r.jersey_number && <span> · #{r.jersey_number}</span>}
+                              {r.teams?.length > 0 && <span> · {r.teams.length} équipe{r.teams.length > 1 ? 's' : ''}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+          {noSportRoles.map((r, idx) => {
+            const club = MOCK_CLUBS[r.club_id]
+            return (
+              <div key={idx} className="p-3 bg-surface-50 rounded-xl flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900 text-sm">
+                    {ROLE_ICON_MAP[r.role] ?? '📋'} {ROLE_LABEL_MAP[r.role] ?? r.role}
+                  </div>
+                  {club && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {club.emoji_icon} {club.name}
+                      {r.teams?.length > 0 && <span> · {r.teams.length} équipe{r.teams.length > 1 ? 's' : ''}</span>}
+                    </div>
+                  )}
+                  {!club && r.club_id == null && (
+                    <div className="text-xs text-gray-400 mt-0.5">Sans club</div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {roles.map((r, idx) => {
+            const club = MOCK_CLUBS[r.club_id]
+            return (
+              <div key={idx} className="p-3 bg-surface-50 rounded-xl flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900 text-sm">
+                    {ROLE_ICON_MAP[r.role] ?? '📋'} {ROLE_LABEL_MAP[r.role] ?? r.role}
+                  </div>
+                  {club && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {club.emoji_icon} {club.name}
+                      {r.teams?.length > 0 && <span> · {r.teams.length} équipe{r.teams.length > 1 ? 's' : ''}</span>}
+                    </div>
+                  )}
+                  {!club && r.club_id == null && (
+                    <div className="text-xs text-gray-400 mt-0.5">Sans club</div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {roles.length > 1 && (
         <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-blue-700">
           Rôle principal : <strong>{ROLE_LABEL_MAP[user.current_role] ?? user.current_role}</strong>
+          {user.current_sport && SPORTS_INFO[user.current_sport] && (
+            <> · {SPORTS_INFO[user.current_sport].icon} {SPORTS_INFO[user.current_sport].name}</>
+          )}
         </div>
       )}
     </Card>

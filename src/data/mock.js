@@ -12,6 +12,30 @@ export const CLUB = {
   colors: { primary: '#1f4fe8', secondary: '#ffffff' },
 }
 
+// ─── SPORTS ────────────────────────────────────────────────────────────────
+export const SPORTS = {
+  football: {
+    name: 'Football', icon: '⚽',
+    positions: ['Gardien', 'Défenseur', 'Latéral', 'Milieu', 'Ailier', 'Attaquant'],
+  },
+  basketball: {
+    name: 'Basketball', icon: '🏀',
+    positions: ['Meneur de jeu', 'Arrière', 'Ailier', 'Ailier fort', 'Pivot'],
+  },
+  rugby: {
+    name: 'Rugby', icon: '🏉',
+    positions: ['Pilier', 'Talonneur', 'Deuxième ligne', 'Troisième ligne aile', 'Troisième ligne centre', 'Demi de mêlée', "Demi d'ouverture", 'Centre', 'Ailier', 'Arrière'],
+  },
+  handball: {
+    name: 'Handball', icon: '🤾',
+    positions: ['Gardien', 'Pivot', 'Ailier gauche', 'Ailier droit', 'Arrière gauche', 'Arrière centre', 'Arrière droit'],
+  },
+  volleyball: {
+    name: 'Volleyball', icon: '🏐',
+    positions: ['Passeur', 'Opposant', 'Réceptionneur-attaquant', 'Centrale', 'Libéro'],
+  },
+}
+
 // ─── TEAMS ─────────────────────────────────────────────────────────────────
 export const TEAMS = [
   { id: 'team-1', name: 'Séniors A',  category: 'Séniors',  ageGroup: '18+',   coachId: 'user-2' },
@@ -1008,6 +1032,51 @@ export const EXTERNAL_CLUBS = [
       { id: 'mock-team-nt-1', name: 'Séniors A', category: 'Séniors' },
       { id: 'mock-team-nt-2', name: 'U17',        category: 'U17'     },
       { id: 'mock-team-nt-3', name: 'U13',        category: 'U13'     },
+    ],
+  },
+  {
+    id: 'club-basket-1',
+    name: 'Lens Basket Club',
+    sport: 'basketball',
+    city: 'Lens',
+    department: 'Pas-de-Calais',
+    region: 'Hauts-de-France',
+    teams: [
+      { id: 'team-basket-1', name: 'Séniors Hommes', category: 'Séniors', sport: 'basketball' },
+      { id: 'team-basket-2', name: 'Séniors Femmes', category: 'Séniors', sport: 'basketball' },
+    ],
+  },
+  {
+    id: 'club-rugby-1',
+    name: 'AS Liévin Rugby',
+    sport: 'rugby',
+    city: 'Liévin',
+    department: 'Pas-de-Calais',
+    region: 'Hauts-de-France',
+    teams: [
+      { id: 'team-rugby-1', name: 'Séniors A', category: 'Séniors', sport: 'rugby' },
+    ],
+  },
+  {
+    id: 'club-handball-1',
+    name: 'Saint-Denis Handball',
+    sport: 'handball',
+    city: 'Saint-Denis',
+    department: 'Seine-Saint-Denis',
+    region: 'Île-de-France',
+    teams: [
+      { id: 'team-handball-1', name: 'Séniors', category: 'Séniors', sport: 'handball' },
+    ],
+  },
+  {
+    id: 'club-volley-1',
+    name: 'OL Volley',
+    sport: 'volleyball',
+    city: 'Lyon',
+    department: 'Rhône',
+    region: 'Auvergne-Rhône-Alpes',
+    teams: [
+      { id: 'team-volley-1', name: 'Séniors Femmes', category: 'Séniors', sport: 'volleyball' },
     ],
   },
 ]

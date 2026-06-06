@@ -8,7 +8,7 @@ import {
 import { fr } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
-import { getUpcomingMatchesForUser, TEAMS, USERS } from '../../data/mock'
+import { getUpcomingMatchesForUser, TEAMS, USERS, SPORTS, getAllClubs } from '../../data/mock'
 import { Card, Badge } from '../../components/ui'
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Car } from 'lucide-react'
 
@@ -70,6 +70,13 @@ export default function CalendarPage() {
   const [selectedEvent,    setSelectedEvent]     = useState(null)
   const [showCreateEvent,  setShowCreateEvent]  = useState(false)
   const [localEvents,      setLocalEvents]      = useState([])
+  const [selectedSports,   setSelectedSports]   = useState(['all'])
+
+  const allClubsMap = useMemo(() => {
+    const map = {}
+    getAllClubs().forEach(c => { map[c.id] = c })
+    return map
+  }, [])
 
   // Matchs filtrés selon suivi
   const followedMatches = useMemo(
@@ -122,14 +129,23 @@ export default function CalendarPage() {
     return items
   }, [matches, followedMatches, trainings, events, localEvents, currentUser, isPresident, isSupporter, isParent, userTeams, getTeamById])
 
+  const filteredItems = useMemo(() => {
+    if (selectedSports.includes('all')) return allItems
+    return allItems.filter(item => {
+      const clubId = item.club_id ?? item.clubId
+      const sport = allClubsMap[clubId]?.sport?.toLowerCase() ?? 'football'
+      return selectedSports.includes(sport)
+    })
+  }, [allItems, selectedSports, allClubsMap])
+
   // 10 prochains items
   const now = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
   const upcomingItems = useMemo(() =>
-    allItems
+    filteredItems
       .filter(i => i._date >= now)
       .sort((a, b) => a._date - b._date)
       .slice(0, 10)
-  , [allItems, now])
+  , [filteredItems, now])
 
   function handleItemClick(item) {
     if (item._kind === 'match') {
@@ -167,6 +183,41 @@ export default function CalendarPage() {
               </div>
             ))}
           </div>
+          {/* Filtres sports */}
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+            <button
+              onClick={() => setSelectedSports(['all'])}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                selectedSports.includes('all')
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+              }`}
+            >
+              Tous les sports
+            </button>
+            {Object.entries(SPORTS).map(([key, sport]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  if (selectedSports.includes('all')) {
+                    setSelectedSports([key])
+                  } else if (selectedSports.includes(key)) {
+                    const next = selectedSports.filter(s => s !== key)
+                    setSelectedSports(next.length === 0 ? ['all'] : next)
+                  } else {
+                    setSelectedSports([...selectedSports.filter(s => s !== 'all'), key])
+                  }
+                }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  selectedSports.includes(key)
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                }`}
+              >
+                {sport.icon} {sport.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {isOneOf('president', 'coach') && (
@@ -186,7 +237,7 @@ export default function CalendarPage() {
         {/* Colonne gauche 70% - Calendrier mensuel */}
         <div className="flex-[7] p-6 overflow-auto">
           <CalendarMonthView
-            items={allItems}
+            items={filteredItems}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             onClickItem={handleItemClick}

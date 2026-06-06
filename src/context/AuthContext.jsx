@@ -44,25 +44,26 @@ const PERSONAS = {
   president: {
     id: 'u-1', email: 'president@test.fr', password_hash: 'password',
     first_name: 'Jean', last_name: 'Dupont', firstName: 'Jean', lastName: 'Dupont',
+    bio: 'Président du FC Lens Académie et joueur de volleyball à OL Volley',
     role: 'president', current_role: 'president',
+    current_sport: 'football',
     teamIds: [], team_ids: [], account_status: 'active',
     birth_date: '1985-03-15', birthDate: '1985-03-15',
     phone: '06 12 34 56 78', address: '12 rue du Stade',
     postal_code: '62300', postalCode: '62300',
     city: 'Lens', country: 'France', department: 'Pas-de-Calais', region: 'Hauts-de-France',
     current_club_id: 'club-1',
-    // Nouveau : roles array multi-clubs
     roles: [
-      { role: 'president', club_id: 'club-1' },
-      { role: 'president', club_id: 'mock-club-sd' },
+      { id: 'role-dupont-pres-foot', role: 'president', sport: 'football', club_id: 'club-1', club_name: 'FC Lens Académie' },
+      { id: 'role-dupont-player-volley', role: 'player', sport: 'volleyball', club_id: 'club-volley-1', club_name: 'OL Volley', teams: ['team-volley-1'], position: 'Centrale', jersey_number: 12 },
     ],
     user_roles: [
       { role_type: 'president', scope_type: 'club', scope_id: 'club-1' },
-      { role_type: 'president', scope_type: 'club', scope_id: 'mock-club-sd' },
+      { role_type: 'player', scope_type: 'team', scope_id: 'team-volley-1' },
     ],
-    member_of_clubs: ['club-1', 'mock-club-sd'],
+    member_of_clubs: ['club-1', 'club-volley-1'],
     teams: ['team-1', 'team-2', 'team-3', 'team-4'],
-    followed_clubs: ['club-1', 'mock-club-ol'],
+    followed_clubs: ['club-1', 'mock-club-ol', 'club-basket-1'],
     followed_teams: ['mock-team-bx-2'],
   },
   staff: {
@@ -149,9 +150,13 @@ const PERSONAS = {
 }
 
 export const MOCK_CLUBS = {
-  'club-1':      { id: 'club-1',      name: 'FC Lens Académie',      city: 'Lens',        emoji_icon: '⚽', sports: { name: 'Football' } },
-  'mock-club-sd':{ id: 'mock-club-sd',name: 'AS Saint-Denis United', city: 'Saint-Denis', emoji_icon: '🏆', sports: { name: 'Football' } },
-  'mock-club-ol':{ id: 'mock-club-ol',name: 'OL Amateur',            city: 'Lyon',        emoji_icon: '🔵', sports: { name: 'Football' } },
+  'club-1':         { id: 'club-1',         name: 'FC Lens Académie',      city: 'Lens',        sport: 'football',   emoji_icon: '⚽', sports: { name: 'Football'    } },
+  'mock-club-sd':   { id: 'mock-club-sd',   name: 'AS Saint-Denis United', city: 'Saint-Denis', sport: 'football',   emoji_icon: '⚽', sports: { name: 'Football'    } },
+  'mock-club-ol':   { id: 'mock-club-ol',   name: 'OL Amateur',            city: 'Lyon',        sport: 'football',   emoji_icon: '🔵', sports: { name: 'Football'    } },
+  'club-basket-1':  { id: 'club-basket-1',  name: 'Lens Basket Club',      city: 'Lens',        sport: 'basketball', emoji_icon: '🏀', sports: { name: 'Basketball'  } },
+  'club-rugby-1':   { id: 'club-rugby-1',   name: 'AS Liévin Rugby',       city: 'Liévin',      sport: 'rugby',      emoji_icon: '🏉', sports: { name: 'Rugby'       } },
+  'club-handball-1':{ id: 'club-handball-1',name: 'Saint-Denis Handball',  city: 'Saint-Denis', sport: 'handball',   emoji_icon: '🤾', sports: { name: 'Handball'    } },
+  'club-volley-1':  { id: 'club-volley-1',  name: 'OL Volley',             city: 'Lyon',        sport: 'volleyball', emoji_icon: '🏐', sports: { name: 'Volleyball'  } },
 }
 
 export const MOCK_FEED_POSTS = {
@@ -234,6 +239,45 @@ export const MOCK_FEED_POSTS = {
       post_likes: [1, 2, 3, 4],
       post_comments: [],
       created_at: new Date(2026, 4, 5, 9, 0).toISOString(),
+    },
+  ],
+  'club-basket-1': [
+    {
+      id: 'post-basket-1',
+      club_id: 'club-basket-1',
+      clubs: { id: 'club-basket-1', name: 'Lens Basket Club', city: 'Lens' },
+      users: { id: 'coach-basket', first_name: 'Sophie', last_name: 'Martin' },
+      content: '🏀 Victoire 78-65 face à Arras ce weekend ! Excellent match collectif, mention spéciale à notre meneur de jeu. Prochain match samedi prochain à domicile.',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4],
+      post_comments: [],
+      created_at: new Date(2026, 4, 15, 19, 0).toISOString(),
+    },
+  ],
+  'club-volley-1': [
+    {
+      id: 'post-volley-1',
+      club_id: 'club-volley-1',
+      clubs: { id: 'club-volley-1', name: 'OL Volley', city: 'Lyon' },
+      users: { id: 'u-1', first_name: 'Jean', last_name: 'Dupont' },
+      content: '🏐 Les Séniors Femmes qualifiées pour les demi-finales régionales ! Bravo à toute l\'équipe pour cette belle performance.',
+      media_url: null, media_type: null,
+      post_likes: [1, 2, 3, 4, 5, 6],
+      post_comments: [],
+      created_at: new Date(2026, 4, 13, 18, 0).toISOString(),
+    },
+  ],
+  'club-rugby-1': [
+    {
+      id: 'post-rugby-1',
+      club_id: 'club-rugby-1',
+      clubs: { id: 'club-rugby-1', name: 'AS Liévin Rugby', city: 'Liévin' },
+      users: { id: 'coach-rugby', first_name: 'Karim', last_name: 'Diallo' },
+      content: '🏉 Match nul 18-18 face à Valenciennes. On y était presque ! Bon courage pour la suite de la saison.',
+      media_url: null, media_type: null,
+      post_likes: [1, 2],
+      post_comments: [],
+      created_at: new Date(2026, 4, 11, 20, 0).toISOString(),
     },
   ],
 }

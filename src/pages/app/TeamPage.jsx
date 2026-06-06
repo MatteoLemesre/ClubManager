@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Badge, RoleBadge } from '../../components/ui'
-import { CLUB, TEAMS, EXTERNAL_CLUBS, getAllClubs } from '../../data/mock'
+import { CLUB, TEAMS, EXTERNAL_CLUBS, getAllClubs, SPORTS } from '../../data/mock'
 import { Search, X, Star, MapPin, Users, ChevronRight } from 'lucide-react'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ export default function TeamPage() {
   const [activeTab, setActiveTab] = useState('followed')
   const [search, setSearch]       = useState('')
   const [selectedClub, setSelectedClub] = useState(null)
+  const [sportFilter, setSportFilter] = useState('all')
 
   // Suivi local (initialisé depuis le contexte, ne persiste pas)
   const [followedClubIds, setFollowedClubIds] = useState(
@@ -49,11 +50,12 @@ export default function TeamPage() {
   // Club de l'utilisateur
   const myClub = isMember ? getClubById(currentUser.current_club_id) : null
 
-  // Explorer : tous les clubs sauf le sien, filtrés par recherche
+  // Explorer : tous les clubs sauf le sien, filtrés par recherche et sport
   const explorerClubs = getAllClubs().filter(c => {
     if (c.id === currentUser.current_club_id) return false
-    if (!search) return true
-    return (
+    const matchSport = sportFilter === 'all' || c.sport?.toLowerCase() === sportFilter
+    if (!search) return matchSport
+    return matchSport && (
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.city.toLowerCase().includes(search.toLowerCase())
     )
@@ -205,6 +207,33 @@ export default function TeamPage() {
       {/* ── Onglet Explorer ───────────────────────────────────────────────── */}
       {activeTab === 'explore' && (
         <div>
+          {/* Filtres par sport */}
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            <button
+              onClick={() => setSportFilter('all')}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                sportFilter === 'all'
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+              }`}
+            >
+              Tous les sports
+            </button>
+            {Object.entries(SPORTS).map(([key, sport]) => (
+              <button
+                key={key}
+                onClick={() => setSportFilter(key)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  sportFilter === key
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+                }`}
+              >
+                {sport.icon} {sport.name}
+              </button>
+            ))}
+          </div>
+
           {/* Recherche */}
           <div className="relative mb-6">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -302,7 +331,7 @@ function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, on
             )}
           </div>
           <div className="text-sm text-gray-500">
-            {club.sport}{club.city && ` · ${club.city}`}
+            {(() => { const s = SPORTS[club.sport?.toLowerCase?.() ?? '']; return s ? `${s.icon} ${s.name}` : club.sport })()}{club.city && ` · ${club.city}`}
           </div>
 
           {/* Équipes impliquées (si membre) — cliquables */}
@@ -397,7 +426,7 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
             <div>
               <div className="font-bold text-gray-900">{club.name}</div>
               <div className="text-xs text-gray-400">
-                {club.sport}
+                {(() => { const s = SPORTS[club.sport?.toLowerCase?.() ?? '']; return s ? `${s.icon} ${s.name}` : club.sport })()}
                 {club.city && ` · ${club.city}`}
                 {club.department && ` · ${club.department}`}
               </div>
@@ -435,7 +464,7 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
         {/* Onglets */}
         <div className="flex border-b border-surface-200 px-5">
           {[
-            { id: 'teams', label: '⚽ Équipes' },
+            { id: 'teams', label: `${SPORTS[club.sport?.toLowerCase?.() ?? '']?.icon ?? '🏆'} Équipes` },
             { id: 'info',  label: '📋 Infos'   },
           ].map(t => (
             <button
@@ -507,7 +536,7 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
                 </div>
               )}
               <div className="text-sm text-gray-500">
-                Sport : {club.sport}
+                Sport : {(() => { const s = SPORTS[club.sport?.toLowerCase?.() ?? '']; return s ? `${s.icon} ${s.name}` : club.sport })()}
               </div>
             </div>
           )}
