@@ -226,7 +226,7 @@ function CreatePostBox({ club, authorId, authorRole, onPost }) {
         <div className="flex-1">
           <div className="text-sm text-gray-400">Publier au nom de <span className="font-semibold text-brand-600">{club.name}</span></div>
           <div className="text-xs text-gray-300 mt-0.5">
-            Actualité, résultat, annonce{(authorRole === 'coach' || authorRole === 'president') ? ', photo...' : '...'}
+            Actualité, résultat, annonce{(authorRole === 'coach' || authorRole === 'president' || authorRole === 'staff') ? ', photo...' : '...'}
           </div>
         </div>
         <div className="text-brand-600 font-bold text-lg">+</div>

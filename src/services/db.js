@@ -151,7 +151,7 @@ export async function toggleLike(_postId, _userId) {
 export async function canPostForClub(userId, _clubId) {
   const { data } = await supabase.from('users').select('user_roles(*)').eq('id', userId).single()
   const role = data?.user_roles?.[0]?.role_type
-  return role === 'president' || role === 'coach'
+  return role === 'president' || role === 'coach' || role === 'staff'
 }
 
 export async function getClubPosts(clubId) {

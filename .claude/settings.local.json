@@ -17,7 +17,8 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager -not -path */node_modules/* -not -path */.git/* -not -path */dist/* -type f)",
-      "Bash(grep -E '\\\\.\\(jsx?|tsx?\\)$')"
+      "Bash(grep -E '\\\\.\\(jsx?|tsx?\\)$')",
+      "Bash(grep:*)"
     ]
   }
 }

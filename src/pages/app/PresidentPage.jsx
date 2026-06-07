@@ -262,85 +262,6 @@ function getClubPlayerStats(clubId) {
   return []
 }
 
-// ── Alertes ──────────────────────────────────────────────────────────────────
-function getClubAlerts(clubId) {
-  const alerts   = []
-  const members  = getClubMembers(clubId)
-  const docs     = getClubDocuments(clubId)
-  const stats    = getClubPlayerStats(clubId)
-  const now      = new Date()
-  const in30days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-  // Documents qui expirent dans les 30 jours
-  const expiringSoon = docs.filter(doc => {
-    if (!doc.expires_at) return false
-    const exp = new Date(doc.expires_at)
-    return exp >= now && exp <= in30days
-  })
-  if (expiringSoon.length > 0) {
-    alerts.push({
-      id: 'alert-docs-expire',
-      title: 'Documents qui expirent bientôt',
-      description: `${expiringSoon.length} document(s) expire(nt) dans les 30 prochains jours`,
-      severity: 'warning',
-      count: expiringSoon.length,
-      action: { label: 'Voir les documents', tab: 'documents', extra: { docFilter: 'expiring-soon' } },
-    })
-  }
-
-  // Documents manquants
-  const missingDocsUsers = members.filter(member =>
-    member.role !== 'community' && member.role !== 'supporter' && !docs.some(d => d.user_id === member.id)
-  )
-  if (missingDocsUsers.length > 0) {
-    alerts.push({
-      id: 'alert-missing-docs',
-      title: 'Documents manquants',
-      description: `${missingDocsUsers.length} personne(s) n'a(ont) uploadé aucun document`,
-      severity: 'critical',
-      count: missingDocsUsers.length,
-      users: missingDocsUsers,
-      action: { label: 'Contacter', contact: true },
-    })
-  }
-
-  // Cotisations impayées
-  const unpaid = members.filter(m => m.payment_status === 'unpaid')
-  if (unpaid.length > 0) {
-    alerts.push({
-      id: 'alert-payment',
-      title: 'Cotisations impayées',
-      description: `${unpaid.length} membre(s) n'a(ont) pas payé leur cotisation`,
-      severity: 'warning',
-      count: unpaid.length,
-      action: { label: 'Voir détails', tab: 'financier' },
-    })
-  }
-
-  // Présence faible
-  const lowAttendancePlayers = members.filter(m => {
-    if (m.role !== 'player') return false
-    const s = stats.find(s => s.user_id === m.id)
-    return s && s.attendance_rate < 70
-  })
-  if (lowAttendancePlayers.length > 0) {
-    alerts.push({
-      id: 'alert-attendance',
-      title: 'Présence aux entraînements faible',
-      description: `${lowAttendancePlayers.length} joueur(s) avec moins de 70% de présence`,
-      severity: 'info',
-      count: lowAttendancePlayers.length,
-      action: { label: 'Voir joueurs', tab: 'joueurs', extra: { attendanceFilter: 'low' } },
-    })
-  }
-
-  return alerts
-}
-
-function getAlertCount(clubId) {
-  return getClubAlerts(clubId).length
-}
-
 // ── Helpers CSS ───────────────────────────────────────────────────────────────
 const inputCls = 'w-full px-3 py-2 border border-surface-200 rounded-xl text-sm text-gray-900 ' +
                  'focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white'
@@ -684,92 +605,34 @@ function EditClubModal({ club, onClose, onSave }) {
   )
 }
 
-// ── Onglet Alertes ────────────────────────────────────────────────────────────
-function AlertesTab({ club, onNavigate }) {
-  const [contactUsers, setContactUsers] = useState(null)
-  const alerts = getClubAlerts(club.id)
 
-  const handleAction = (alert) => {
-    const { action } = alert
-    if (!action) return
-    if (action.contact) {
-      setContactUsers(alert.users ?? [])
-    } else if (action.tab) {
-      onNavigate(action.tab, action.extra ?? {})
-    }
-  }
+// ── Onglet Joueurs (fusionné : documents + joueurs) ───────────────────────────
+function JoueursTab({ club }) {
+  // ── Section Documents ──────────────────────────────────────────────────────
+  const [docFilter,   setDocFilter]   = useState('')
+  const [memberModal, setMemberModal] = useState(null)
 
-  if (alerts.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-400">
-        <div className="text-4xl mb-2">✅</div>
-        <div>Aucune alerte pour le moment</div>
-      </div>
-    )
-  }
+  // ── Section Joueurs ────────────────────────────────────────────────────────
+  const [searchTerm,       setSearchTerm]       = useState('')
+  const [filterTeam,       setFilterTeam]       = useState('')
+  const [attendanceFilter, setAttendanceFilter] = useState('')
+  const [playerModal,      setPlayerModal]      = useState(null)
 
-  return (
-    <>
-      <div className="space-y-3">
-        {alerts.map(alert => (
-          <div
-            key={alert.id}
-            className={`p-4 rounded-xl border-l-4 ${
-              alert.severity === 'critical' ? 'bg-red-50 border-red-500'    :
-              alert.severity === 'warning'  ? 'bg-orange-50 border-orange-500' :
-                                              'bg-blue-50 border-blue-500'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="font-semibold text-gray-900 mb-1">
-                  {alert.severity === 'critical' && '🚨 '}
-                  {alert.severity === 'warning'  && '⚠️ '}
-                  {alert.severity === 'info'     && 'ℹ️ '}
-                  {alert.title}
-                </div>
-                <div className="text-sm text-gray-700">{alert.description}</div>
-                {alert.action && (
-                  <button
-                    onClick={() => handleAction(alert)}
-                    className="mt-2 text-sm font-medium text-brand-600 hover:underline"
-                  >
-                    {alert.action.label} →
-                  </button>
-                )}
-              </div>
-              {alert.count && (
-                <div className="ml-4 text-right flex-shrink-0">
-                  <div className="text-2xl font-bold text-gray-900">{alert.count}</div>
-                  <div className="text-xs text-gray-500">personnes</div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {contactUsers && (
-        <ContactModal users={contactUsers} onClose={() => setContactUsers(null)} />
-      )}
-    </>
-  )
-}
-
-// ── Onglet Documents ──────────────────────────────────────────────────────────
-function DocumentsTab({ club, initialDocFilter = '' }) {
-  const [docFilter,    setDocFilter]    = useState(initialDocFilter)
-  const [memberModal,  setMemberModal]  = useState(null)
-
-  const clubMembers = getClubMembers(club.id).filter(u => u.role !== 'community' && u.role !== 'supporter')
+  // ── Data commune ───────────────────────────────────────────────────────────
+  const allMembers  = getClubMembers(club.id)
+  const clubMembers = allMembers.filter(u => u.role !== 'community' && u.role !== 'supporter')
+  const players     = allMembers.filter(u => u.role === 'player')
+  const teams       = getClubTeams(club.id)
+  const stats       = getClubPlayerStats(club.id)
   const allDocs     = getClubDocuments(club.id)
-  const docTypes    = ['licence', 'certificat_medical', 'assurance']
-  const docLabels   = { licence: 'Licences', certificat_medical: 'Certs médicaux', assurance: 'Assurances' }
-  const docIcons    = { licence: '📜', certificat_medical: '🏥', assurance: '📋' }
-  const now         = new Date()
-  const in30days    = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  // Stats pour les barres de progression (toujours sur l'ensemble)
+  // ── Logique Documents ──────────────────────────────────────────────────────
+  const docTypes  = ['licence', 'certificat_medical', 'assurance']
+  const docLabels = { licence: 'Licences', certificat_medical: 'Certs médicaux', assurance: 'Assurances' }
+  const docIcons  = { licence: '📜', certificat_medical: '🏥', assurance: '📋' }
+  const now       = new Date()
+  const in30days  = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
   const docStats = {}
   docTypes.forEach(type => {
     const total   = clubMembers.length
@@ -780,8 +643,7 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
     docStats[type] = { total, hasDocs, missing: total - hasDocs, percentage: total ? Math.round((hasDocs / total) * 100) : 0 }
   })
 
-  // Filtrage membres
-  const filteredMembers = clubMembers.filter(member => {
+  const filteredDocMembers = clubMembers.filter(member => {
     const memberDocs = allDocs.filter(d => d.user_id === member.id)
     if (docFilter === 'expiring-soon') {
       return memberDocs.some(d => d.expires_at && new Date(d.expires_at) >= now && new Date(d.expires_at) <= in30days)
@@ -792,60 +654,75 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
     return true
   })
 
+  // ── Logique Joueurs ────────────────────────────────────────────────────────
+  const filteredPlayers = players.filter(p => {
+    const name = `${p.firstName} ${p.lastName}`.toLowerCase()
+    if (!name.includes(searchTerm.toLowerCase())) return false
+    if (filterTeam && !p.teamIds?.includes(filterTeam)) return false
+    if (attendanceFilter === 'low') {
+      const s = stats.find(s => s.user_id === p.id)
+      return s && s.attendance_rate < 70
+    }
+    return true
+  })
+
   return (
-    <div className="space-y-6">
-      {/* Barres résumé */}
-      <div className="grid grid-cols-3 gap-4">
-        {docTypes.map(type => {
-          const s = docStats[type]
-          return (
-            <div key={type} className="bg-surface-50 rounded-xl p-4">
-              <div className="text-2xl mb-2">{docIcons[type]}</div>
-              <div className="text-sm text-gray-600 mb-2">{docLabels[type]}</div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">{s.hasDocs}/{s.total}</div>
-              <div className="w-full bg-surface-200 rounded-full h-2">
-                <div className="bg-brand-600 h-2 rounded-full transition-all" style={{ width: `${s.percentage}%` }} />
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                {s.missing > 0 ? `${s.missing} manquant(s)` : '✓ Complet'}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+    <div className="space-y-8">
 
-      {/* Filtre */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm text-gray-500 font-medium">Filtrer :</span>
-        {[
-          { value: '',               label: 'Tous' },
-          { value: 'expiring-soon',  label: '⏰ Expirent bientôt' },
-          { value: 'missing',        label: '⚠️ Sans documents' },
-        ].map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => setDocFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
-              docFilter === opt.value
-                ? 'bg-brand-600 text-white shadow'
-                : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-        {docFilter && (
-          <span className="text-xs text-gray-400 ml-1">
-            {filteredMembers.length} résultat(s)
-          </span>
-        )}
-      </div>
-
-      {/* Liste membres — cliquable */}
+      {/* ═══ SECTION DOCUMENTS ═══ */}
       <div>
-        <h3 className="font-semibold text-gray-900 mb-3">Détail par personne</h3>
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          📋 <span>Documents administratifs</span>
+        </h3>
+
+        {/* Barres résumé */}
+        <div className="grid grid-cols-3 gap-4 mb-5">
+          {docTypes.map(type => {
+            const s = docStats[type]
+            return (
+              <div key={type} className="bg-surface-50 rounded-xl p-4">
+                <div className="text-2xl mb-2">{docIcons[type]}</div>
+                <div className="text-sm text-gray-600 mb-2">{docLabels[type]}</div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">{s.hasDocs}/{s.total}</div>
+                <div className="w-full bg-surface-200 rounded-full h-2">
+                  <div className="bg-brand-600 h-2 rounded-full transition-all" style={{ width: `${s.percentage}%` }} />
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  {s.missing > 0 ? `${s.missing} manquant(s)` : '✓ Complet'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Filtre */}
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          <span className="text-sm text-gray-500 font-medium">Filtrer :</span>
+          {[
+            { value: '',              label: 'Tous' },
+            { value: 'expiring-soon', label: '⏰ Expirent bientôt' },
+            { value: 'missing',       label: '⚠️ Sans documents' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setDocFilter(opt.value)}
+              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                docFilter === opt.value
+                  ? 'bg-brand-600 text-white shadow'
+                  : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {docFilter && (
+            <span className="text-xs text-gray-400 ml-1">{filteredDocMembers.length} résultat(s)</span>
+          )}
+        </div>
+
+        {/* Liste membres */}
         <div className="space-y-2">
-          {filteredMembers.map(member => {
+          {filteredDocMembers.map(member => {
             const memberDocs = allDocs.filter(d => d.user_id === member.id)
             return (
               <button
@@ -855,9 +732,7 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-gray-900">
-                      {member.firstName} {member.lastName}
-                    </div>
+                    <div className="font-medium text-gray-900">{member.firstName} {member.lastName}</div>
                     <div className="text-xs text-gray-500">
                       {member.role === 'coach' ? 'Coach' : 'Joueur'} · {memberDocs.length} document(s)
                     </div>
@@ -883,14 +758,129 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
               </button>
             )
           })}
-          {filteredMembers.length === 0 && (
-            <div className="text-center py-6 text-gray-400 text-sm">
-              Aucun membre correspondant au filtre
-            </div>
+          {filteredDocMembers.length === 0 && (
+            <div className="text-center py-6 text-gray-400 text-sm">Aucun membre correspondant au filtre</div>
           )}
         </div>
       </div>
 
+      {/* Séparateur */}
+      <hr className="border-surface-200" />
+
+      {/* ═══ SECTION JOUEURS ═══ */}
+      <div>
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          👥 <span>Joueurs</span>
+          <span className="text-sm font-normal text-gray-400">({players.length})</span>
+        </h3>
+
+        {/* Barre de recherche + filtres */}
+        <div className="flex gap-2 flex-wrap mb-3">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Rechercher un joueur..."
+            className="flex-1 min-w-40 pl-4 pr-4 py-2 bg-white border border-surface-200 rounded-xl text-sm
+                       text-gray-900 placeholder-surface-400 focus:outline-none focus:ring-2
+                       focus:ring-brand-300 focus:border-brand-400"
+          />
+          <select
+            value={filterTeam}
+            onChange={e => setFilterTeam(e.target.value)}
+            className="px-4 py-2 border border-surface-200 rounded-xl text-sm bg-white text-gray-900
+                       focus:outline-none focus:ring-2 focus:ring-brand-300"
+          >
+            <option value="">Toutes les équipes</option>
+            {teams.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Filtre présence */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-gray-500 font-medium">Présence :</span>
+          {[
+            { value: '',    label: 'Tous' },
+            { value: 'low', label: '⚠️ Présence faible (<70%)' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setAttendanceFilter(opt.value)}
+              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                attendanceFilter === opt.value
+                  ? 'bg-brand-600 text-white shadow'
+                  : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Liste joueurs */}
+        <div className="space-y-2">
+          {filteredPlayers.map(player => {
+            const playerTeams = teams.filter(t => player.teamIds?.includes(t.id))
+            const playerStats = stats.find(s => s.user_id === player.id)
+            return (
+              <div key={player.id} className="p-4 bg-surface-50 rounded-xl hover:bg-surface-100 transition-all">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      {player.firstName} {player.lastName}
+                      {player.jerseyNumber && (
+                        <span className="ml-2 text-xs text-gray-400">#{player.jerseyNumber}</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
+                      {player.position && <span>{player.position}</span>}
+                      {playerTeams.length > 0 && <span className="text-gray-300">·</span>}
+                      <span>{playerTeams.map(t => t.name).join(', ')}</span>
+                      {playerStats && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className={playerStats.attendance_rate < 70 ? 'text-red-500 font-medium' : 'text-gray-500'}>
+                            {playerStats.attendance_rate}% présence
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {player.license && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        player.license.status === 'active'   ? 'bg-emerald-100 text-emerald-700' :
+                        player.license.status === 'expiring' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-red-100 text-red-700'
+                      }`}>
+                        {player.license.status === 'active'   ? 'Licencié' :
+                         player.license.status === 'expiring' ? 'Expire bientôt' : 'Expiré'}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setPlayerModal(player)}
+                      className="text-sm text-brand-600 hover:underline font-medium"
+                    >
+                      Voir profil
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {filteredPlayers.length === 0 && (
+          <div className="text-center py-8 text-gray-400">Aucun joueur trouvé</div>
+        )}
+        <div className="text-sm text-gray-500 mt-2">
+          {filteredPlayers.length} joueur(s) sur {players.length}
+        </div>
+      </div>
+
+      {/* Modals */}
       {memberModal && (
         <MemberDocumentsModal
           member={memberModal}
@@ -898,153 +888,12 @@ function DocumentsTab({ club, initialDocFilter = '' }) {
           onClose={() => setMemberModal(null)}
         />
       )}
-    </div>
-  )
-}
-
-// ── Onglet Joueurs ────────────────────────────────────────────────────────────
-function JoueursTab({ club, initialAttendanceFilter = '' }) {
-  const [searchTerm,       setSearchTerm]       = useState('')
-  const [filterTeam,       setFilterTeam]       = useState('')
-  const [attendanceFilter, setAttendanceFilter] = useState(initialAttendanceFilter)
-  const [playerModal,      setPlayerModal]      = useState(null)
-
-  const players = getClubMembers(club.id).filter(u => u.role === 'player')
-  const teams   = getClubTeams(club.id)
-  const stats   = getClubPlayerStats(club.id)
-  const docs    = getClubDocuments(club.id)
-
-  const filtered = players.filter(p => {
-    const name = `${p.firstName} ${p.lastName}`.toLowerCase()
-    if (!name.includes(searchTerm.toLowerCase())) return false
-    if (filterTeam && !p.teamIds?.includes(filterTeam)) return false
-    if (attendanceFilter === 'low') {
-      const s = stats.find(s => s.user_id === p.id)
-      return s && s.attendance_rate < 70
-    }
-    return true
-  })
-
-  return (
-    <div className="space-y-4">
-      {/* Barre de recherche + filtres */}
-      <div className="flex gap-2 flex-wrap">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          placeholder="Rechercher un joueur..."
-          className="flex-1 min-w-40 pl-4 pr-4 py-2 bg-white border border-surface-200 rounded-xl text-sm
-                     text-gray-900 placeholder-surface-400 focus:outline-none focus:ring-2
-                     focus:ring-brand-300 focus:border-brand-400"
-        />
-        <select
-          value={filterTeam}
-          onChange={e => setFilterTeam(e.target.value)}
-          className="px-4 py-2 border border-surface-200 rounded-xl text-sm bg-white text-gray-900
-                     focus:outline-none focus:ring-2 focus:ring-brand-300"
-        >
-          <option value="">Toutes les équipes</option>
-          {teams.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Filtre présence */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500 font-medium">Présence :</span>
-        {[
-          { value: '',    label: 'Tous' },
-          { value: 'low', label: '⚠️ Présence faible (<70%)' },
-        ].map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => setAttendanceFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
-              attendanceFilter === opt.value
-                ? 'bg-brand-600 text-white shadow'
-                : 'bg-surface-100 text-gray-600 hover:bg-surface-200'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Liste joueurs */}
-      <div className="space-y-2">
-        {filtered.map(player => {
-          const playerTeams   = teams.filter(t => player.teamIds?.includes(t.id))
-          const playerStats   = stats.find(s => s.user_id === player.id)
-          return (
-            <div
-              key={player.id}
-              className="p-4 bg-surface-50 rounded-xl hover:bg-surface-100 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {player.firstName} {player.lastName}
-                    {player.jerseyNumber && (
-                      <span className="ml-2 text-xs text-gray-400">#{player.jerseyNumber}</span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
-                    {player.position && <span>{player.position}</span>}
-                    {playerTeams.length > 0 && (
-                      <span className="text-gray-300">·</span>
-                    )}
-                    <span>{playerTeams.map(t => t.name).join(', ')}</span>
-                    {playerStats && (
-                      <>
-                        <span className="text-gray-300">·</span>
-                        <span className={
-                          playerStats.attendance_rate < 70 ? 'text-red-500 font-medium' : 'text-gray-500'
-                        }>
-                          {playerStats.attendance_rate}% présence
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {player.license && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      player.license.status === 'active'   ? 'bg-emerald-100 text-emerald-700' :
-                      player.license.status === 'expiring' ? 'bg-orange-100 text-orange-700' :
-                                                              'bg-red-100 text-red-700'
-                    }`}>
-                      {player.license.status === 'active'   ? 'Licencié' :
-                       player.license.status === 'expiring' ? 'Expire bientôt' : 'Expiré'}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => setPlayerModal(player)}
-                    className="text-sm text-brand-600 hover:underline font-medium"
-                  >
-                    Voir profil
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-8 text-gray-400">Aucun joueur trouvé</div>
-      )}
-      <div className="text-sm text-gray-500">
-        {filtered.length} joueur(s) sur {players.length}
-      </div>
-
       {playerModal && (
         <PlayerDetailModal
           player={playerModal}
           teams={teams}
           stats={stats}
-          docs={docs}
+          docs={allDocs}
           onClose={() => setPlayerModal(null)}
         />
       )}
@@ -1471,8 +1320,7 @@ function ParametresTab({ club, onUpdateClub }) {
 export default function PresidentPage() {
   const { currentUser, is } = useAuth()
   const [selectedClubId, setSelectedClubId] = useState(null)
-  const [activeTab,      setActiveTab]      = useState('alertes')
-  const [tabExtra,       setTabExtra]       = useState({})
+  const [activeTab,      setActiveTab]      = useState('joueurs')
   const [clubOverrides,  setClubOverrides]  = useState({})
 
   // Guard d'accès : président OU intendant (staff)
@@ -1513,19 +1361,11 @@ export default function PresidentPage() {
     )
   }
 
-  // Navigation depuis les alertes : change l'onglet + mémorise les filtres
-  const handleNavigate = (tab, extra = {}) => {
-    setTabExtra(extra)
-    setActiveTab(tab)
-  }
-
   const handleUpdateClub = (updatedClub) => {
     setClubOverrides(prev => ({ ...prev, [updatedClub.id]: updatedClub }))
   }
 
   const tabs = [
-    { id: 'alertes',    label: 'Alertes',      icon: '🚨' },
-    { id: 'documents',  label: 'Documents',    icon: '📋' },
     { id: 'joueurs',    label: 'Joueurs',      icon: '👥' },
     { id: 'stats',      label: 'Statistiques', icon: '📊' },
     { id: 'financier',  label: 'Financier',    icon: '💰' },
@@ -1540,13 +1380,12 @@ export default function PresidentPage() {
         <div className="flex gap-2 md:gap-3 flex-nowrap md:flex-wrap">
           {myClubs.map(club => {
             const clubData = clubOverrides[club.id] ?? club
-            const count    = getAlertCount(club.id)
             const isActive = activeClub.id === club.id
             const userRoleInClub = (currentUser.roles ?? []).find(r => r.club_id === club.id)?.role
             return (
               <button
                 key={club.id}
-                onClick={() => { setSelectedClubId(club.id); setActiveTab('alertes'); setTabExtra({}) }}
+                onClick={() => { setSelectedClubId(club.id); setActiveTab('joueurs') }}
                 className={`flex-shrink-0 flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-lg'
@@ -1561,13 +1400,6 @@ export default function PresidentPage() {
                     </div>
                   )}
                 </div>
-                {count > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                    isActive ? 'bg-white text-brand-600' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {count}
-                  </span>
-                )}
               </button>
             )
           })}
@@ -1594,23 +1426,7 @@ export default function PresidentPage() {
         </div>
 
         <div className="p-3 md:p-6">
-          {activeTab === 'alertes' && (
-            <AlertesTab club={activeClub} onNavigate={handleNavigate} />
-          )}
-          {activeTab === 'documents' && (
-            <DocumentsTab
-              club={activeClub}
-              initialDocFilter={tabExtra.docFilter ?? ''}
-              key={`docs-${activeClub.id}-${tabExtra.docFilter ?? ''}`}
-            />
-          )}
-          {activeTab === 'joueurs' && (
-            <JoueursTab
-              club={activeClub}
-              initialAttendanceFilter={tabExtra.attendanceFilter ?? ''}
-              key={`joueurs-${activeClub.id}-${tabExtra.attendanceFilter ?? ''}`}
-            />
-          )}
+          {activeTab === 'joueurs'    && <JoueursTab    club={activeClub} key={`joueurs-${activeClub.id}`} />}
           {activeTab === 'stats'      && <StatsTab      club={activeClub} />}
           {activeTab === 'financier'  && <FinancierTab  club={activeClub} />}
           {activeTab === 'parametres' && (
