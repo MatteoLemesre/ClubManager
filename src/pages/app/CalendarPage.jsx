@@ -164,78 +164,78 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 112px)' }}>
+    <div className="flex flex-col md:h-[calc(100vh-112px)]">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 flex-shrink-0">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-gray-900">Calendrier</h1>
-          <div className="flex items-center gap-3 mt-1">
-            {[
-              { dot: 'bg-brand-500',   label: 'Match'        },
-              { dot: 'bg-emerald-400', label: 'Entraînement' },
-              { dot: 'bg-violet-400',  label: 'Événement'    },
-              { dot: 'bg-amber-400',   label: 'Réunion'      },
-            ].map(f => (
-              <div key={f.label} className="flex items-center gap-1 text-xs text-surface-400">
-                <span className={`w-2 h-2 rounded-full ${f.dot}`} />
-                {f.label}
-              </div>
-            ))}
-          </div>
-          {/* Filtres sports */}
-          <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-surface-200 flex-shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="font-display text-xl md:text-2xl font-bold text-gray-900">Calendrier</h1>
+          {isOneOf('president', 'coach') && (
             <button
-              onClick={() => setSelectedSports(['all'])}
+              onClick={() => setShowCreateEvent(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700
+                         text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              <Plus size={15} /> <span className="hidden sm:inline">Créer un événement</span>
+              <span className="sm:hidden">Créer</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap mb-2">
+          {[
+            { dot: 'bg-brand-500',   label: 'Match'        },
+            { dot: 'bg-emerald-400', label: 'Entraîn.'     },
+            { dot: 'bg-violet-400',  label: 'Événement'    },
+            { dot: 'bg-amber-400',   label: 'Réunion'      },
+          ].map(f => (
+            <div key={f.label} className="flex items-center gap-1 text-xs text-surface-400">
+              <span className={`w-2 h-2 rounded-full ${f.dot}`} />
+              {f.label}
+            </div>
+          ))}
+        </div>
+        {/* Filtres sports */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSelectedSports(['all'])}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              selectedSports.includes('all')
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
+            }`}
+          >
+            Tous les sports
+          </button>
+          {Object.entries(SPORTS).map(([key, sport]) => (
+            <button
+              key={key}
+              onClick={() => {
+                if (selectedSports.includes('all')) {
+                  setSelectedSports([key])
+                } else if (selectedSports.includes(key)) {
+                  const next = selectedSports.filter(s => s !== key)
+                  setSelectedSports(next.length === 0 ? ['all'] : next)
+                } else {
+                  setSelectedSports([...selectedSports.filter(s => s !== 'all'), key])
+                }
+              }}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                selectedSports.includes('all')
+                selectedSports.includes(key)
                   ? 'bg-brand-600 text-white border-brand-600'
                   : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
               }`}
             >
-              Tous les sports
+              {sport.icon} {sport.name}
             </button>
-            {Object.entries(SPORTS).map(([key, sport]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (selectedSports.includes('all')) {
-                    setSelectedSports([key])
-                  } else if (selectedSports.includes(key)) {
-                    const next = selectedSports.filter(s => s !== key)
-                    setSelectedSports(next.length === 0 ? ['all'] : next)
-                  } else {
-                    setSelectedSports([...selectedSports.filter(s => s !== 'all'), key])
-                  }
-                }}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                  selectedSports.includes(key)
-                    ? 'bg-brand-600 text-white border-brand-600'
-                    : 'bg-white text-gray-600 border-surface-200 hover:border-brand-300'
-                }`}
-              >
-                {sport.icon} {sport.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
-
-        {isOneOf('president', 'coach') && (
-          <button
-            onClick={() => setShowCreateEvent(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700
-                       text-white rounded-xl text-sm font-medium transition-colors"
-          >
-            <Plus size={15} /> Créer un événement
-          </button>
-        )}
       </div>
 
-      {/* Layout 70/30 */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Layout : colonne sur mobile, 70/30 sur desktop */}
+      <div className="flex flex-col md:flex-row md:flex-1 md:overflow-hidden">
 
         {/* Colonne gauche 70% - Calendrier mensuel */}
-        <div className="flex-[7] p-6 overflow-auto">
+        <div className="md:flex-[7] p-4 md:p-6 md:overflow-auto">
           <CalendarMonthView
             items={filteredItems}
             selectedDate={selectedDate}
@@ -245,18 +245,18 @@ export default function CalendarPage() {
         </div>
 
         {/* Colonne droite 30% - Prochains événements */}
-        <div className="flex-[3] border-l border-surface-200 p-5 overflow-auto">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="md:flex-[3] border-t md:border-t-0 md:border-l border-surface-200 p-4 md:p-5 md:overflow-auto">
+          <h3 className="font-semibold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
             <span>📌</span> Prochains
           </h3>
 
           {upcomingItems.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-8 md:py-12 text-gray-400">
               <div className="text-3xl mb-2">📅</div>
               <div className="text-sm">Aucun événement à venir</div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2">
               {upcomingItems.map((item, idx) => (
                 <UpcomingItemCard
                   key={`${item.id}-${idx}`}
@@ -357,7 +357,7 @@ function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
             <div
               key={idx}
               onClick={() => onSelectDate(day)}
-              className={`min-h-[88px] p-2 border rounded-xl cursor-pointer transition-all
+              className={`min-h-[52px] md:min-h-[88px] p-1 md:p-2 border rounded-lg md:rounded-xl cursor-pointer transition-all
                 ${isTodayDay  ? 'border-brand-400 bg-brand-50' : 'border-surface-200'}
                 ${isSelected  ? 'ring-2 ring-brand-600 ring-offset-1' : ''}
                 ${!inMonth    ? 'opacity-30' : 'hover:bg-surface-50'}
@@ -563,9 +563,9 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
     "focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400"
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col md:items-center md:justify-center md:p-4 bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden"
+        className="bg-white w-full md:max-w-md md:rounded-2xl shadow-xl flex flex-col flex-1 md:flex-none md:max-h-[90vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -775,9 +775,9 @@ function EventDetailPopup({ event, onClose }) {
     : null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col md:items-center md:justify-center md:p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6"
+        className="bg-white w-full md:max-w-lg md:rounded-2xl shadow-2xl flex-1 md:flex-none overflow-y-auto p-5 md:p-6"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Send, Plus } from 'lucide-react'
+import { Send, Plus, ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 // ─── MessageBubble ─────────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ export default function MessagesPage() {
   const [showSearch,    setShowSearch]    = useState(false)
   const [searchMembers, setSearchMembers] = useState('')
   const [members,       setMembers]       = useState([])
+  const [mobileView,    setMobileView]    = useState('list') // 'list' | 'chat'
 
   const bottomRef = useRef(null)
 
@@ -216,6 +217,7 @@ export default function MessagesPage() {
     }
 
     setActiveConvId(convId)
+    setMobileView('chat')
     setShowSearch(false)
     setSearchMembers('')
   }
@@ -241,17 +243,17 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-56px)]">
+      <div className="flex items-center justify-center h-[calc(100vh-56px-4rem)] md:h-[calc(100vh-56px)]">
         <div className="w-8 h-8 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="flex h-[calc(100vh-56px)] bg-surface-50 overflow-hidden">
+    <div className="flex h-[calc(100vh-56px-4rem)] md:h-[calc(100vh-56px)] bg-surface-50 overflow-hidden">
 
       {/* ── Sidebar conversations ──────────────────────────────────────────── */}
-      <aside className="w-72 bg-white border-r border-surface-200 flex flex-col flex-shrink-0">
+      <aside className={`${mobileView === 'chat' ? 'hidden' : 'flex'} md:flex w-full md:w-72 bg-white border-r border-surface-200 flex-col flex-shrink-0`}>
         <div className="px-4 py-4 border-b border-surface-200 flex items-center justify-between">
           <h1 className="font-display font-bold text-lg text-gray-900">Messagerie</h1>
           <button
@@ -278,7 +280,7 @@ export default function MessagesPage() {
             conversations.map(conv => (
               <button
                 key={conv.id}
-                onClick={() => setActiveConvId(conv.id)}
+                onClick={() => { setActiveConvId(conv.id); setMobileView('chat') }}
                 className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors
                             border-l-2 ${
                   activeConvId === conv.id
@@ -310,12 +312,18 @@ export default function MessagesPage() {
 
       {/* ── Zone de chat ───────────────────────────────────────────────────── */}
       {activeConv ? (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="bg-white border-b border-surface-200 px-6 py-4 flex-shrink-0">
+        <div className={`${mobileView === 'list' ? 'hidden' : 'flex'} md:flex flex-1 flex-col overflow-hidden`}>
+          <div className="bg-white border-b border-surface-200 px-4 md:px-6 py-3 md:py-4 flex-shrink-0 flex items-center gap-3">
+            <button
+              onClick={() => setMobileView('list')}
+              className="md:hidden p-1.5 rounded-xl hover:bg-surface-100 text-gray-500 flex-shrink-0"
+            >
+              <ArrowLeft size={18} />
+            </button>
             <h2 className="font-display font-semibold text-gray-900">{activeConv.name}</h2>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5">
             {activeMessages.length === 0 && (
               <div className="text-center py-12 text-sm text-gray-400">
                 Aucun message — soyez le premier !
@@ -331,7 +339,7 @@ export default function MessagesPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="bg-white border-t border-surface-200 px-6 py-4 flex-shrink-0">
+          <div className="bg-white border-t border-surface-200 px-3 md:px-6 py-3 md:py-4 flex-shrink-0">
             <div className="flex items-end gap-3">
               <div className="flex-1 bg-surface-50 border border-surface-200 rounded-2xl
                               px-4 py-2.5 focus-within:ring-2 focus-within:ring-brand-300
@@ -364,7 +372,7 @@ export default function MessagesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <div className={`${mobileView === 'list' ? 'hidden' : 'flex'} md:flex flex-1 flex-col items-center justify-center gap-4`}>
           <div className="text-5xl">💬</div>
           <div className="font-semibold text-gray-700">Vos messages</div>
           <p className="text-sm text-gray-400 text-center max-w-xs">
@@ -382,8 +390,8 @@ export default function MessagesPage() {
 
       {/* ── Modal recherche membre ─────────────────────────────────────────── */}
       {showSearch && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+        <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+          <div className="bg-white w-full md:max-w-sm md:rounded-2xl shadow-xl flex-1 md:flex-none overflow-y-auto p-4 md:p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Nouvelle conversation</h3>
               <button

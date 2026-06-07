@@ -78,11 +78,11 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="px-3 md:px-6 py-4 md:py-6 max-w-3xl mx-auto">
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-3xl text-surface-900">Équipes</h1>
+      <div className="mb-4 md:mb-6">
+        <h1 className="font-display font-bold text-2xl md:text-3xl text-surface-900">Équipes</h1>
       </div>
 
       {/* Onglets */}
@@ -409,11 +409,11 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className="fixed inset-0 z-50 flex flex-col md:items-center md:justify-center md:p-4 bg-black/50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+        className="w-full md:max-w-lg bg-white md:rounded-2xl shadow-2xl flex flex-col flex-1 md:flex-none md:max-h-[85vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

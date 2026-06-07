@@ -141,8 +141,8 @@ function UploadDocumentModal({ targetUserId, onClose, onAdd }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <Card className="w-full md:max-w-md md:rounded-2xl rounded-none flex-1 md:flex-none overflow-y-auto p-4 md:p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display font-bold text-gray-900">Ajouter un document</h2>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
@@ -238,8 +238,8 @@ function ExperienceModal({ experience, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-2xl md:rounded-2xl shadow-xl flex-1 md:flex-none overflow-y-auto p-4 md:p-6 md:max-h-[90vh]">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl font-bold">
             {experience ? "Modifier l'expérience" : 'Ajouter une expérience'}
@@ -881,7 +881,7 @@ export default function ProfilePage() {
 
   // ── Rendu ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5">
+    <div className="px-3 md:px-6 py-4 md:py-6 max-w-2xl mx-auto space-y-4 md:space-y-5">
 
       {/* Retour */}
       {!isOwnProfile && (
@@ -1188,7 +1188,7 @@ export default function ProfilePage() {
             <span className="ml-2 normal-case tracking-normal text-xs bg-brand-100 text-brand-700
                              px-2 py-0.5 rounded-full font-medium">En cours</span>
           </h2>
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-4">
             {[
               { label: 'Matchs',  value: currentSeasonStats.matches,                              color: 'text-gray-900' },
               { label: 'Buts',    value: currentSeasonStats.goals,                                color: 'text-emerald-600' },
@@ -1321,8 +1321,8 @@ export default function ProfilePage() {
 
       {/* ── Modal photo profil ───────────────────────────────────────────────── */}
       {showPhotoModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+          <Card className="w-full md:max-w-md md:rounded-2xl rounded-none flex-1 md:flex-none overflow-y-auto p-4 md:p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-display font-bold text-gray-900">Changer votre photo</h2>
               <button onClick={() => setShowPhotoModal(false)}
@@ -1358,8 +1358,8 @@ export default function ProfilePage() {
 
       {/* ── Modal bio ────────────────────────────────────────────────────────── */}
       {showBioEdit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+          <Card className="w-full md:max-w-md md:rounded-2xl rounded-none flex-1 md:flex-none overflow-y-auto p-4 md:p-6">
             <EditBioModal
               currentBio={bio}
               onSave={handleSaveBio}
@@ -1380,8 +1380,8 @@ export default function ProfilePage() {
 
       {/* ── Modal quitter le club ─────────────────────────────────────────────── */}
       {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+          <Card className="w-full md:max-w-md md:rounded-2xl rounded-none flex-1 md:flex-none overflow-y-auto p-4 md:p-6">
             <h2 className="font-display text-xl font-bold mb-2">
               Quitter {club?.name ?? 'ce club'} ?
             </h2>

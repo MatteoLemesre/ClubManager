@@ -12,6 +12,17 @@
 }
 
 @layer utilities {
+  /* iOS safe area support */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-nav-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+  .min-h-safe-nav {
+    min-height: calc(4rem + env(safe-area-inset-bottom));
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: theme('colors.surface.200') transparent;

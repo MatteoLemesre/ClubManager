@@ -1412,15 +1412,15 @@ export default function PresidentPage() {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setTabExtra({}) }}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex-1 px-2 md:px-3 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-600 bg-brand-50'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
               }`}
             >
-              <span>{tab.icon}</span>
-              <span className="hidden md:inline"> {tab.label}</span>
+              <span className="md:hidden">{tab.icon}</span>
+              <span className="hidden md:inline">{tab.icon} {tab.label}</span>
             </button>
           ))}
         </div>

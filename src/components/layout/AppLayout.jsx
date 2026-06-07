@@ -40,7 +40,7 @@ function MobileBottomNav({ currentUser, switchRole }) {
     : baseTabs
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-200 md:hidden z-40">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-200 md:hidden z-40 pb-safe">
       <div className="flex">
         {tabs.map(tab => {
           const isActive = location.pathname.startsWith(tab.to)
@@ -290,7 +290,7 @@ export default function AppLayout() {
       <header className="bg-white border-b border-surface-200 flex-shrink-0 z-20">
 
         {/* Ligne haute : logo + club + user actions */}
-        <div className="flex items-center justify-between px-6 h-14">
+        <div className="flex items-center justify-between px-4 md:px-6 h-14">
           {/* Logo */}
           <Link to="/app/feed" className="flex items-center">
             <div className="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0">
@@ -324,8 +324,8 @@ export default function AppLayout() {
 
                 {/* Panel notifications */}
                 {notifOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl
-                                  shadow-xl border border-surface-200 z-[100] overflow-hidden">
+                  <div className="fixed md:absolute inset-x-0 md:inset-x-auto top-14 md:top-full right-0 md:mt-2
+                                  md:w-80 bg-white md:rounded-2xl shadow-xl border border-surface-200 z-[100] overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-surface-100">
                       <span className="font-semibold text-sm text-gray-900">Notifications</span>
                       <div className="flex items-center gap-2">
@@ -450,14 +450,15 @@ export default function AppLayout() {
       </header>
 
       {/* ── CONTENU ─────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-nav-safe md:pb-0">
         <Outlet />
       </main>
 
       {/* ── Dev role switcher ────────────────────────────────────────────────── */}
-      <div className="fixed bottom-20 right-4 md:bottom-4 bg-white rounded-2xl shadow-lg
-                      border border-surface-200 p-2 flex items-center gap-1.5 z-50">
-        <span className="text-[10px] text-gray-400 font-medium pl-1 pr-0.5">DEV</span>
+      <div className="fixed bottom-24 right-2 md:bottom-4 md:right-4 bg-white rounded-2xl shadow-lg
+                      border border-surface-200 p-1.5 md:p-2 flex items-center gap-1 md:gap-1.5 z-50
+                      max-w-[calc(100vw-1rem)] overflow-x-auto">
+        <span className="text-[10px] text-gray-400 font-medium pl-0.5 pr-0.5 hidden md:inline">DEV</span>
         {[
           { key: 'president', label: 'Président',  icon: '👔' },
           { key: 'staff',     label: 'Intendant',  icon: '🏥' },
@@ -471,13 +472,13 @@ export default function AppLayout() {
               key={key}
               onClick={() => switchRole(key)}
               title={label}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+              className={`px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-medium transition-colors ${
                 active
                   ? 'bg-brand-600 text-white'
                   : 'text-gray-500 hover:bg-surface-100'
               }`}
             >
-              {icon} {label}
+              {icon} <span className="hidden md:inline">{label}</span>
             </button>
           )
         })}

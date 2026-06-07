@@ -96,8 +96,8 @@ function CreatePostModal({ club, authorId, authorRole, onClose, onPost }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-50 flex flex-col md:items-center md:justify-center md:p-4">
+      <div className="bg-white w-full md:max-w-2xl md:rounded-2xl shadow-xl flex-1 md:flex-none overflow-y-auto p-4 md:p-6 md:max-h-[90vh]">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl font-bold">Créer une publication</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -540,8 +540,8 @@ export default function FeedPage() {
   const noFollowedClubs = isFollowerMode && getFeedClubIds(currentUser).length === 0
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <h1 className="font-display text-2xl font-bold text-gray-900 mb-6">Feed</h1>
+    <div className="max-w-2xl mx-auto px-3 md:px-4 py-4 md:py-6">
+      <h1 className="font-display text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6">Feed</h1>
 
       {canPost && club && (
         <CreatePostBox
