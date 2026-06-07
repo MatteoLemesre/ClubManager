@@ -17,7 +17,8 @@ import ClubProfilePage   from './pages/app/ClubProfilePage'
 import TeamDetailPage      from './pages/app/TeamDetailPage'
 import TeamDocumentsPage   from './pages/app/TeamDocumentsPage'
 import ClubDocumentsPage   from './pages/app/ClubDocumentsPage'
-import PresidentPage        from './pages/app/PresidentPage'
+import PresidentPage             from './pages/app/PresidentPage'
+import ImprovementLauncherPage  from './pages/app/ImprovementLauncherPage'
 import HomePage             from './pages/public/HomePage'
 import LoginPage          from './pages/auth/LoginPage'
 import RegisterPage       from './pages/auth/RegisterPage'
@@ -48,6 +49,7 @@ function AppRoutes() {
         <Route path="team-documents"            element={<TeamDocumentsPage />} />
         <Route path="club-documents"            element={<ClubDocumentsPage />} />
         <Route path="president"                 element={<PresidentPage />} />
+        <Route path="launcher"                  element={<ImprovementLauncherPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app/feed" replace />} />
     </Routes>
