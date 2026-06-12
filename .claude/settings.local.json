@@ -19,7 +19,8 @@
       "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager -not -path */node_modules/* -not -path */.git/* -not -path */dist/* -type f)",
       "Bash(grep -E '\\\\.\\(jsx?|tsx?\\)$')",
       "Bash(grep:*)",
-      "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager/src -type f \\\\\\(-name *.jsx -o -name *.js -o -name *.tsx -o -name *.ts -o -name *.css \\\\\\))"
+      "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager/src -type f \\\\\\(-name *.jsx -o -name *.js -o -name *.tsx -o -name *.ts -o -name *.css \\\\\\))",
+      "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager -path */pages/app/*.tsx)"
     ]
   }
 }
