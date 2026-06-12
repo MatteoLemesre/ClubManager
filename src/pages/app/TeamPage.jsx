@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Card, Badge, RoleBadge } from '../../components/ui'
 import { CLUB, TEAMS, EXTERNAL_CLUBS, getAllClubs, SPORTS } from '../../data/mock'
-import { Search, X, Star, MapPin, Users, ChevronRight } from 'lucide-react'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -236,12 +235,11 @@ export default function TeamPage() {
 
           {/* Recherche */}
           <div className="relative mb-6">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher un club ou une ville…"
-              className="w-full pl-9 pr-9 py-2.5 bg-surface-50 border border-surface-200
+              className="w-full pl-4 pr-9 py-2.5 bg-surface-50 border border-surface-200
                          rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300
                          focus:border-brand-400 transition-all"
             />
@@ -250,7 +248,7 @@ export default function TeamPage() {
                 onClick={() => setSearch('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <X size={14} />
+                ✕
               </button>
             )}
           </div>
@@ -349,7 +347,7 @@ function ClubCard({ club, myTeams, role, isMember, isFollowed, followedTeams, on
                     {t.name}
                     <span className="font-normal text-gray-400 ml-1">· {t.category}</span>
                   </span>
-                  <ChevronRight size={12} className="text-gray-300 group-hover:text-brand-500" />
+                  <span className="text-gray-300 group-hover:text-brand-500 text-sm">›</span>
                 </div>
               ))}
             </div>
@@ -443,7 +441,6 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
         {/* Stats + actions */}
         <div className="px-5 py-3 border-b border-surface-100 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
-            <Users size={14} />
             {club.teams?.length ?? 0} équipe{(club.teams?.length ?? 0) > 1 ? 's' : ''}
           </div>
           {!isMember && (
@@ -514,7 +511,7 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
                           {isTeamFollowed ? '★ Suivi' : '☆ Suivre'}
                         </button>
                       )}
-                      <ChevronRight size={14} className="text-gray-300 group-hover:text-brand-500" />
+                      <span className="text-gray-300 group-hover:text-brand-500 text-sm">›</span>
                     </div>
                   </div>
                 )
@@ -526,7 +523,6 @@ function ClubProfileModal({ club, isMember, isFollowed, followedTeams, onFollowC
             <div className="space-y-3">
               {club.city && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin size={14} className="text-gray-400" />
                   {club.city}{club.department ? `, ${club.department}` : ''}
                 </div>
               )}

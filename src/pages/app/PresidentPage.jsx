@@ -738,21 +738,9 @@ function JoueursTab({ club }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {docTypes.map(type => {
-                      const hasDoc = memberDocs.some(d => d.type === type)
-                      return (
-                        <div
-                          key={type}
-                          title={docLabels[type]}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                            hasDoc ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {hasDoc ? '✓' : '✗'}
-                        </div>
-                      )
-                    })}
-                    <span className="text-gray-300 ml-1">›</span>
+                    <span className="text-xs px-2.5 py-1.5 bg-brand-600 text-white rounded-lg font-medium">
+                      Profil
+                    </span>
                   </div>
                 </div>
               </button>

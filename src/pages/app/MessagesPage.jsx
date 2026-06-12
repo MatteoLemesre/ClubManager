@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Send, Plus, ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 // ─── MessageBubble ─────────────────────────────────────────────────────────
@@ -261,7 +260,7 @@ export default function MessagesPage() {
             className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-600 hover:bg-brand-700
                        text-white rounded-xl text-xs font-medium transition-colors"
           >
-            <Plus size={13} /> Nouveau
+            + Nouveau
           </button>
         </div>
 
@@ -318,7 +317,7 @@ export default function MessagesPage() {
               onClick={() => setMobileView('list')}
               className="md:hidden p-1.5 rounded-xl hover:bg-surface-100 text-gray-500 flex-shrink-0"
             >
-              <ArrowLeft size={18} />
+              ←
             </button>
             <h2 className="font-display font-semibold text-gray-900">{activeConv.name}</h2>
           </div>
@@ -362,11 +361,11 @@ export default function MessagesPage() {
               <button
                 onClick={handleSend}
                 disabled={!newMessage.trim()}
-                className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center
-                           justify-center hover:bg-brand-700 transition-colors
+                className="px-4 h-9 rounded-xl bg-brand-600 text-white flex items-center
+                           justify-center hover:bg-brand-700 transition-colors text-sm font-medium
                            disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
               >
-                <Send size={15} />
+                Envoyer
               </button>
             </div>
           </div>

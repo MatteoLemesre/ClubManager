@@ -10,7 +10,6 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { getUpcomingMatchesForUser, TEAMS, USERS, SPORTS, getAllClubs } from '../../data/mock'
 import { Card, Badge } from '../../components/ui'
-import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Car } from 'lucide-react'
 
 // ─── Helpers visibilité ─────────────────────────────────────────────────────
 
@@ -176,7 +175,7 @@ export default function CalendarPage() {
               className="flex items-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700
                          text-white rounded-xl text-sm font-medium transition-colors"
             >
-              <Plus size={15} /> <span className="hidden sm:inline">Créer un événement</span>
+              <span className="hidden sm:inline">Créer un événement</span>
               <span className="sm:hidden">Créer</span>
             </button>
           )}
@@ -322,7 +321,7 @@ function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
           onClick={() => setCurrentMonth(m => subMonths(m, 1))}
           className="p-2 hover:bg-surface-100 rounded-xl transition-colors"
         >
-          <ChevronLeft size={18} className="text-surface-600" />
+          ‹
         </button>
         <h2 className="font-display font-semibold text-lg text-gray-900 capitalize">
           {format(currentMonth, 'MMMM yyyy', { locale: fr })}
@@ -331,7 +330,7 @@ function CalendarMonthView({ items, selectedDate, onSelectDate, onClickItem }) {
           onClick={() => setCurrentMonth(m => addMonths(m, 1))}
           className="p-2 hover:bg-surface-100 rounded-xl transition-colors"
         >
-          <ChevronRight size={18} className="text-surface-600" />
+          ›
         </button>
       </div>
 
@@ -409,7 +408,7 @@ function UpcomingItemCard({ item, onClick }) {
           <span className="text-[10px] text-gray-400">{dateStr}</span>
           {hasCarpools && (
             <span className="ml-auto text-[10px] text-emerald-600 flex items-center gap-0.5">
-              <Car size={9} /> {item.carpoolCount ?? item.carpool?.length}
+              {item.carpoolCount ?? item.carpool?.length}
             </span>
           )}
         </div>
@@ -418,7 +417,7 @@ function UpcomingItemCard({ item, onClick }) {
         </div>
         {item.location && (
           <div className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-            <MapPin size={9} /> {item.location}
+            {item.location}
           </div>
         )}
         <div className="text-[10px] text-brand-600 font-medium mt-1">Voir la fiche →</div>
@@ -572,7 +571,7 @@ function CreateEventModal({ currentUser, onClose, onCreated }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
           <h2 className="font-display font-bold text-lg">Nouvel événement</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400">
-            <X size={18} />
+            ✕
           </button>
         </div>
 
@@ -802,7 +801,7 @@ function EventDetailPopup({ event, onClose }) {
           </h2>
           <button onClick={onClose}
             className="p-1.5 hover:bg-surface-100 rounded-xl text-gray-400 ml-4">
-            <X size={18} />
+            ✕
           </button>
         </div>
 

@@ -5,7 +5,6 @@ import { fr } from 'date-fns/locale'
 import { useAuth, MOCK_CLUBS } from '../../context/AuthContext'
 import { useClubData } from '../../hooks/useClubData'
 import { Avatar, Card, LicenseBadge, EmptyState, SectionHeader } from '../../components/ui'
-import { ArrowLeft, FileText, Pencil, Upload, X, Download, Trash2, Plus, ChevronDown } from 'lucide-react'
 import {
   getClubById, leaveClub, canPresidentLeave,
   createClub, updateUser, createUserRole, getSports, resolvePostalCode,
@@ -71,7 +70,7 @@ function DocCard({ doc, canDelete, onDelete }) {
     <div className="p-4 bg-surface-50 border border-surface-200 rounded-2xl space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <FileText size={15} className="text-brand-500 flex-shrink-0 mt-0.5" />
+          <span className="text-brand-500 flex-shrink-0 mt-0.5">📄</span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-surface-900 truncate">{doc.custom_name}</p>
             <p className="text-xs text-surface-400 truncate">
@@ -85,7 +84,7 @@ function DocCard({ doc, canDelete, onDelete }) {
             className="flex-shrink-0 p-1.5 text-surface-400 hover:text-red-500
                        hover:bg-red-50 rounded-lg transition-colors"
           >
-            <Trash2 size={13} />
+            ×
           </button>
         )}
       </div>
@@ -108,7 +107,7 @@ function DocCard({ doc, canDelete, onDelete }) {
 
       <button className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700
                          px-2.5 py-1 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors font-medium">
-        <Download size={11} /> Télécharger
+        Télécharger
       </button>
     </div>
   )
@@ -146,7 +145,7 @@ function UploadDocumentModal({ targetUserId, onClose, onAdd }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display font-bold text-gray-900">Ajouter un document</h2>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
-            <X size={18} />
+            ✕
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,7 +169,7 @@ function UploadDocumentModal({ targetUserId, onClose, onAdd }) {
             <label className="flex flex-col items-center justify-center gap-2 p-5 border-2 border-dashed
                               border-surface-200 rounded-2xl cursor-pointer hover:border-brand-300
                               hover:bg-brand-50 transition-colors">
-              <Upload size={20} className="text-surface-400" />
+              <span className="text-surface-400 text-xl">📤</span>
               <span className="text-sm text-surface-500 text-center">
                 {fileName
                   ? <span className="font-medium text-brand-700">{fileName}</span>
@@ -245,7 +244,7 @@ function ExperienceModal({ experience, onSave, onClose }) {
             {experience ? "Modifier l'expérience" : 'Ajouter une expérience'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
-            <X size={18} />
+            ✕
           </button>
         </div>
 
@@ -393,7 +392,7 @@ function ExperienceSection({ userId, isMyProfile }) {
           <button
             onClick={() => { setEditingExp(null); setShowModal(true) }}
             className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-            <Plus size={12} /> Ajouter
+            + Ajouter
           </button>
         )}
       </div>
@@ -433,13 +432,13 @@ function ExperienceSection({ userId, isMyProfile }) {
                       onClick={() => { setEditingExp(exp); setShowModal(true) }}
                       className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                       title="Modifier">
-                      <Pencil size={13} />
+                      ✏️
                     </button>
                     <button
                       onClick={() => handleDelete(exp.id)}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       title="Supprimer">
-                      <Trash2 size={13} />
+                      ×
                     </button>
                   </div>
                 )}
@@ -470,7 +469,7 @@ function EditBioModal({ currentBio, onSave, onClose }) {
       <div className="flex items-center justify-between mb-5">
         <h2 className="font-display font-bold text-gray-900">Modifier votre bio</h2>
         <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
-          <X size={18} />
+          ✕
         </button>
       </div>
       <textarea
@@ -887,7 +886,7 @@ export default function ProfilePage() {
       {!isOwnProfile && (
         <button onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm text-surface-500 hover:text-surface-800 transition-colors">
-          <ArrowLeft size={16} /> Retour
+          ← Retour
         </button>
       )}
 
@@ -933,8 +932,8 @@ export default function ProfilePage() {
                         <option value="">— Sport —</option>
                         {sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
-                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2
-                                                        text-brand-400 pointer-events-none" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2
+                                                        text-brand-400 pointer-events-none text-xs">▾</span>
                     </div>
                   </div>
                   <div>
@@ -1049,7 +1048,7 @@ export default function ProfilePage() {
           <button onClick={startEditing}
             className="inline-flex items-center gap-2 px-4 py-2 border border-surface-200
                        text-sm text-gray-600 hover:bg-surface-100 rounded-xl transition-colors">
-            <Pencil size={14} /> Modifier mon profil
+            Modifier mon profil
           </button>
         )}
 
@@ -1314,7 +1313,7 @@ export default function ProfilePage() {
             className="mt-4 w-full py-2.5 border-2 border-dashed border-surface-200 rounded-2xl
                        text-sm text-surface-400 hover:border-brand-300 hover:text-brand-600
                        transition-colors flex items-center justify-center gap-2">
-            <Plus size={14} /> Ajouter un document
+            + Ajouter un document
           </button>
         </Card>
       )}
@@ -1327,7 +1326,7 @@ export default function ProfilePage() {
               <h2 className="font-display font-bold text-gray-900">Changer votre photo</h2>
               <button onClick={() => setShowPhotoModal(false)}
                       className="p-2 hover:bg-surface-100 rounded-xl text-gray-400">
-                <X size={18} />
+                ✕
               </button>
             </div>
             <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed
