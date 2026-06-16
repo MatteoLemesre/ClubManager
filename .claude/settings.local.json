@@ -20,7 +20,8 @@
       "Bash(grep -E '\\\\.\\(jsx?|tsx?\\)$')",
       "Bash(grep:*)",
       "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager/src -type f \\\\\\(-name *.jsx -o -name *.js -o -name *.tsx -o -name *.ts -o -name *.css \\\\\\))",
-      "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager -path */pages/app/*.tsx)"
+      "Bash(find /Users/matteolemesre/Documents/GitHub/clubmanager -path */pages/app/*.tsx)",
+      "Bash(./node_modules/.bin/vite build:*)"
     ]
   }
 }

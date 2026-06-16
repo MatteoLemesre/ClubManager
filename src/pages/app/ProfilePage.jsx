@@ -497,6 +497,75 @@ function EditBioModal({ currentBio, onSave, onClose }) {
   )
 }
 
+// ─── ClubLeaveRow ─────────────────────────────────────────────────────────────
+
+function ClubLeaveRow({ clubId, clubName, clubEmoji, roleLabel, leaveClubInvitation }) {
+  const [confirm,  setConfirm]  = useState(false)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+
+  const handleLeave = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await leaveClubInvitation(clubId)
+      setConfirm(false)
+    } catch (err) {
+      setError(err.message ?? 'Une erreur est survenue.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-3 bg-surface-50 rounded-xl">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-lg flex-shrink-0">{clubEmoji}</span>
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate">{clubName}</div>
+            <div className="text-xs text-gray-500">{roleLabel}</div>
+          </div>
+        </div>
+        {!confirm ? (
+          <button
+            onClick={() => { setConfirm(true); setError('') }}
+            className="flex-shrink-0 text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1
+                       rounded-lg hover:bg-red-50 border border-transparent hover:border-red-200"
+          >
+            Quitter
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => { setConfirm(false); setError('') }}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-surface-100 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleLeave}
+              disabled={loading}
+              className="text-xs text-white bg-red-500 hover:bg-red-600 disabled:opacity-50
+                         px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+            >
+              {loading
+                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : 'Confirmer'
+              }
+            </button>
+          </div>
+        )}
+      </div>
+      {error && (
+        <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+          {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── RolesSection ─────────────────────────────────────────────────────────────
 
 const ROLE_ICON_MAP = { president: '👔', staff: '🏥', coach: '👨‍🏫', player: '⚽', community: '👥', supporter: '👥' }
@@ -624,7 +693,7 @@ function RolesSection({ user }) {
 export default function ProfilePage() {
   const { id }      = useParams()
   const navigate    = useNavigate()
-  const { currentUser, refreshUser, is, isOneOf } = useAuth()
+  const { currentUser, refreshUser, is, isOneOf, leaveClubInvitation } = useAuth()
   const { users, loading } = useClubData()
 
   const isPrivileged = isOneOf('president', 'coach')
@@ -1218,6 +1287,33 @@ export default function ProfilePage() {
 
       {/* ── Rôles ────────────────────────────────────────────────────────────── */}
       {isOwnProfile && <RolesSection user={currentUser} />}
+
+      {/* ── Mes clubs (quitter) ───────────────────────────────────────────────── */}
+      {isOwnProfile && (() => {
+        const clubRoles = (currentUser.roles ?? []).filter(r => r.club_id)
+        if (clubRoles.length === 0) return null
+
+        return (
+          <Card className="p-5">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">🏟️ Mes clubs</h2>
+            <div className="space-y-2">
+              {clubRoles.map((r, idx) => {
+                const clubInfo = MOCK_CLUBS[r.club_id]
+                return (
+                  <ClubLeaveRow
+                    key={r.id ?? idx}
+                    clubId={r.club_id}
+                    clubName={r.club_name ?? clubInfo?.name ?? r.club_id}
+                    clubEmoji={clubInfo?.emoji_icon ?? '🏆'}
+                    roleLabel={ROLE_LABELS[r.role] ?? r.role}
+                    leaveClubInvitation={leaveClubInvitation}
+                  />
+                )
+              })}
+            </div>
+          </Card>
+        )
+      })()}
 
       {/* ── Expérience LinkedIn-style ─────────────────────────────────────────── */}
       <ExperienceSection userId={uid} isMyProfile={isOwnProfile} />

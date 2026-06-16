@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuth, MOCK_CLUBS, canAccessDashboard } from '../../context/AuthContext'
 import { USERS, TEAMS, DOCUMENTS, MOCK_PLAYER_STATS } from '../../data/mock'
+import InviteMemberForm from '../../components/InviteMemberForm'
 
 // ── Mock data pour AS Saint-Denis United ────────────────────────────────────
 const SD_TEAMS = [
@@ -1304,6 +1305,106 @@ function ParametresTab({ club, onUpdateClub }) {
   )
 }
 
+// ── InvitationsTab ────────────────────────────────────────────────────────────
+const ROLE_LABELS_SENT = {
+  president: 'Président',
+  staff:     'Intendant',
+  coach:     'Coach',
+  player:    'Joueur',
+}
+
+function InvitationsTab({ club }) {
+  const { currentUser, invitations } = useAuth()
+
+  const sentInvitations = (invitations ?? []).filter(
+    inv => inv.invitingUserId === currentUser.id && inv.clubId === club.id
+  )
+  const pendingSent = sentInvitations.filter(i => i.status === 'pending')
+  const historySent = sentInvitations.filter(i => i.status !== 'pending')
+
+  return (
+    <div className="space-y-6">
+      {/* Formulaire d'invitation */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Inviter un membre</h3>
+        <div className="bg-surface-50 rounded-2xl p-4">
+          <InviteMemberForm
+            clubId={club.id}
+            clubName={club.name}
+            clubSport={club.sport}
+            clubEmoji={club.emoji_icon ?? club.emoji ?? '🏆'}
+          />
+        </div>
+      </div>
+
+      {/* Invitations envoyées en attente */}
+      {pendingSent.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Invitations envoyées</h3>
+            <span className="bg-brand-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {pendingSent.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {pendingSent.map(inv => (
+              <div key={inv.id}
+                className="bg-white rounded-xl border border-surface-200 px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{inv.invitedUserEmail}</div>
+                  <div className="text-xs text-gray-500">
+                    {ROLE_LABELS_SENT[inv.role] ?? inv.role}
+                    {inv.category ? ` · ${inv.category}` : ''}
+                    {' · '}{format(new Date(inv.createdAt), "d MMM yyyy", { locale: fr })}
+                  </div>
+                </div>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                  En attente
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Historique */}
+      {historySent.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Historique</h3>
+          <div className="space-y-2">
+            {historySent.map(inv => (
+              <div key={inv.id}
+                className="bg-white rounded-xl border border-surface-200 px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{inv.invitedUserEmail}</div>
+                  <div className="text-xs text-gray-500">
+                    {ROLE_LABELS_SENT[inv.role] ?? inv.role}
+                    {inv.category ? ` · ${inv.category}` : ''}
+                  </div>
+                </div>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                  inv.status === 'accepted'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-red-100 text-red-600'
+                }`}>
+                  {inv.status === 'accepted' ? 'Acceptée' : 'Refusée'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pendingSent.length === 0 && historySent.length === 0 && (
+        <div className="text-center py-8 text-gray-400">
+          <div className="text-3xl mb-2">✉️</div>
+          <div className="text-sm">Aucune invitation envoyée pour ce club</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page principale ──────────────────────────────────────────────────────────
 export default function PresidentPage() {
   const { currentUser, is } = useAuth()
@@ -1354,10 +1455,11 @@ export default function PresidentPage() {
   }
 
   const tabs = [
-    { id: 'joueurs',    label: 'Joueurs',      icon: '👥' },
-    { id: 'stats',      label: 'Statistiques', icon: '📊' },
-    { id: 'financier',  label: 'Financier',    icon: '💰' },
-    { id: 'parametres', label: 'Paramètres',   icon: '⚙️' },
+    { id: 'joueurs',      label: 'Joueurs',      icon: '👥' },
+    { id: 'stats',        label: 'Statistiques', icon: '📊' },
+    { id: 'financier',    label: 'Financier',    icon: '💰' },
+    { id: 'invitations',  label: 'Invitations',  icon: '✉️' },
+    { id: 'parametres',   label: 'Paramètres',   icon: '⚙️' },
   ]
 
   return (
@@ -1414,10 +1516,11 @@ export default function PresidentPage() {
         </div>
 
         <div className="p-3 md:p-6">
-          {activeTab === 'joueurs'    && <JoueursTab    club={activeClub} key={`joueurs-${activeClub.id}`} />}
-          {activeTab === 'stats'      && <StatsTab      club={activeClub} />}
-          {activeTab === 'financier'  && <FinancierTab  club={activeClub} />}
-          {activeTab === 'parametres' && (
+          {activeTab === 'joueurs'     && <JoueursTab     club={activeClub} key={`joueurs-${activeClub.id}`} />}
+          {activeTab === 'stats'       && <StatsTab       club={activeClub} />}
+          {activeTab === 'financier'   && <FinancierTab   club={activeClub} />}
+          {activeTab === 'invitations' && <InvitationsTab club={activeClub} />}
+          {activeTab === 'parametres'  && (
             <ParametresTab club={activeClub} onUpdateClub={handleUpdateClub} />
           )}
         </div>

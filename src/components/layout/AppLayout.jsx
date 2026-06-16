@@ -9,30 +9,32 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Shield, Calendar, MessageCircle, Newspaper,
-  Bell, LogOut, X, User,
+  Bell, LogOut, X, User, Mail,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { to: '/app/feed',      icon: Newspaper,     label: 'Feed'       },
-  { to: '/app/team',      icon: Shield,        label: 'Équipes'    },
-  { to: '/app/calendar',  icon: Calendar,      label: 'Calendrier' },
-  { to: '/app/messages',  icon: MessageCircle, label: 'Messagerie' },
-  { to: '/app/profile',   icon: User,          label: 'Profil'     },
+  { to: '/app/feed',        icon: Newspaper,     label: 'Feed'         },
+  { to: '/app/team',        icon: Shield,        label: 'Équipes'      },
+  { to: '/app/calendar',    icon: Calendar,      label: 'Calendrier'   },
+  { to: '/app/messages',    icon: MessageCircle, label: 'Messagerie'   },
+  { to: '/app/invitations', icon: Mail,          label: 'Invitations'  },
+  { to: '/app/profile',     icon: User,          label: 'Profil'       },
 ]
 
 const PRESIDENT_NAV = { to: '/app/president', label: '🏢 Mon club' }
 
 // ── Mobile Bottom Navigation ─────────────────────────────────────────────────
-function MobileBottomNav({ currentUser, switchRole }) {
+function MobileBottomNav({ currentUser, switchRole, pendingInvitationCount }) {
   const location = useLocation()
   const navigate = useNavigate()
 
   const baseTabs = [
-    { to: '/app/feed',     icon: Newspaper,     label: 'Feed'       },
-    { to: '/app/team',     icon: Shield,        label: 'Équipes'    },
-    { to: '/app/calendar', icon: Calendar,      label: 'Agenda'     },
-    { to: '/app/messages', icon: MessageCircle, label: 'Messages'   },
-    { to: '/app/profile',  icon: User,          label: 'Profil'     },
+    { to: '/app/feed',        icon: Newspaper,     label: 'Feed'       },
+    { to: '/app/team',        icon: Shield,        label: 'Équipes'    },
+    { to: '/app/calendar',    icon: Calendar,      label: 'Agenda'     },
+    { to: '/app/messages',    icon: MessageCircle, label: 'Messages'   },
+    { to: '/app/invitations', icon: Mail,          label: 'Invitations', badge: pendingInvitationCount },
+    { to: '/app/profile',     icon: User,          label: 'Profil'     },
   ]
 
   const tabs = (currentUser?.role === 'president' || currentUser?.role === 'staff')
@@ -52,10 +54,19 @@ function MobileBottomNav({ currentUser, switchRole }) {
                 isActive ? 'text-brand-600' : 'text-gray-400'
               }`}
             >
-              {tab.emoji
-                ? <span className="text-lg leading-none">{tab.emoji}</span>
-                : <tab.icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
-              }
+              {tab.emoji ? (
+                <span className="text-lg leading-none">{tab.emoji}</span>
+              ) : (
+                <span className="relative">
+                  <tab.icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
+                  {tab.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white
+                                     text-[8px] rounded-full flex items-center justify-center font-bold leading-none">
+                      {tab.badge > 9 ? '9+' : tab.badge}
+                    </span>
+                  )}
+                </span>
+              )}
               <span className="text-[9px] font-medium">{tab.label}</span>
               {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 rounded-full" />}
             </button>
@@ -67,7 +78,8 @@ function MobileBottomNav({ currentUser, switchRole }) {
 }
 
 export default function AppLayout() {
-  const { currentUser, logout, switchRole } = useAuth()
+  const { currentUser, logout, switchRole, getPendingInvitations } = useAuth()
+  const pendingInvitationCount = getPendingInvitations ? getPendingInvitations(currentUser?.id).length : 0
   const navigate = useNavigate()
 
   const [notifOpen,   setNotifOpen]   = useState(false)
@@ -427,7 +439,15 @@ export default function AppLayout() {
                    }`
                 }
               >
-                <item.icon size={16} strokeWidth={1.8} />
+                <span className="relative">
+                  <item.icon size={16} strokeWidth={1.8} />
+                  {item.to === '/app/invitations' && pendingInvitationCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white
+                                     text-[8px] rounded-full flex items-center justify-center font-bold leading-none">
+                      {pendingInvitationCount > 9 ? '9+' : pendingInvitationCount}
+                    </span>
+                  )}
+                </span>
                 {item.label}
               </NavLink>
               {i === 0 && (currentUser?.role === 'president' || currentUser?.role === 'staff') && (
@@ -486,7 +506,7 @@ export default function AppLayout() {
       </div>
 
       {/* ── Mobile Bottom Nav ──────────────────────────────────────────────── */}
-      <MobileBottomNav currentUser={currentUser} />
+      <MobileBottomNav currentUser={currentUser} pendingInvitationCount={pendingInvitationCount} />
     </div>
   )
 }

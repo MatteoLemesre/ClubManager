@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react'
+import { INITIAL_INVITATIONS } from '../data/mockInvitations'
 
 const AuthContext = createContext(null)
 
@@ -294,6 +295,105 @@ const PERSONAS_LIST = Object.values(PERSONAS)
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(PERSONAS.president)
+  const [invitations, setInvitations] = useState(INITIAL_INVITATIONS)
+
+  // Track presidents per club for canLeaveClub logic
+  const buildPresidentsMap = () => {
+    const map = {}
+    Object.values(PERSONAS).forEach(persona => {
+      ;(persona.roles ?? []).forEach(role => {
+        if (role.role === 'president' && role.club_id) {
+          if (!map[role.club_id]) map[role.club_id] = []
+          if (!map[role.club_id].includes(persona.id)) {
+            map[role.club_id].push(persona.id)
+          }
+        }
+      })
+    })
+    return map
+  }
+  const [clubPresidentsMap, setClubPresidentsMap] = useState(buildPresidentsMap)
+
+  const sendInvitation = (data) => {
+    const newInv = {
+      id: `inv-${Date.now()}`,
+      invitedUserId: null,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      ...data,
+    }
+    setInvitations(prev => [...prev, newInv])
+    return Promise.resolve(newInv)
+  }
+
+  const acceptInvitation = (invitationId) => {
+    const inv = invitations.find(i => i.id === invitationId)
+    if (!inv || inv.status !== 'pending') return Promise.resolve()
+
+    setInvitations(prev =>
+      prev.map(i => i.id === invitationId ? { ...i, status: 'accepted' } : i)
+    )
+
+    // Add new role to currentUser
+    const newRole = {
+      id: `role-${Date.now()}`,
+      role: inv.role,
+      sport: inv.sport,
+      club_id: inv.clubId,
+      club_name: inv.clubName,
+    }
+    setCurrentUser(prev => ({
+      ...prev,
+      roles: [...(prev.roles ?? []), newRole],
+      member_of_clubs: [...new Set([...(prev.member_of_clubs ?? []), inv.clubId])],
+    }))
+
+    // Update presidents map if needed
+    if (inv.role === 'president') {
+      setClubPresidentsMap(prev => ({
+        ...prev,
+        [inv.clubId]: [...(prev[inv.clubId] ?? []), currentUser.id],
+      }))
+    }
+
+    return Promise.resolve()
+  }
+
+  const rejectInvitation = (invitationId) => {
+    setInvitations(prev =>
+      prev.map(i => i.id === invitationId ? { ...i, status: 'rejected' } : i)
+    )
+    return Promise.resolve()
+  }
+
+  const leaveClubInvitation = (clubId) => {
+    // Check if user is the last president
+    const roleInClub = (currentUser.roles ?? []).find(r => r.club_id === clubId)?.role
+    if (roleInClub === 'president') {
+      const presidents = clubPresidentsMap[clubId] ?? []
+      const others = presidents.filter(id => id !== currentUser.id)
+      if (others.length === 0) {
+        return Promise.reject(new Error('Nommez un autre président avant de quitter ce club.'))
+      }
+      // Remove from presidents map
+      setClubPresidentsMap(prev => ({
+        ...prev,
+        [clubId]: (prev[clubId] ?? []).filter(id => id !== currentUser.id),
+      }))
+    }
+    // Remove role from user
+    setCurrentUser(prev => ({
+      ...prev,
+      roles: (prev.roles ?? []).filter(r => r.club_id !== clubId),
+      member_of_clubs: (prev.member_of_clubs ?? []).filter(id => id !== clubId),
+      current_club_id: prev.current_club_id === clubId ? null : prev.current_club_id,
+    }))
+    return Promise.resolve()
+  }
+
+  const getPendingInvitations = (userId) => {
+    return invitations.filter(i => i.invitedUserId === userId && i.status === 'pending')
+  }
 
   const login = async (emailOrId, _password) => {
     const user = PERSONAS_LIST.find(u => u.id === emailOrId || u.email === emailOrId)
@@ -331,6 +431,8 @@ export function AuthProvider({ children }) {
       loading: false,
       login, logout, refreshUser, devLogin, switchRole,
       is, isOneOf, hasRole, canManageTeam,
+      invitations, sendInvitation, acceptInvitation, rejectInvitation,
+      leaveClubInvitation, getPendingInvitations,
     }}>
       {children}
     </AuthContext.Provider>
