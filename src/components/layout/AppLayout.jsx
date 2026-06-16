@@ -292,7 +292,7 @@ export default function AppLayout() {
         {/* Ligne haute : logo + club + user actions */}
         <div className="flex items-center justify-between px-4 md:px-6 h-14">
           {/* Logo */}
-          <Link to="/app/feed" className="flex items-center">
+          <Link to="/app/feed" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="white" strokeWidth="1.5">
                 <circle cx="12" cy="12" r="10" fill="none" stroke="white" strokeWidth="1.5" />
@@ -301,6 +301,7 @@ export default function AppLayout() {
                 <polygon points="12,14 9,10 5,13 7,18 12,19" fill="white" fillOpacity=".5" />
               </svg>
             </div>
+            <span className="text-base font-semibold" style={{ color: '#0066cc' }}>ClubManager</span>
           </Link>
 
           {/* Actions utilisateur */}
