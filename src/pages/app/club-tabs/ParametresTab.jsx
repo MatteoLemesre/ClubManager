@@ -5,7 +5,7 @@ export function ParametresTab({ clubId, userRole }) {
     name: 'FC Lens',
     sport: 'Football',
     city: 'Lens',
-    description: 'Club de football basé à Lens',
+    description: 'Club de football basé à Lens depuis 1995',
   })
 
   const canEdit = userRole === 'president'
@@ -18,15 +18,27 @@ export function ParametresTab({ clubId, userRole }) {
 
   if (userRole === 'player') {
     return (
-      <div className="bg-white p-6 rounded-lg shadow max-w-2xl">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Mon Profil dans le Club</h3>
-        <div className="space-y-3">
-          <p><span className="font-bold">Rôle:</span> Joueur</p>
-          <p><span className="font-bold">Équipes:</span> Équipe A, Équipe B</p>
-          <p><span className="font-bold">Catégories:</span> U-13, U-15</p>
-          <p><span className="font-bold">Depuis:</span> 15/06/2024</p>
+      <div className="bg-white p-8 rounded-lg shadow border border-gray-200 max-w-2xl">
+        <h3 className="text-xl font-bold text-gray-900 mb-6">👤 Mon Profil dans le Club</h3>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-bold text-gray-600">RÔLE</p>
+            <p className="text-lg text-gray-900">Joueur</p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-600">ÉQUIPES</p>
+            <p className="text-lg text-gray-900">Équipe A, Équipe B</p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-600">CATÉGORIES</p>
+            <p className="text-lg text-gray-900">U-13, U-15</p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-600">INSCRIT DEPUIS</p>
+            <p className="text-lg text-gray-900">15/06/2024</p>
+          </div>
         </div>
-        <button className="mt-6 px-4 py-2 text-red-600 border border-red-600 rounded hover:bg-red-50">
+        <button className="mt-8 px-6 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 font-bold">
           Quitter le club
         </button>
       </div>
@@ -34,8 +46,16 @@ export function ParametresTab({ clubId, userRole }) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow max-w-2xl">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">Paramètres du Club</h3>
+    <div className="bg-white p-8 rounded-lg shadow border border-gray-200 max-w-2xl">
+      <h3 className="text-xl font-bold text-gray-900 mb-6">⚙️ Paramètres du Club</h3>
+
+      {!canEdit && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+          <p className="text-sm text-blue-800">
+            Vous ne pouvez pas modifier ces informations.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -45,9 +65,9 @@ export function ParametresTab({ clubId, userRole }) {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             disabled={!canEdit}
-            className={`w-full px-4 py-2 border rounded-lg ${
-              !canEdit ? 'bg-gray-100 text-gray-600' : ''
-            } focus:outline-none focus:border-blue-600`}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-colors ${
+              !canEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-200' : 'border-gray-300'
+            }`}
           />
         </div>
 
@@ -58,9 +78,9 @@ export function ParametresTab({ clubId, userRole }) {
             value={formData.sport}
             onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
             disabled={!canEdit}
-            className={`w-full px-4 py-2 border rounded-lg ${
-              !canEdit ? 'bg-gray-100 text-gray-600' : ''
-            } focus:outline-none focus:border-blue-600`}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-colors ${
+              !canEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-200' : 'border-gray-300'
+            }`}
           />
         </div>
 
@@ -71,9 +91,9 @@ export function ParametresTab({ clubId, userRole }) {
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             disabled={!canEdit}
-            className={`w-full px-4 py-2 border rounded-lg ${
-              !canEdit ? 'bg-gray-100 text-gray-600' : ''
-            } focus:outline-none focus:border-blue-600`}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-colors ${
+              !canEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-200' : 'border-gray-300'
+            }`}
           />
         </div>
 
@@ -83,24 +103,24 @@ export function ParametresTab({ clubId, userRole }) {
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             disabled={!canEdit}
-            className={`w-full px-4 py-2 border rounded-lg ${
-              !canEdit ? 'bg-gray-100 text-gray-600' : ''
-            } focus:outline-none focus:border-blue-600`}
             rows={4}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-colors ${
+              !canEdit ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-200' : 'border-gray-300'
+            }`}
           />
         </div>
 
         {canEdit && (
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors"
             >
               Sauvegarder
             </button>
             <button
               type="button"
-              className="px-6 py-2 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50"
+              className="px-6 py-2 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 font-bold transition-colors"
             >
               Annuler
             </button>
@@ -108,16 +128,18 @@ export function ParametresTab({ clubId, userRole }) {
         )}
       </form>
 
-      <div className="mt-8 pt-8 border-t">
+      <div className="mt-10 pt-8 border-t border-gray-300">
         <h4 className="font-bold text-gray-900 mb-4">Actions</h4>
-        <button className="px-4 py-2 text-red-600 border border-red-600 rounded hover:bg-red-50">
-          Quitter le club
-        </button>
-        {canEdit && (
-          <button className="ml-4 px-4 py-2 text-red-600 border border-red-600 rounded hover:bg-red-50">
-            Supprimer le club
+        <div className="space-y-2">
+          <button className="block w-full text-left px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 font-medium">
+            Quitter le club
           </button>
-        )}
+          {canEdit && (
+            <button className="block w-full text-left px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 font-medium">
+              Supprimer le club
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

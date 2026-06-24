@@ -2,8 +2,9 @@ import { useState } from 'react'
 
 export function InvitationsTab({ clubId, userRole }) {
   const [invitations] = useState([
-    { id: '1', email: 'jean@example.com', role: 'Coach', status: 'pending' },
-    { id: '2', email: 'marc@example.com', role: 'Joueur', status: 'accepted' },
+    { id: '1', email: 'jean@example.com', role: 'Coach', team: 'Équipe A', status: 'pending' },
+    { id: '2', email: 'marc@example.com', role: 'Joueur', team: 'Équipe B', status: 'accepted' },
+    { id: '3', email: 'sophie@example.com', role: 'Joueur', team: 'Équipe A', status: 'pending' },
   ])
 
   const [formData, setFormData] = useState({ email: '', role: '', team: '' })
@@ -24,51 +25,63 @@ export function InvitationsTab({ clubId, userRole }) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      {/* FORM */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">
-          {userRole === 'coach' ? 'Inviter un joueur' : "Inviter quelqu'un"}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* FORMULAIRE */}
+      <div className="bg-white p-8 rounded-lg shadow border border-gray-200">
+        <h3 className="text-xl font-bold text-gray-900 mb-6">
+          {userRole === 'coach' ? '📧 Inviter un Joueur' : "📧 Inviter quelqu'un"}
         </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600"
-          />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-2">Email*</label>
+            <input
+              type="email"
+              placeholder="exemple@mail.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
 
-          <select
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600"
-          >
-            <option value="">Sélectionner un rôle</option>
-            {invitableRoles.map(role => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-2">Rôle*</label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">-- Sélectionner un rôle --</option>
+              {invitableRoles.map(role => (
+                <option key={role} value={role}>{role}</option>
+              ))}
+            </select>
+          </div>
 
           {(formData.role === 'Coach' || formData.role === 'Joueur') && (
-            <select
-              value={formData.team}
-              onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-600"
-            >
-              <option value="">Sélectionner une équipe</option>
-              <option value="Équipe A">Équipe A</option>
-              <option value="Équipe B">Équipe B</option>
-            </select>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Équipe*</label>
+              <select
+                value={formData.team}
+                onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">-- Sélectionner --</option>
+                <option value="Équipe A">⚽ Équipe A (U-13)</option>
+                <option value="Équipe B">⚽ Équipe B (U-15)</option>
+              </select>
+              {userRole === 'coach' && (
+                <p className="text-xs text-gray-500 mt-2">Uniquement vos équipes</p>
+              )}
+            </div>
           )}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold transition-colors"
           >
             Envoyer l'invitation
           </button>
@@ -77,25 +90,36 @@ export function InvitationsTab({ clubId, userRole }) {
 
       {/* LISTE */}
       <div>
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Invitations envoyées</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-6">📬 Invitations Envoyées</h3>
         <div className="space-y-3">
-          {invitations.map(inv => (
-            <div key={inv.id} className="bg-white p-4 rounded-lg shadow">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-bold text-gray-900">{inv.email}</p>
-                  <p className="text-sm text-gray-600">{inv.role}</p>
-                </div>
-                <span className={`px-3 py-1 rounded text-sm font-bold ${
-                  inv.status === 'accepted'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {inv.status === 'accepted' ? 'Acceptée' : 'En attente'}
-                </span>
-              </div>
+          {invitations.length === 0 ? (
+            <div className="bg-gray-50 p-6 rounded-lg text-center">
+              <p className="text-gray-600">Aucune invitation envoyée</p>
             </div>
-          ))}
+          ) : (
+            invitations.map(inv => (
+              <div key={inv.id} className="bg-white p-5 rounded-lg shadow border border-gray-200">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900">{inv.email}</p>
+                    <p className="text-sm text-gray-600 mt-1">{inv.role} • {inv.team}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ml-4 ${
+                    inv.status === 'accepted'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {inv.status === 'accepted' ? 'Acceptée' : 'En attente'}
+                  </span>
+                </div>
+                {inv.status === 'pending' && (
+                  <button className="mt-3 text-red-600 text-sm hover:underline">
+                    Annuler
+                  </button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -37,7 +37,7 @@ function MobileBottomNav({ currentUser, switchRole, pendingInvitationCount }) {
     { to: '/app/profile',     icon: User,          label: 'Profil'     },
   ]
 
-  const tabs = (currentUser?.role === 'president' || currentUser?.role === 'staff')
+  const tabs = currentUser?.role !== 'community'
     ? [baseTabs[0], { to: '/app/mon-club', label: 'Mon club', emoji: '🏢' }, ...baseTabs.slice(1)]
     : baseTabs
 
@@ -450,7 +450,7 @@ export default function AppLayout() {
                 </span>
                 {item.label}
               </NavLink>
-              {i === 0 && (currentUser?.role === 'president' || currentUser?.role === 'staff') && (
+              {i === 0 && currentUser?.role !== 'community' && (
                 <NavLink
                   to={PRESIDENT_NAV.to}
                   className={({ isActive }) =>
