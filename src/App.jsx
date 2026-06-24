@@ -18,6 +18,7 @@ import TeamDetailPage      from './pages/app/TeamDetailPage'
 import TeamDocumentsPage   from './pages/app/TeamDocumentsPage'
 import ClubDocumentsPage   from './pages/app/ClubDocumentsPage'
 import PresidentPage             from './pages/app/PresidentPage'
+import MonClubPage               from './pages/app/MonClubPage'
 import ImprovementLauncherPage  from './pages/app/ImprovementLauncherPage'
 import InvitationsPage          from './pages/app/InvitationsPage'
 import HomePage             from './pages/public/HomePage'
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="team-documents"            element={<TeamDocumentsPage />} />
         <Route path="club-documents"            element={<ClubDocumentsPage />} />
         <Route path="president"                 element={<PresidentPage />} />
+        <Route path="mon-club"                  element={<MonClubPage />} />
         <Route path="launcher"                  element={<ImprovementLauncherPage />} />
         <Route path="invitations"               element={<InvitationsPage />} />
       </Route>
