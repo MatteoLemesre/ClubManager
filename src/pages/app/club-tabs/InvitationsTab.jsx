@@ -26,9 +26,10 @@ export function InvitationsTab({ clubId, userRole }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* FORMULAIRE */}
-      <div className="bg-white p-8 rounded-lg shadow border border-gray-200">
-        <h3 className="text-xl font-bold text-gray-900 mb-6">
+
+      {/* === COLONNE GAUCHE : FORMULAIRE === */}
+      <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200">
+        <h3 className="text-2xl font-bold text-gray-900 mb-6">
           {userRole === 'coach' ? '📧 Inviter un Joueur' : "📧 Inviter quelqu'un"}
         </h3>
 
@@ -41,7 +42,7 @@ export function InvitationsTab({ clubId, userRole }) {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
             />
           </div>
 
@@ -51,7 +52,7 @@ export function InvitationsTab({ clubId, userRole }) {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
             >
               <option value="">-- Sélectionner un rôle --</option>
               {invitableRoles.map(role => (
@@ -67,7 +68,7 @@ export function InvitationsTab({ clubId, userRole }) {
                 value={formData.team}
                 onChange={(e) => setFormData({ ...formData, team: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
               >
                 <option value="">-- Sélectionner --</option>
                 <option value="Équipe A">⚽ Équipe A (U-13)</option>
@@ -81,40 +82,48 @@ export function InvitationsTab({ clubId, userRole }) {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold transition-colors"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold transition-colors shadow-md hover:shadow-lg"
           >
             Envoyer l'invitation
           </button>
         </form>
       </div>
 
-      {/* LISTE */}
+      {/* === COLONNE DROITE : INVITATIONS ENVOYÉES === */}
       <div>
-        <h3 className="text-xl font-bold text-gray-900 mb-6">📬 Invitations Envoyées</h3>
-        <div className="space-y-3">
+        <h3 className="text-2xl font-bold text-gray-900 mb-6">
+          📬 Invitations Envoyées ({invitations.length})
+        </h3>
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {invitations.length === 0 ? (
-            <div className="bg-gray-50 p-6 rounded-lg text-center">
+            <div className="bg-gray-50 p-8 rounded-lg text-center border border-gray-200">
               <p className="text-gray-600">Aucune invitation envoyée</p>
             </div>
           ) : (
             invitations.map(inv => (
-              <div key={inv.id} className="bg-white p-5 rounded-lg shadow border border-gray-200">
-                <div className="flex justify-between items-start">
+              <div
+                key={inv.id}
+                className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex justify-between items-start gap-4 mb-3">
                   <div className="flex-1">
-                    <p className="font-bold text-gray-900">{inv.email}</p>
-                    <p className="text-sm text-gray-600 mt-1">{inv.role} • {inv.team}</p>
+                    <p className="font-bold text-gray-900">📧 {inv.email}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {inv.role} • {inv.team}
+                    </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ml-4 ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                     inv.status === 'accepted'
                       ? 'bg-green-100 text-green-700'
                       : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {inv.status === 'accepted' ? 'Acceptée' : 'En attente'}
+                    {inv.status === 'accepted' ? '✅ Acceptée' : '⏳ En attente'}
                   </span>
                 </div>
+
                 {inv.status === 'pending' && (
-                  <button className="mt-3 text-red-600 text-sm hover:underline">
-                    Annuler
+                  <button className="text-red-600 text-sm hover:underline font-medium">
+                    [× Annuler]
                   </button>
                 )}
               </div>
