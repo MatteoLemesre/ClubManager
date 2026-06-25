@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export function JoueursTab({ clubId, userRole }) {
+  const navigate = useNavigate()
   const [joueurs] = useState([
     {
       id: '1',
@@ -109,7 +111,10 @@ export function JoueursTab({ clubId, userRole }) {
                   </div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                  <button className="flex-1 md:flex-initial px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 font-medium transition-colors">
+                  <button
+                    onClick={() => navigate(`/app/mon-club/joueur/${joueur.id}`)}
+                    className="flex-1 md:flex-initial px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                  >
                     Profil
                   </button>
                   <button className="flex-1 md:flex-initial px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors">

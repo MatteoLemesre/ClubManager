@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { JoueursTab } from './club-tabs/JoueursTab'
-import { DocumentsTab } from './club-tabs/DocumentsTab'
 import { TransactionsTab } from './club-tabs/TransactionsTab'
 import { InvitationsTab } from './club-tabs/InvitationsTab'
 import { ParametresTab } from './club-tabs/ParametresTab'
@@ -9,7 +8,7 @@ import { RoleGuard } from '../../components/RoleGuard'
 
 export default function MonClubPage() {
   const { currentUser } = useAuth()
-  const [activeTab, setActiveTab] = useState('documents')
+  const [activeTab, setActiveTab] = useState('transactions')
 
   const userRole = currentUser?.role ?? 'player'
 
@@ -24,10 +23,10 @@ export default function MonClubPage() {
 
   function getVisibleTabs() {
     if (userRole === 'president' || userRole === 'staff') {
-      return ['joueurs', 'documents', 'transactions', 'invitations', 'parametres']
+      return ['joueurs', 'transactions', 'invitations', 'parametres']
     }
     if (userRole === 'coach') {
-      return ['documents', 'transactions', 'invitations', 'parametres']
+      return ['transactions', 'invitations', 'parametres']
     }
     if (userRole === 'player') {
       return ['parametres']
@@ -39,7 +38,6 @@ export default function MonClubPage() {
 
   const TAB_CONFIG = [
     { key: 'joueurs',      label: '👥 Joueurs'      },
-    { key: 'documents',    label: '📄 Documents'    },
     { key: 'transactions', label: '💰 Transactions' },
     { key: 'invitations',  label: '📧 Invitations'  },
     { key: 'parametres',   label: '⚙️ Paramètres'  },
@@ -115,10 +113,6 @@ export default function MonClubPage() {
           <RoleGuard allowedRoles={['president', 'staff']} userRole={userRole}>
             <JoueursTab clubId={currentClub.id} userRole={userRole} />
           </RoleGuard>
-        )}
-
-        {activeTab === 'documents' && (
-          <DocumentsTab clubId={currentClub.id} userRole={userRole} />
         )}
 
         {activeTab === 'transactions' && (
